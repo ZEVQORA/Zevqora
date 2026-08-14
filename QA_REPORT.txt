@@ -1,0 +1,10 @@
+ZEVQORA v1.0.5 QA
+- Direct desktop email/password auth implemented
+- Browser handoff removed from primary desktop UX
+- Existing valid desktop session opens workspace automatically
+- Session persistence uses Electron safeStorage when available
+- Approved mark / wordmark / Zev / workspace assets preserved
+- Electron main/preload node syntax PASS
+- Changed TSX transpile syntax PASS
+- Backend pytest: 9 passed
+- Release preflight: PASS
