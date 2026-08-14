@@ -1,0 +1,19 @@
+ZEVQORA Production v1.0.4 — QA report
+
+PASS  Backend test suite: 9/9
+PASS  desktop-auth.js JavaScript syntax
+PASS  api/desktop/create-handoff.js JavaScript syntax
+PASS  Production release preflight
+PASS  Exact approved ZEVQORA mark / wordmark / Zev / workspace asset checksums
+PASS  Required ExperimentDialog / ImplementationDialog / WorkspaceControl exports present
+PASS  OpenRouter secure BYOK bridge contract present
+PASS  Desktop OAuth state is carried explicitly in the redirect URL
+PASS  Desktop signup redirect preserves the one-time state
+PASS  Incomplete Supabase session path attempts refreshSession before handoff
+PASS  Server returns specific INVALID_DESKTOP_STATE / MISSING_REFRESH_TOKEN errors
+
+NOT EXECUTED IN THIS CONTAINER
+- npm install / TypeScript + Vite production build: external package registry access is not guaranteed here.
+- Windows NSIS installer launch test: requires the windows-latest GitHub Actions build output.
+
+The included GitHub Actions workflow builds ZEVQORA-Setup.exe on windows-latest when a v* tag is pushed.
