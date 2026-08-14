@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AlertCircle, Check, FileJson, FolderSearch, GitBranch, Play, ScanSearch, ShieldCheck, Upload } from 'lucide-react'
 import { api, API_BASE } from '../lib/api'
 import type { Economics, Experiment, Finding, Health, Implementation, Product, ScanResult, ViewKey } from '../lib/types'
@@ -173,134 +173,64 @@ export function ImplementationsView({
 }
 
 export function SettingsView({ health, model, onModel }: { health: Health | null; model: string; onModel: (value: string) => void }) {
+  const [key, setKey] = useState('')
+  const [provider, setProvider] = useState<{ openrouterConfigured: boolean; secureStorageAvailable: boolean; source: string } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+
+  const refreshProvider = async () => {
+    try {
+      const next = await window.zevqoraDesktop?.getProviderConfig()
+      if (next) setProvider(next)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  useEffect(() => { void refreshProvider() }, [])
+
+  const saveKey = async () => {
+    if (!window.zevqoraDesktop) return setMessage('Secure provider settings are available in the installed desktop app.')
+    setBusy(true); setMessage('')
+    try {
+      const next = await window.zevqoraDesktop.saveOpenRouterKey(key)
+      setProvider(next); setKey('')
+      setMessage('OpenRouter key encrypted locally. The packaged agent backend is restarting with the new key.')
+    } catch (error) { setMessage(error instanceof Error ? error.message : String(error)) }
+    finally { setBusy(false) }
+  }
+
+  const clearKey = async () => {
+    if (!window.zevqoraDesktop) return
+    setBusy(true); setMessage('')
+    try {
+      const next = await window.zevqoraDesktop.clearOpenRouterKey()
+      setProvider(next); setKey('')
+      setMessage('Stored OpenRouter key removed from this device.')
+    } catch (error) { setMessage(error instanceof Error ? error.message : String(error)) }
+    finally { setBusy(false) }
+  }
+
+  const configured = provider?.openrouterConfigured ?? health?.openrouter_configured ?? false
   return (
-    <Page eyebrow="Settings" title="Local-first controls." subtitle="Provider secrets stay outside the renderer. Configure OpenRouter in the backend process environment; this UI only reports whether it is available.">
+    <Page eyebrow="Settings" title="Local-first controls." subtitle="Zev can use OpenRouter without placing a provider secret in the renderer, repository, or installer. The key is encrypted with the operating system's secure storage on this device.">
       <div className="grid max-w-3xl gap-4">
-        <div className="rounded-[22px] border border-stone bg-white p-5"><div className="text-sm font-semibold">Zev Agent</div><div className="mt-4 grid gap-3"><label className="grid gap-1.5 text-xs text-ink/55">OpenRouter model ID<input value={model} onChange={(e) => onModel(e.target.value)} className="rounded-xl border border-stone px-3 py-2.5 text-sm text-ink outline-none focus:border-softblue" /></label><div className="text-xs text-ink/42">Status: {health?.openrouter_configured ? 'Configured in backend environment' : 'OPENROUTER_API_KEY not configured'}</div></div></div>
+        <div className="rounded-[22px] border border-stone bg-white p-5">
+          <div className="flex items-start justify-between gap-4"><div><div className="text-sm font-semibold">Zev · OpenRouter</div><div className="mt-1 text-xs text-ink/42">{configured ? 'Ready for conversational reasoning + controlled tools' : 'Add a key to enable full Zev reasoning'}</div></div><span className={`rounded-lg px-2.5 py-1.5 text-[10px] font-semibold ${configured ? 'bg-softblue/10 text-softblue' : 'bg-stone/55 text-ink/45'}`}>{configured ? 'CONNECTED' : 'NOT CONNECTED'}</span></div>
+          <div className="mt-4 grid gap-3">
+            <label className="grid gap-1.5 text-xs text-ink/55">OpenRouter API key<input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="sk-or-v1-…" autoComplete="off" className="rounded-xl border border-stone px-3 py-2.5 text-sm text-ink outline-none focus:border-softblue" /></label>
+            <div className="flex gap-2"><button disabled={busy || !key.trim()} onClick={() => void saveKey()} className="rounded-xl bg-softblue px-3.5 py-2.5 text-xs font-semibold text-white disabled:opacity-40">{busy ? 'Saving…' : 'Save securely'}</button><button disabled={busy || !configured} onClick={() => void clearKey()} className="rounded-xl border border-stone bg-white px-3.5 py-2.5 text-xs font-semibold text-ink/60 disabled:opacity-40">Remove key</button></div>
+            <div className="text-[11px] leading-5 text-ink/42">Storage: {provider?.source === 'encrypted-local' ? 'OS-encrypted local secret' : provider?.source === 'environment' ? 'Backend environment' : 'No key stored'}{provider && !provider.secureStorageAvailable ? ' · OS secure storage unavailable' : ''}</div>
+            {message && <div className="rounded-xl bg-cloud px-3 py-2.5 text-[11px] leading-5 text-ink/52">{message}</div>}
+            <label className="grid gap-1.5 border-t border-stone pt-4 text-xs text-ink/55">OpenRouter model ID<input value={model} onChange={(e) => onModel(e.target.value)} placeholder="openrouter/auto" className="rounded-xl border border-stone px-3 py-2.5 text-sm text-ink outline-none focus:border-softblue" /></label>
+            <div className="text-[11px] text-ink/38">Default: <span className="font-mono">openrouter/auto</span>. You can use any valid OpenRouter model slug.</div>
+          </div>
+        </div>
+        <div className="rounded-[22px] border border-stone bg-white p-5"><div className="text-sm font-semibold">Account & billing</div><p className="mt-2 text-xs leading-5 text-ink/48">Browser authentication and subscription state are attached to your ZEVQORA account. Provider BYOK is device-local and separate from billing credentials.</p></div>
         <div className="rounded-[22px] border border-stone bg-white p-5"><div className="text-sm font-semibold">Local API</div><div className="mt-2 font-mono text-xs text-ink/45">{API_BASE}</div><div className="mt-2 text-xs text-ink/42">Backend: {health?.status === 'ok' ? `${health.version} · online` : 'offline'}</div></div>
-        <div className="rounded-[22px] border border-stone bg-cloud p-5"><div className="text-sm font-semibold">Privacy</div><p className="mt-2 text-xs leading-5 text-ink/48">Workspace source scanning excludes secret-like files by default. Runtime trace files are imported only through explicit user action. No source code is silently modified by this desktop build.</p></div>
+        <div className="rounded-[22px] border border-stone bg-cloud p-5"><div className="text-sm font-semibold">Privacy</div><p className="mt-2 text-xs leading-5 text-ink/48">Workspace source scanning excludes secret-like files by default. Runtime traces are imported only through explicit user action. Human review remains mandatory before implementation is merged or deployed.</p></div>
       </div>
     </Page>
   )
 }
 
-export function ExperimentDialog({ finding, product, onClose, onComplete }: { finding: Finding | null; product: Product | null; onClose: () => void; onComplete: (experiment: Experiment) => Promise<void> }) {
-  const [quality, setQuality] = useState('0.98')
-  const [samples, setSamples] = useState('5')
-  const [fallback, setFallback] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  if (!finding || !product) return null
-  const run = async () => {
-    setBusy(true); setError('')
-    try {
-      const result = await api.runExperiment(product.id, { finding_id: finding.id, quality_gate: Number(quality), min_samples: Number(samples), fallback_exists: fallback })
-      await onComplete(result)
-      onClose()
-    } catch (err) { setError(err instanceof Error ? err.message : String(err)) } finally { setBusy(false) }
-  }
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/20 p-6 backdrop-blur-[2px]"><div className="w-full max-w-[560px] rounded-[26px] border border-stone bg-white p-6 shadow-soft"><div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-softblue">Controlled experiment</div><h2 className="mt-2 text-xl font-semibold">Let Zev test this finding</h2><p className="mt-2 text-sm leading-6 text-ink/50">{finding.title}</p><div className="mt-5 grid grid-cols-2 gap-3"><label className="grid gap-1.5 text-xs text-ink/55">Quality gate<input value={quality} onChange={(e) => setQuality(e.target.value)} type="number" min="0" max="1" step="0.01" className="rounded-xl border border-stone px-3 py-2.5 text-sm outline-none focus:border-softblue" /></label><label className="grid gap-1.5 text-xs text-ink/55">Minimum replay samples<input value={samples} onChange={(e) => setSamples(e.target.value)} type="number" min="1" className="rounded-xl border border-stone px-3 py-2.5 text-sm outline-none focus:border-softblue" /></label></div><label className="mt-4 flex items-start gap-3 rounded-xl border border-stone bg-cloud p-3 text-xs leading-5 text-ink/55"><input type="checkbox" checked={fallback} onChange={(e) => setFallback(e.target.checked)} className="mt-1" /><span><strong className="text-ink/75">Baseline fallback exists.</strong><br />Confirm only if the candidate can safely fall back to the current execution path.</span></label><div className="mt-4 rounded-xl border border-stone p-3 text-[11px] leading-5 text-ink/45"><FileJson size={14} className="mb-1 text-softblue" /> Verification uses imported replay rows containing baseline output/cost, expected output, and candidate output/cost. Missing evidence returns NEEDS_EVIDENCE rather than a made-up saving.</div>{error && <div className="mt-3 text-xs text-red-600">{error}</div>}<div className="mt-6 flex justify-end gap-2"><button onClick={onClose} className="rounded-xl px-4 py-2.5 text-sm text-ink/50">Cancel</button><button onClick={() => void run()} disabled={busy} className="flex items-center gap-2 rounded-xl bg-softblue px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><Play size={14} /> {busy ? 'Evaluating…' : 'Run verification'}</button></div></div></div>
-}
-
-
-export function ImplementationDialog({
-  experiment,
-  product,
-  model,
-  onClose,
-  onComplete,
-}: {
-  experiment: Experiment | null
-  product: Product | null
-  model: string
-  onClose: () => void
-  onComplete: (implementation: Implementation) => Promise<void>
-}) {
-  const [instructions, setInstructions] = useState('')
-  const [runTests, setRunTests] = useState(false)
-  const [testCommand, setTestCommand] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  if (!experiment || !product) return null
-
-  const prepare = async () => {
-    setBusy(true)
-    setError('')
-    try {
-      const result = await api.prepareImplementation(product.id, {
-        experiment_id: experiment.id,
-        instructions: instructions.trim() || undefined,
-        model: model.trim() || undefined,
-        run_tests: runTests,
-        test_command: runTests ? testCommand.trim() || undefined : undefined,
-      })
-      await onComplete(result)
-      onClose()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/20 p-6 backdrop-blur-[2px]">
-      <div className="w-full max-w-[620px] rounded-[26px] border border-stone bg-white p-6 shadow-soft">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-softblue">Explicit source-change approval</div>
-        <h2 className="mt-2 text-xl font-semibold">Prepare an isolated implementation candidate</h2>
-        <p className="mt-2 text-sm leading-6 text-ink/50">ZEVQORA will create a new Git worktree + branch, ask the configured OpenRouter model for a minimal one-file replacement, and show the diff. It will not merge or deploy.</p>
-
-        <label className="mt-5 grid gap-1.5 text-xs text-ink/55">
-          Optional implementation guidance
-          <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} rows={3} className="resize-none rounded-xl border border-stone px-3 py-2.5 text-sm outline-none focus:border-softblue" placeholder="e.g. preserve the current public API and keep the baseline model as fallback" />
-        </label>
-
-        <label className="mt-4 flex items-start gap-3 rounded-xl border border-stone bg-cloud p-3 text-xs leading-5 text-ink/55">
-          <input type="checkbox" checked={runTests} onChange={(e) => setRunTests(e.target.checked)} className="mt-1" />
-          <span><strong className="text-ink/75">Run my project test command in the isolated worktree.</strong><br />The command is executed only because you explicitly provide and approve it.</span>
-        </label>
-        {runTests && (
-          <label className="mt-3 grid gap-1.5 text-xs text-ink/55">Test command<input value={testCommand} onChange={(e) => setTestCommand(e.target.value)} className="rounded-xl border border-stone px-3 py-2.5 font-mono text-xs outline-none focus:border-softblue" placeholder="pytest -q" /></label>
-        )}
-
-        <div className="mt-4 rounded-xl border border-stone p-3 text-[11px] leading-5 text-ink/45">Python target files always receive a syntax compile check. Full project tests are never guessed or silently executed.</div>
-        {error && <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">{error}</div>}
-        <div className="mt-6 flex justify-end gap-2"><button onClick={onClose} className="rounded-xl px-4 py-2.5 text-sm text-ink/50">Cancel</button><button onClick={() => void prepare()} disabled={busy || (runTests && !testCommand.trim())} className="flex items-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-45"><GitBranch size={14} /> {busy ? 'Preparing worktree…' : 'Prepare candidate'}</button></div>
-      </div>
-    </div>
-  )
-}
-
-export function WorkspaceControl({
-  product,
-  scan,
-  onScan,
-  onToggle,
-  inspectorOpen,
-}: {
-  product: Product | null
-  scan: ScanResult | null
-  onScan: () => Promise<void>
-  onToggle: () => Promise<void>
-  inspectorOpen: boolean
-}) {
-  if (!product) return null
-  return (
-    <div
-      className="workspace-control fixed bottom-4 z-30 flex items-center gap-1.5 rounded-[20px] border border-white/75 bg-white/82 p-1.5 shadow-[0_18px_48px_rgba(15,17,21,.10)] backdrop-blur-2xl transition-[right] duration-300"
-      style={{ right: inspectorOpen ? 332 : 18 }}
-    >
-      <div className="max-w-[200px] px-2.5 text-[10px] font-medium text-ink/40">
-        <FolderSearch size={12} className="mr-1 inline text-softblue" /> {scan?.files_scanned ?? '—'} files · read-only
-      </div>
-      <button onClick={() => void onScan()} className="flex items-center gap-1.5 rounded-[14px] bg-cloud/90 px-3 py-2 text-[11px] font-semibold text-ink/60 transition hover:bg-stone/60">
-        <ScanSearch size={13} /> Scan
-      </button>
-      <button onClick={() => void onToggle()} className={`rounded-[14px] px-3 py-2 text-[11px] font-semibold transition ${product.monitoring_enabled ? 'bg-softblue/10 text-softblue hover:bg-softblue/15' : 'bg-cloud text-ink/45 hover:bg-stone/60'}`}>
-        {product.monitoring_enabled ? 'Monitor on' : 'Monitor off'}
-      </button>
-    </div>
-  )
-}
-
-export function viewTitle(view: ViewKey) { return view }

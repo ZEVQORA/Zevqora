@@ -36,6 +36,45 @@ function sessionPath() {
   return path.join(app.getPath('userData'), 'auth-session.bin')
 }
 
+function secretPath(name) {
+  return path.join(app.getPath('userData'), `${name}.bin`)
+}
+
+function readEncryptedSecret(name) {
+  try {
+    const file = secretPath(name)
+    if (!fs.existsSync(file) || !safeStorage.isEncryptionAvailable()) return ''
+    return safeStorage.decryptString(fs.readFileSync(file))
+  } catch (error) {
+    console.error(`[ZEVQORA] Could not decrypt ${name}:`, error)
+    return ''
+  }
+}
+
+function writeEncryptedSecret(name, value) {
+  const file = secretPath(name)
+  const cleaned = String(value || '').trim()
+  if (!cleaned) {
+    if (fs.existsSync(file)) fs.unlinkSync(file)
+    return
+  }
+  if (!safeStorage.isEncryptionAvailable()) throw new Error('OS secure storage is unavailable on this device.')
+  fs.writeFileSync(file, safeStorage.encryptString(cleaned))
+}
+
+function openRouterKey() {
+  return readEncryptedSecret('openrouter-api-key') || process.env.OPENROUTER_API_KEY || ''
+}
+
+function providerConfig() {
+  return {
+    openrouterConfigured: Boolean(openRouterKey()),
+    secureStorageAvailable: safeStorage.isEncryptionAvailable(),
+    source: readEncryptedSecret('openrouter-api-key') ? 'encrypted-local' : (process.env.OPENROUTER_API_KEY ? 'environment' : 'none'),
+  }
+}
+
+
 function saveSession(session) {
   memorySession = session || null
   try {
@@ -172,6 +211,7 @@ function startPackagedBackend() {
       ZEVQORA_API_HOST: '127.0.0.1',
       ZEVQORA_API_PORT: '8000',
       DATABASE_URL: `sqlite:///${userData}/zevqora.db`,
+      OPENROUTER_API_KEY: openRouterKey(),
     },
   })
   backendProcess.on('exit', () => { backendProcess = null })
@@ -181,6 +221,14 @@ function stopBackend() {
   if (!backendProcess) return
   try { backendProcess.kill() } catch (_) { /* no-op */ }
   backendProcess = null
+}
+
+async function restartBackend() {
+  if (!app.isPackaged) return false
+  stopBackend()
+  await new Promise((resolve) => setTimeout(resolve, 700))
+  startPackagedBackend()
+  return true
 }
 
 function createWindow() {
@@ -294,6 +342,22 @@ ipcMain.handle('zevqora:open-account', async () => {
 ipcMain.handle('zevqora:open-pricing', async () => {
   await shell.openExternal(`${webAppUrl()}/pricing`)
   return true
+})
+
+ipcMain.handle('zevqora:get-provider-config', async () => providerConfig())
+
+ipcMain.handle('zevqora:save-openrouter-key', async (_event, key) => {
+  const cleaned = String(key || '').trim()
+  if (cleaned && !cleaned.startsWith('sk-or-')) throw new Error('That does not look like an OpenRouter API key.')
+  writeEncryptedSecret('openrouter-api-key', cleaned)
+  await restartBackend()
+  return providerConfig()
+})
+
+ipcMain.handle('zevqora:clear-openrouter-key', async () => {
+  writeEncryptedSecret('openrouter-api-key', '')
+  await restartBackend()
+  return providerConfig()
 })
 
 const gotLock = app.requestSingleInstanceLock()

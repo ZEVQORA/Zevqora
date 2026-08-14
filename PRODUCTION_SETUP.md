@@ -149,3 +149,21 @@ Then rebuild the desktop installer. The desktop build must know which browser si
 13. Restart confirms persistent login when Windows secure storage is available.
 14. Free credit resets through the daily Vercel cron; paid credit resets on `invoice.paid`.
 
+
+
+## MVP v1.0.2 — Google/GitHub OAuth + OpenRouter
+
+### Google / GitHub social login
+The frontend already calls Supabase `signInWithOAuth()` for both providers. To make the logo buttons live, enable each provider in Supabase.
+
+1. Supabase → Authentication → Sign In / Providers. Copy the provider callback URL: `https://<PROJECT_REF>.supabase.co/auth/v1/callback`.
+2. Google Auth Platform: create a Web OAuth client. Authorized JavaScript origin: `https://zevqora.vercel.app`. Authorized redirect URI: the Supabase callback URL above. Put the Google Client ID + Client Secret into the Supabase Google provider.
+3. GitHub → Settings → Developer settings → OAuth Apps → New OAuth App. Homepage: `https://zevqora.vercel.app`. Authorization callback URL: the same Supabase callback URL. Put the GitHub Client ID + Client Secret into the Supabase GitHub provider.
+4. Supabase → Authentication → URL Configuration: Site URL `https://zevqora.vercel.app`; allow `https://zevqora.vercel.app/login`, `https://zevqora.vercel.app/signup`, and `https://zevqora.vercel.app/desktop-auth`.
+
+Do not put Google or GitHub client secrets in Vercel browser variables or GitHub source. Supabase stores the provider secrets.
+
+### OpenRouter in the desktop app
+OpenRouter is already the Zev reasoning/model layer. The packaged desktop app now lets the user paste `sk-or-v1-...` in Settings → Zev · OpenRouter. Electron encrypts the key using OS `safeStorage`, stores only the encrypted blob under the app user-data directory, and injects the decrypted value into the local FastAPI sidecar process when it starts/restarts. The renderer, repository and installer contain no real OpenRouter key.
+
+Default model: `openrouter/auto`. A specific OpenRouter model slug can be selected in Settings.

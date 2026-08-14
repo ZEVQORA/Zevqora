@@ -14,6 +14,7 @@ class Settings:
     openrouter_base_url: str = os.getenv(
         "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
     ).rstrip("/")
+    openrouter_site_url: str = os.getenv("OPENROUTER_SITE_URL", "https://zevqora.vercel.app")
     agent_model: str = os.getenv("ZEVQORA_AGENT_MODEL", "openrouter/auto")
     agent_max_steps: int = int(os.getenv("ZEVQORA_AGENT_MAX_STEPS", "6"))
     scan_interval_seconds: int = int(os.getenv("ZEVQORA_SCAN_INTERVAL_SECONDS", "20"))

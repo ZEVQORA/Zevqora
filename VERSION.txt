@@ -1,4 +1,1 @@
-ZEVQORA Production v1.0.0
-Web: white-only account/billing/download control plane
-Desktop: white-only Electron + local FastAPI engine
-Windows installer artifact: ZEVQORA-Setup.exe
+1.0.2

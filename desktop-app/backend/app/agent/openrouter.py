@@ -61,6 +61,7 @@ async def run_openrouter_agent(
     headers = {
         "Authorization": f"Bearer {settings.openrouter_api_key}",
         "Content-Type": "application/json",
+        "HTTP-Referer": settings.openrouter_site_url,
         "X-Title": "ZEVQORA Desktop",
     }
     tool_events: list[ToolEvent] = []
