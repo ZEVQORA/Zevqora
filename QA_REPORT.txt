@@ -1,0 +1,18 @@
+ZEVQORA Production v1 — QA report
+
+PASS  Backend test suite: 9/9
+PASS  Electron main/preload JavaScript syntax
+PASS  Desktop TS/TSX implementation syntax transpilation: 16 files, 0 syntax errors
+PASS  Website + Vercel function JavaScript syntax
+PASS  HTML local asset/script reference check
+PASS  White-only check: no dark-mode selectors/toggles in production web/desktop source
+PASS  Safe-source secret-pattern scan: no obvious hardcoded credentials found
+PASS  Real .env/private-key/certificate files: none included
+PASS  Browser auth handoff AES-GCM crypto round-trip test
+PASS  Exact ZEVQORA/Zev brand assets included
+
+NOT EXECUTED IN THIS CONTAINER
+- npm install / Electron Windows compilation: registry DNS is unavailable in this environment.
+- Windows NSIS installer launch test: requires the Windows build output.
+
+The repository includes a windows-latest GitHub Actions workflow and a Windows PowerShell build script that produce ZEVQORA-Setup.exe once dependencies can be downloaded.
