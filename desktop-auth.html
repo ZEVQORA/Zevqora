@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#F7F8FA">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Connect ZEVQORA Desktop</title>
+  <link rel="icon" href="/assets/zevqora-mark.png">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="site-chrome">
+  <div class="chrome-inner">
+    <div class="traffic" aria-hidden="true"><span class="red"></span><span class="yellow"></span><span class="green"></span></div>
+    <a class="brand-home" href="/" aria-label="ZEVQORA home"><img class="brand-mark" src="/assets/zevqora-mark.png" alt=""><img class="brand-word" src="/assets/zevqora-wordmark.png" alt="ZEVQORA"></a>
+    <nav class="chrome-actions"><span class="chrome-link">Desktop sign-in</span></nav>
+  </div>
+</header>
+<main class="auth-page">
+  <div class="auth-stage reveal is-visible">
+    <div class="auth-brand"><img src="/assets/zevqora-lockup.png" alt="ZEVQORA"></div>
+    <div class="auth-card">
+      <div class="auth-content">
+        <p class="eyebrow">CONNECT DESKTOP</p>
+        <h1>Welcome back.<br>I'm <span class="blue">Zev.</span></h1>
+        <p class="auth-copy">Sign in here in your browser. When authentication finishes, this page securely hands a one-time session back to the installed ZEVQORA app.</p>
+        <form data-desktop-auth-form>
+          <div class="field"><label for="desktop-email">Email</label><input id="desktop-email" name="email" type="email" autocomplete="email" placeholder="you@company.com" required></div>
+          <div class="field"><label for="desktop-password">Password</label><input id="desktop-password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" minlength="8" required></div>
+          <button class="button button-primary auth-submit" type="submit">Continue to ZEVQORA Desktop</button>
+          <div class="oauth-row"><button class="button" data-desktop-oauth="google" type="button">Google</button><button class="button" data-desktop-oauth="github" type="button">GitHub</button></div>
+          <div data-desktop-auth-note class="auth-note">Waiting for sign-in.</div><p class="small-copy" style="margin-top:10px;font-size:10px">New to ZEVQORA? <a class="blue" href="/signup?redirect=%2Fdesktop-auth%3Fresume%3D1">Create an account →</a></p>
+          <a class="button button-primary" data-open-desktop hidden href="#" style="margin-top:12px">Open ZEVQORA Desktop</a>
+        </form>
+      </div>
+      <div class="auth-visual"><img src="/assets/zev-mascot.png" alt="Zev"></div>
+    </div>
+  </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="/config.js"></script>
+<script src="/desktop-auth.js"></script>
+</body>
+</html>
