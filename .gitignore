@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+node_modules/
+.vercel/
+.DS_Store
+Thumbs.db
+*.log
+__pycache__/
+.pytest_cache/
+*.pyc
+desktop-app/backend/.venv*/
+desktop-app/backend/build/
+desktop-app/desktop/node_modules/
+desktop-app/desktop/dist/
+desktop-app/desktop/release/
+desktop-app/desktop/resources/backend/
