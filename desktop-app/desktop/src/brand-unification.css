@@ -1,0 +1,23 @@
+/* One typography/brand system across ZEVQORA Desktop. No editorial serif or italic UI copy. */
+:root {
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI",Inter,ui-sans-serif,system-ui,sans-serif;
+  --zq-brand-blue:#6B8FFF;
+  --zq-brand-ink:#0F1115;
+  --zq-brand-cloud:#F7F8FA;
+}
+html,body,#root,.app-window,button,input,textarea,select {
+  font-family:inherit !important;
+  font-synthesis:none;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4,h5,h6,p,span,label,strong,b,small,button,input,textarea,select { font-style:normal; }
+.desktop-settings-title h1 {
+  font-family:inherit !important;
+  font-size:32px !important;
+  line-height:1.03 !important;
+  font-weight:690 !important;
+  letter-spacing:-.045em !important;
+}
+.zev-chat-line.is-thinking > p { font-style:normal !important; color:rgba(15,17,21,.42); }
+.desktop-settings-primary { background:var(--zq-brand-blue) !important; border-color:var(--zq-brand-blue) !important; }
+.titlebar-profile:hover { box-shadow:0 0 0 3px rgba(107,143,255,.10) !important; }

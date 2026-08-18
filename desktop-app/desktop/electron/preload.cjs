@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('zevqoraDesktop', {
   signOut: () => ipcRenderer.invoke('zevqora:sign-out'),
   openAccount: () => ipcRenderer.invoke('zevqora:open-account'),
   openPricing: () => ipcRenderer.invoke('zevqora:open-pricing'),
+  updateProfile: (displayName, username) => ipcRenderer.invoke('zevqora:update-profile', { displayName, username }),
   getProviderConfig: () => ipcRenderer.invoke('zevqora:get-provider-config'),
   saveOpenRouterKey: (key) => ipcRenderer.invoke('zevqora:save-openrouter-key', key),
   clearOpenRouterKey: () => ipcRenderer.invoke('zevqora:clear-openrouter-key'),

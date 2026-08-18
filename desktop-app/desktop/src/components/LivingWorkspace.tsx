@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowRight,
   ArrowUp,
@@ -149,7 +149,9 @@ export function LivingWorkspace({
 }) {
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
-  const [lastReply, setLastReply] = useState('')
+  const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
+  const [chatOpen, setChatOpen] = useState(true)
+  const chatScrollRef = useRef<HTMLDivElement>(null)
   const [error, setError] = useState('')
 
   const primaryFinding = findings[0] || null
@@ -171,11 +173,23 @@ export function LivingWorkspace({
   const provider = Object.keys(economics?.providers || {})[0] || 'Frontier model'
   const quality = verified?.candidate_quality ?? latestExperiment?.candidate_quality ?? null
 
+  useEffect(() => {
+    if (!chatOpen) return
+    const id = window.setTimeout(() => {
+      const node = chatScrollRef.current
+      if (node) node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' })
+    }, 40)
+    return () => window.clearTimeout(id)
+  }, [messages, busy, chatOpen])
+
   const submit = async (value: string) => {
     const prompt = value.trim()
     if (!prompt || busy) return
     setError('')
     setBusy(true)
+    const nextMessages = [...messages, { role: 'user' as const, content: prompt }]
+    setMessages(nextMessages)
+    setChatOpen(true)
     const lower = prompt.toLowerCase()
     if (/scan|analy|map|spend|cost|expensive/.test(lower)) onAgentState('scanning')
     else if (/test|candidate|experiment|try|cheaper/.test(lower)) onAgentState('experimenting')
@@ -183,8 +197,8 @@ export function LivingWorkspace({
     else onAgentState('thinking')
     try {
       if (/scan|analy[sz]e this product/.test(lower) && product) await onScan()
-      const response = await api.chat(product?.id || null, [{ role: 'user', content: prompt }])
-      setLastReply(response.message)
+      const response = await api.chat(product?.id || null, nextMessages.slice(-16))
+      setMessages((current) => [...current, { role: 'assistant', content: response.message }])
       await onDataChanged()
       onAgentState('done')
       window.setTimeout(() => onAgentState('idle'), 1400)
@@ -281,15 +295,24 @@ export function LivingWorkspace({
       </div>
 
       <div className="zev-command-dock">
-        {lastReply && (
-          <div className="zev-response-float">
-            <BrandAsset src={brandAssets.avatar} alt="Zev" className="h-9 w-9 shrink-0 rounded-[12px] object-contain" />
-            <div className="min-w-0">
-              <div className="text-[10px] font-semibold">Zev</div>
-              <div className="mt-0.5 max-h-[72px] overflow-hidden text-[10.5px] leading-[1.55] opacity-70">{lastReply}</div>
+        {!!messages.length && chatOpen && (
+          <section className="zev-chat-window" aria-label="Zev conversation">
+            <header className="zev-chat-window-head">
+              <div><BrandAsset src={brandAssets.avatar} alt="Zev" className="h-7 w-7 rounded-[10px] object-contain" /><span><b>Zev</b><small>Conversation · context stays in this workspace</small></span></div>
+              <button type="button" onClick={() => setChatOpen(false)}>Hide</button>
+            </header>
+            <div ref={chatScrollRef} className="zev-chat-scroll">
+              {messages.map((message, index) => (
+                <div key={`${message.role}-${index}`} className={`zev-chat-line ${message.role === 'user' ? 'is-user' : 'is-zev'}`}>
+                  <span>{message.role === 'user' ? 'You' : 'Zev'}</span>
+                  <p>{message.content}</p>
+                </div>
+              ))}
+              {busy && <div className="zev-chat-line is-zev is-thinking"><span>Zev</span><p>Working through the evidence…</p></div>}
             </div>
-          </div>
+          </section>
         )}
+        {!!messages.length && !chatOpen && <button type="button" className="zev-chat-reopen" onClick={() => setChatOpen(true)}><Bot size={13} /> Open conversation · {messages.length}</button>}
         {error && <div className="zev-command-error">{error}</div>}
         <form onSubmit={onSubmit} className="zev-command-shell">
           <BrandAsset src={brandAssets.avatar} alt="Zev" className="command-mascot" />

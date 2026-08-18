@@ -1,7 +1,7 @@
 {
   "name": "zevqora-desktop",
   "private": true,
-  "version": "1.0.5",
+  "version": "1.0.6",
   "main": "electron/main.cjs",
   "scripts": {
     "dev:web": "vite --host 127.0.0.1",

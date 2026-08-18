@@ -1,10 +1,44 @@
-ZEVQORA v1.0.5 QA
-- Direct desktop email/password auth implemented
-- Browser handoff removed from primary desktop UX
-- Existing valid desktop session opens workspace automatically
-- Session persistence uses Electron safeStorage when available
-- Approved mark / wordmark / Zev / workspace assets preserved
-- Electron main/preload node syntax PASS
-- Changed TSX transpile syntax PASS
-- Backend pytest: 9 passed
-- Release preflight: PASS
+ZEVQORA Website Refresh v7 - QA REPORT
+Generated: 2026-08-16
+
+Scope
+- Visual + motion refinement based directly on ZEVQORA_Website_Refresh_v6.
+- Existing Vercel/Supabase/Stripe/desktop API behavior retained.
+- auth.js lifecycle binding adjusted only so Login/Signup can be swapped without a full page reload.
+
+V7 changes
+1. Login Zev side fully redesigned into a composed product scene (copy + mascot frame + proof cards + evidence rail).
+2. Login form-side decorative orbit/dot clutter removed; card hierarchy and spacing retained/cleaned.
+3. Login <-> Signup uses same-document View Transitions when supported:
+   - form panel and visual/story panel use matched transition identities
+   - panels trade sides with position interpolation, blur/crossfade and directional context
+   - fallback directional transition remains for unsupported browsers
+4. How-it-works scroll now includes a visible progress HUD during travel.
+5. Evidence Rail replays its line + six steps after the cinematic scroll lands.
+6. Normal internal route transitions use a stronger but restrained white/blue wipe.
+7. Zev scene receives short non-looping entrance choreography plus subtle cursor parallax.
+8. Password eye semantics retained exactly: only clicking the eye changes visibility.
+
+Checks
+- node --check app.js: PASS
+- node --check auth.js: PASS
+- node --check transition-init.js: PASS
+- Python preview server compile: PASS
+- Password state interaction test: PASS
+  hidden -> open -> type/backspace remains open -> close -> backspace remains hidden
+- How-it-works scripted test: PASS
+  progress cue present during travel -> removed after landing -> target top ~12px -> hash #how-it-works
+- Login static visual render at 1460x870: PASS
+- Signup static visual render at 1460x870: PASS
+- Clean preview GET routes /, /login, /signup, /pricing: PASS
+- /api/public-config preview stub: PASS
+
+Local preview
+- Double-click START_PREVIEW.bat
+- Open http://localhost:5600
+- Test Login -> Create account -> Sign in to see the scene transition.
+- Test Home -> How it works to see the cinematic scroll + evidence-rail replay.
+
+Production note
+- Local preview intentionally does not contain Supabase/Stripe secrets.
+- Production auth/payment functionality uses the existing environment configuration after deployment.

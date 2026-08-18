@@ -6,7 +6,7 @@ $Venv = Join-Path $Backend '.venv-build'
 $Python = Join-Path $Venv 'Scripts\python.exe'
 $SidecarDir = Join-Path $Desktop 'resources\backend'
 
-Write-Host 'Building ZEVQORA Production v1.0.4 for Windows...' -ForegroundColor Cyan
+Write-Host 'Building ZEVQORA Production v1.0.6 for Windows...' -ForegroundColor Cyan
 
 $ProjectRoot = Resolve-Path (Join-Path $Root '..')
 Write-Host 'Running release preflight...' -ForegroundColor Cyan

@@ -47,7 +47,6 @@ create table if not exists public.credit_balances (
   constraint credit_nonnegative check (included_usd >= 0 and used_usd >= 0)
 );
 
--- Server-only, encrypted, 90-second browser -> desktop auth handoff rows.
 create table if not exists public.desktop_auth_handoffs (
   id uuid primary key default gen_random_uuid(),
   code_hash text not null unique,
@@ -84,9 +83,6 @@ drop policy if exists credit_balances_select_own on public.credit_balances;
 create policy credit_balances_select_own on public.credit_balances
   for select to authenticated using (auth.uid() = user_id);
 
--- Intentionally no client policy for desktop_auth_handoffs.
--- Only service_role/server code should read or write these rows.
-
 grant select, update on public.profiles to authenticated;
 grant select on public.subscriptions to authenticated;
 grant select on public.credit_balances to authenticated;
@@ -106,18 +102,15 @@ $$;
 revoke all on function public.set_updated_at() from public, anon, authenticated;
 
 drop trigger if exists profiles_set_updated_at on public.profiles;
-create trigger profiles_set_updated_at
-before update on public.profiles
+create trigger profiles_set_updated_at before update on public.profiles
 for each row execute function public.set_updated_at();
 
 drop trigger if exists subscriptions_set_updated_at on public.subscriptions;
-create trigger subscriptions_set_updated_at
-before update on public.subscriptions
+create trigger subscriptions_set_updated_at before update on public.subscriptions
 for each row execute function public.set_updated_at();
 
 drop trigger if exists credit_balances_set_updated_at on public.credit_balances;
-create trigger credit_balances_set_updated_at
-before update on public.credit_balances
+create trigger credit_balances_set_updated_at before update on public.credit_balances
 for each row execute function public.set_updated_at();
 
 create or replace function public.handle_new_user()
@@ -154,11 +147,9 @@ $$;
 revoke all on function public.handle_new_user() from public, anon, authenticated;
 
 drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-after insert on auth.users
+create trigger on_auth_user_created after insert on auth.users
 for each row execute function public.handle_new_user();
 
--- Optional cleanup helper for old, already-used handoff rows.
 create or replace function public.cleanup_desktop_auth_handoffs()
 returns void
 language sql

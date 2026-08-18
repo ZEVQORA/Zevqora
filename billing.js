@@ -29,10 +29,7 @@
     try {
       const res = await fetch('/api/stripe/create-checkout', {
         method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ plan }),
       });
       const body = await res.json();
@@ -51,7 +48,6 @@
         auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
       });
     }
-
     document.querySelectorAll('[data-checkout-plan]').forEach((button) => {
       button.addEventListener('click', (event) => {
         event.preventDefault();
@@ -63,6 +59,5 @@
       });
     });
   }
-
   document.addEventListener('DOMContentLoaded', init);
 })();

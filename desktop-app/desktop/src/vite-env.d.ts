@@ -15,6 +15,7 @@ declare global {
       signOut: () => Promise<DesktopAuthState>
       openAccount: () => Promise<boolean>
       openPricing: () => Promise<boolean>
+      updateProfile: (displayName: string, username: string) => Promise<DesktopAuthState>
       getProviderConfig: () => Promise<{ openrouterConfigured: boolean; secureStorageAvailable: boolean; source: 'encrypted-local' | 'environment' | 'none' }>
       saveOpenRouterKey: (key: string) => Promise<{ openrouterConfigured: boolean; secureStorageAvailable: boolean; source: string }>
       clearOpenRouterKey: () => Promise<{ openrouterConfigured: boolean; secureStorageAvailable: boolean; source: string }>

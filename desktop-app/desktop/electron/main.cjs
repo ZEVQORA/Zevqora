@@ -194,6 +194,24 @@ async function publicAuthState() {
   }
 }
 
+async function updateAccountProfile(displayName, username) {
+  const state = await publicAuthState()
+  if (!state.signedIn) throw new Error(state.error || 'Sign in again.')
+  const session = loadSession()
+  if (!session?.accessToken) throw new Error('Sign in again.')
+  const body = await requestJson(`${webAppUrl()}/api/desktop/update-profile`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.accessToken}`,
+    },
+    body: JSON.stringify({ displayName, username }),
+  })
+  const next = await publicAuthState()
+  emitAuthState(next)
+  return next
+}
+
 function emitAuthState(state) {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('zevqora:auth-changed', state)
@@ -393,6 +411,10 @@ ipcMain.handle('zevqora:sign-out', async () => {
   const state = { signedIn: false }
   emitAuthState(state)
   return state
+})
+
+ipcMain.handle('zevqora:update-profile', async (_event, profile) => {
+  return updateAccountProfile(profile?.displayName, profile?.username)
 })
 
 ipcMain.handle('zevqora:open-account', async () => {

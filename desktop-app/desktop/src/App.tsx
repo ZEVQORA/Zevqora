@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { WifiOff } from 'lucide-react'
 import { AddProductDialog } from './components/AddProductDialog'
 import { CommandPalette } from './components/CommandPalette'
+import { DesktopSettings } from './components/DesktopSettings'
 import { EvidenceRail } from './components/EvidenceRail'
 import { LivingWorkspace } from './components/LivingWorkspace'
 import { Sidebar } from './components/Sidebar'
@@ -15,7 +16,6 @@ import {
   ImplementationsView,
   ProductsView,
   SavingsView,
-  SettingsView,
   SpendView,
   WasteView,
   WorkspaceControl,
@@ -268,7 +268,7 @@ export default function App() {
   else if (view === 'experiments') content = <ExperimentsView experiments={experiments} />
   else if (view === 'savings') content = <SavingsView experiments={experiments} />
   else if (view === 'implementations') content = <ImplementationsView experiments={experiments} implementations={implementations} onPrepare={(experiment) => { setPreparing(experiment); setAgentState('experimenting') }} />
-  else if (view === 'settings') content = <SettingsView health={health} model={model} onModel={updateModel} />
+  else if (view === 'settings') content = <DesktopSettings health={health} model={model} onModel={updateModel} auth={auth} />
   else content = (
     <LivingWorkspace
       product={selected}

@@ -1,5 +1,10 @@
+import { useEffect, useState } from 'react'
 import { Bell, Command, LogOut, PanelRightClose, PanelRightOpen } from 'lucide-react'
 import type { DesktopAuthState } from '../lib/auth'
+
+function readProfileName() {
+  return localStorage.getItem('zevqora.profile.displayName') || localStorage.getItem('zevqora.profile.username') || ''
+}
 
 export function TitleBar({
   inspectorOpen,
@@ -23,7 +28,20 @@ export function TitleBar({
   const included = Number(auth?.account?.credit?.includedUsd || 0)
   const used = Number(auth?.account?.credit?.usedUsd || 0)
   const remaining = Math.max(included - used, 0)
-  const initial = (auth?.user?.email || 'Z').charAt(0).toUpperCase()
+  const [profileName, setProfileName] = useState(readProfileName)
+
+  useEffect(() => {
+    const refresh = () => setProfileName(readProfileName())
+    window.addEventListener('zevqora:profile-changed', refresh)
+    window.addEventListener('storage', refresh)
+    return () => {
+      window.removeEventListener('zevqora:profile-changed', refresh)
+      window.removeEventListener('storage', refresh)
+    }
+  }, [])
+
+  const identity = auth?.user?.displayName || auth?.user?.username || profileName || auth?.user?.email || 'Z'
+  const initial = identity.charAt(0).toUpperCase()
 
   return (
     <header className="titlebar">
@@ -44,7 +62,7 @@ export function TitleBar({
         <button onClick={onToggleInspector} className="titlebar-icon" aria-label={inspectorOpen ? 'Hide inspector' : 'Show inspector'}>
           {inspectorOpen ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
         </button>
-        <button onClick={onOpenAccount} className="titlebar-profile" aria-label="Open ZEVQORA account">{initial}</button>
+        <button onClick={onOpenAccount} className="titlebar-profile" title={auth?.user?.displayName || auth?.user?.username || profileName || auth?.user?.email || 'ZEVQORA account'} aria-label="Open ZEVQORA account">{initial}</button>
         <button onClick={onSignOut} className="titlebar-icon" aria-label="Sign out"><LogOut size={14} /></button>
       </div>
     </header>

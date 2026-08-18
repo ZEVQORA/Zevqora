@@ -14,7 +14,7 @@ export type DesktopAccountState = {
 
 export type DesktopAuthState = {
   signedIn: boolean
-  user?: { id?: string; email?: string | null }
+  user?: { id?: string; email?: string | null; displayName?: string; username?: string }
   account?: DesktopAccountState
   error?: string
 }
