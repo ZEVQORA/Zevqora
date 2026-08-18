@@ -1,0 +1,5 @@
+1) Copy this patch over the root of ZEVQORA_HUSLEN_SUPER_REFRESH_v8_RELEASE_READY.
+2) Delete: api\stripe\create-credit-checkout.js
+3) git add -A
+4) git commit -m "Fix Vercel Hobby function limit"
+5) git push origin main

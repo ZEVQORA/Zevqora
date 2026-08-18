@@ -83,7 +83,7 @@
           button.disabled = true;
           button.textContent = 'Opening checkout…';
           try {
-            const res = await fetch('/api/stripe/create-credit-checkout', {
+            const res = await fetch('/api/stripe/create-checkout', {
               method: 'POST',
               headers: {
                 'content-type': 'application/json',
