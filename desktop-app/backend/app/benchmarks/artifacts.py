@@ -45,6 +45,7 @@ def write_benchmark_artifacts(
 ) -> Path:
     out = ARTIFACTS_ROOT / run.id
     out.mkdir(parents=True, exist_ok=True)
+    run.artifact_dir = str(out)
 
     manifest = {
         "benchmark_version": run.benchmark_version,
