@@ -46,5 +46,13 @@ class Settings:
         str(Path.home() / ".zevqora" / "db-backups"),
     )
 
+    # Phase 2 — candidate execution (conservative defaults; no agent-invented model spend)
+    candidate_models: tuple[str, ...] = tuple(
+        m.strip() for m in os.getenv("ZEVQORA_CANDIDATE_MODELS", "mock/test-model").split(",") if m.strip()
+    )
+    max_experiment_cost_usd: float = float(os.getenv("ZEVQORA_MAX_EXPERIMENT_COST_USD", "0.50"))
+    max_candidate_samples: int = int(os.getenv("ZEVQORA_MAX_CANDIDATE_SAMPLES", "10"))
+    max_candidate_concurrency: int = int(os.getenv("ZEVQORA_MAX_CANDIDATE_CONCURRENCY", "2"))
+
 
 settings = Settings()

@@ -63,12 +63,11 @@ def _to_out(exp: Experiment) -> ExperimentOut:
 
 def run_experiment(db: Session, product_id: str, request: ExperimentRunRequest) -> ExperimentOut:
     """
-    LEGACY / NOT YET EXECUTION-PROVEN (Phase 1).
+    LEGACY_CANDIDATE_EVIDENCE / NOT YET EXECUTION-PROVEN.
 
-    This path still evaluates pre-filled Trace candidate_* fields rather than
-    executing a CandidatePlan via the provider layer. Do not treat VERIFIED
-    outcomes from this path as proof of live optimization savings. Phase 2
-    replaces this with real candidate execution + provenance.
+    Evaluates pre-filled Trace candidate_* fields. Do not treat VERIFIED outcomes
+    as proof of live optimization. Phase 2 CandidateExecution is the execution-proven path;
+    Phase 3 owns evaluation gates over that evidence.
     """
     finding = None
     if request.finding_id:

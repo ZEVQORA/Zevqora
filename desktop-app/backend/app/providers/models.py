@@ -11,6 +11,8 @@ class CostSource(StrEnum):
     PROVIDER_REPORTED = "provider_reported"
     PRICING_SNAPSHOT_ESTIMATE = "pricing_snapshot_estimate"
     IMPORTED_EXTERNAL = "imported_external"
+    # Measured no-provider path (exact reuse). Distinct from unknown (None) and from 0.0 fakes.
+    DETERMINISTIC_REUSE = "deterministic_reuse"
 
 
 class FinishReason(StrEnum):
