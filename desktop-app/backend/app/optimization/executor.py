@@ -147,8 +147,10 @@ async def execute_plan(
     benchmark_mode = bool(candidate_cfg.get("benchmark_mode"))
     if estimated == float("inf") and not benchmark_mode:
         raise ValueError("Cannot execute under strict budget: candidate cost is not estimable from verified pricing.")
-    if estimated > plan.max_budget_usd:
+    if estimated != float("inf") and estimated > plan.max_budget_usd:
         raise ValueError(f"Estimated max cost {estimated:.6f} USD exceeds plan budget {plan.max_budget_usd:.6f} USD.")
+    if estimated == float("inf") and benchmark_mode and plan.max_budget_usd <= 0:
+        raise ValueError("Benchmark mode still requires a positive max budget for hard spend control.")
 
     sample_ids: list[str] = json.loads(plan.sample_scope_json or "[]")
     parent_id = None
