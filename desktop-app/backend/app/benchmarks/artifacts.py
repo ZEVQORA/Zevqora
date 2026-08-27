@@ -158,6 +158,15 @@ def _render_report(run: BenchmarkRun, evaluation: Any, stats: dict, ci: dict, ca
     else:
         ci_line = f"- Bootstrap CI: insufficient (n={ci.get('n', 'unknown')})\n"
 
+    strategy_label = "model_substitution"
+    try:
+        cfg = json.loads(run.candidate_config_json or "{}")
+        strategy_label = str(cfg.get("strategy") or strategy_label)
+        if cfg.get("policy_version"):
+            strategy_label = f"{strategy_label} ({cfg['policy_version']})"
+    except (TypeError, json.JSONDecodeError):
+        pass
+
     return f"""# ZEVQORA Internal Dogfooding Benchmark
 
 ## Evidence classification
@@ -190,7 +199,7 @@ Not external validation.
 
 - provider: openrouter
 - model: `{run.candidate_model}`
-- strategy: model_substitution
+- strategy: {strategy_label}
 
 ## Cost
 
