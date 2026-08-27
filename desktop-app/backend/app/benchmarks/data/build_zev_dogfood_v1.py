@@ -104,15 +104,23 @@ TOOL_DEFS = [
 
 
 def _req(
-    user: str, *, max_tokens: int = 48, tools: list | None = None, symbol: str | None = None
+    user: str,
+    *,
+    max_tokens: int = 48,
+    tools: list | None = None,
+    symbol: str | None = None,
+    labels: list[str] | None = None,
 ) -> BenchmarkCaseRequest:
+    prompt = user
+    if labels:
+        prompt = f"{user}\nAllowed labels: {', '.join(labels)}."
     return BenchmarkCaseRequest(
         messages=[
             {"role": "system", "content": ZEV_SYSTEM},
             {
                 "role": "user",
                 "content": (
-                    f"{user}\n\n"
+                    f"{prompt}\n\n"
                     "Reply with ONLY the exact label/token from the allowed answer set. "
                     "No explanation. No punctuation. No extra words."
                 ),
@@ -279,7 +287,7 @@ def build_cases() -> list[BenchmarkCaseSpec]:
                 case_id=cid,
                 title=title,
                 difficulty="simple",
-                request=_req(user),
+                request=_req(user, labels=labels),
                 graders=_clf(label, labels),
                 expected=label,
             )
@@ -400,7 +408,7 @@ def build_cases() -> list[BenchmarkCaseSpec]:
                 case_id=cid,
                 title=title,
                 difficulty="medium",
-                request=_req(user, tools=tools, max_tokens=64),
+                request=_req(user, tools=tools, max_tokens=64, labels=None if req_tools else labels),
                 graders=_clf(label, labels)
                 if not req_tools
                 else [GraderSpec(name="tool_selection", config={"required_tools": req_tools})],
@@ -487,7 +495,7 @@ def build_cases() -> list[BenchmarkCaseSpec]:
                 case_id=cid,
                 title=title,
                 difficulty="complex",
-                request=_req(user, max_tokens=96),
+                request=_req(user, max_tokens=96, labels=labels),
                 graders=_clf(label, labels),
                 expected=label,
             )

@@ -1,7 +1,7 @@
 {
   "name": "zev_dogfood_v1",
   "version": "1.0.0",
-  "dataset_hash": "e138dd63f03061e4541aac763bf0a0bf5fd01fead26f54adccf4e357dcf4ff67",
+  "dataset_hash": "a5e95ea13ab859ac14049fe73f7a516b5aad8201f6a6716e8f31bab752f8bb7a",
   "difficulty_counts": {
     "simple": 20,
     "medium": 15,
@@ -28,7 +28,7 @@
           },
           {
             "role": "user",
-            "content": "What origin label applies to a static code scan finding?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "What origin label applies to a static code scan finding?\nAllowed labels: static_scan, runtime, imported.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -78,7 +78,7 @@
           },
           {
             "role": "user",
-            "content": "Before optimizing, what must exist?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Before optimizing, what must exist?\nAllowed labels: runtime_or_replay_evidence, marketing_claim, auto_deploy.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -128,7 +128,7 @@
           },
           {
             "role": "user",
-            "content": "When cost_source is provider_reported, pricing_version should be?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "When cost_source is provider_reported, pricing_version should be?\nAllowed labels: none, required, same_as_model.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -178,7 +178,7 @@
           },
           {
             "role": "user",
-            "content": "Can CandidatePlan self-mark VERIFIED?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Can CandidatePlan self-mark VERIFIED?\nAllowed labels: yes, no, sometimes.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -228,7 +228,7 @@
           },
           {
             "role": "user",
-            "content": "What unlocks authoritative VERIFIED evaluation?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "What unlocks authoritative VERIFIED evaluation?\nAllowed labels: execution_proven, manual_import, cheaper_cost.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -278,7 +278,7 @@
           },
           {
             "role": "user",
-            "content": "Can legacy manually-populated candidate fields unlock implementation?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Can legacy manually-populated candidate fields unlock implementation?\nAllowed labels: yes, no, only_if_cheaper.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -328,7 +328,7 @@
           },
           {
             "role": "user",
-            "content": "If provider cost is missing, treat unknown as?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "If provider cost is missing, treat unknown as?\nAllowed labels: zero, unknown_not_zero, baseline.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -378,7 +378,7 @@
           },
           {
             "role": "user",
-            "content": "One protected case failure means?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "One protected case failure means?\nAllowed labels: averaged, rejected, ignored.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -428,7 +428,7 @@
           },
           {
             "role": "user",
-            "content": "If min_samples gate not met, status is?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "If min_samples gate not met, status is?\nAllowed labels: verified, incomplete, rejected.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -478,7 +478,7 @@
           },
           {
             "role": "user",
-            "content": "First Phase 4 candidate strategy?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "First Phase 4 candidate strategy?\nAllowed labels: model_substitution, rag, exact_reuse_only.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -528,7 +528,7 @@
           },
           {
             "role": "user",
-            "content": "Comparable cases require equal?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Comparable cases require equal?\nAllowed labels: model, task_fingerprint, cost.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -578,7 +578,7 @@
           },
           {
             "role": "user",
-            "content": "Reproducible benchmark baseline must be?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Reproducible benchmark baseline must be?\nAllowed labels: openrouter_auto, explicit_model, cheapest.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -628,7 +628,7 @@
           },
           {
             "role": "user",
-            "content": "Authoritative verification record?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Authoritative verification record?\nAllowed labels: experiment_only, evaluation_run, trace_import.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -678,7 +678,7 @@
           },
           {
             "role": "user",
-            "content": "Can arithmetic cost delta alone be called VERIFIED Savings?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Can arithmetic cost delta alone be called VERIFIED Savings?\nAllowed labels: yes, no, if_over_45_percent.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -728,7 +728,7 @@
           },
           {
             "role": "user",
-            "content": "This benchmark evidence class?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "This benchmark evidence class?\nAllowed labels: customer_proof, internal_dogfooding, external_validation.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -778,7 +778,7 @@
           },
           {
             "role": "user",
-            "content": "Complete evidence but failed quality gate?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Complete evidence but failed quality gate?\nAllowed labels: verified, incomplete, rejected.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -828,7 +828,7 @@
           },
           {
             "role": "user",
-            "content": "Fallback gate checks?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Fallback gate checks?\nAllowed labels: fallback_exercised, fallback_configured, no_fallback_needed.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -878,7 +878,7 @@
           },
           {
             "role": "user",
-            "content": "Candidate sample must be?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Candidate sample must be?\nAllowed labels: imported, execution_proven, estimated.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -928,7 +928,7 @@
           },
           {
             "role": "user",
-            "content": "Candidate quality must be relative to?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Candidate quality must be relative to?\nAllowed labels: perfect_1, baseline_quality, zero.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -978,7 +978,7 @@
           },
           {
             "role": "user",
-            "content": "Is RAG in Phase 4?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Is RAG in Phase 4?\nAllowed labels: yes, no, optional.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -1028,7 +1028,7 @@
           },
           {
             "role": "user",
-            "content": "Why is a CandidatePlan BLOCKED when pricing unknown under strict budget?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Why is a CandidatePlan BLOCKED when pricing unknown under strict budget?\nAllowed labels: unknown_pricing, too_cheap, verified.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -1078,7 +1078,7 @@
           },
           {
             "role": "user",
-            "content": "Missing required latency with latency gate required yields?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Missing required latency with latency gate required yields?\nAllowed labels: verified, incomplete, rejected.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -1128,7 +1128,7 @@
           },
           {
             "role": "user",
-            "content": "Cost gate with missing baseline cost?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Cost gate with missing baseline cost?\nAllowed labels: verified, incomplete, zero_cost.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -1178,7 +1178,7 @@
           },
           {
             "role": "user",
-            "content": "Candidate quality 0.90 with floor 0.95?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Candidate quality 0.90 with floor 0.95?\nAllowed labels: verified, rejected, incomplete.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -1228,7 +1228,7 @@
           },
           {
             "role": "user",
-            "content": "Candidate below baseline minus tolerance?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Candidate below baseline minus tolerance?\nAllowed labels: verified, rejected, incomplete.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -1278,7 +1278,7 @@
           },
           {
             "role": "user",
-            "content": "Candidate much slower than allowed regression?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Candidate much slower than allowed regression?\nAllowed labels: verified, rejected, incomplete.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -1328,7 +1328,7 @@
           },
           {
             "role": "user",
-            "content": "Implementation needs EvaluationRun status?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Implementation needs EvaluationRun status?\nAllowed labels: any, verified, legacy_ok.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -1378,7 +1378,7 @@
           },
           {
             "role": "user",
-            "content": "Experiment candidate_execution_id must match?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Experiment candidate_execution_id must match?\nAllowed labels: any, evaluation_execution, legacy.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -1428,7 +1428,7 @@
           },
           {
             "role": "user",
-            "content": "imported_external baseline vs provider_reported candidate?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "imported_external baseline vs provider_reported candidate?\nAllowed labels: must_match, both_allowed_with_metadata, reject.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -1478,7 +1478,7 @@
           },
           {
             "role": "user",
-            "content": "Pilot N=10 confidence language?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Pilot N=10 confidence language?\nAllowed labels: same_as_50, insufficient_for_full_ci, verified_investor_grade.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -1528,7 +1528,7 @@
           },
           {
             "role": "user",
-            "content": "Headline v1 includes exact-reuse without natural duplicates?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Headline v1 includes exact-reuse without natural duplicates?\nAllowed labels: yes, no, always.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -1578,7 +1578,7 @@
           },
           {
             "role": "user",
-            "content": "Model change affects which fingerprint?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Model change affects which fingerprint?\nAllowed labels: task, execution_configuration, both_same.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -1628,7 +1628,7 @@
           },
           {
             "role": "user",
-            "content": "1 sample with min_samples=50?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "1 sample with min_samples=50?\nAllowed labels: verified, incomplete, rejected.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -2012,7 +2012,7 @@
           },
           {
             "role": "user",
-            "content": "After CandidateExecution succeeds, next authoritative step?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "After CandidateExecution succeeds, next authoritative step?\nAllowed labels: implementation, evaluation_run, marketing.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -2062,7 +2062,7 @@
           },
           {
             "role": "user",
-            "content": "Cheaper candidate fails protected slice — benchmark status?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Cheaper candidate fails protected slice — benchmark status?\nAllowed labels: verified, rejected, incomplete.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -2112,7 +2112,7 @@
           },
           {
             "role": "user",
-            "content": "Can cost delta be computed with different provenance labels?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Can cost delta be computed with different provenance labels?\nAllowed labels: no, yes_with_metadata, hide_provenance.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -2162,7 +2162,7 @@
           },
           {
             "role": "user",
-            "content": "Different task_fingerprint cases in savings?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Different task_fingerprint cases in savings?\nAllowed labels: include, exclude, average.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -2212,7 +2212,7 @@
           },
           {
             "role": "user",
-            "content": "Modify gate config after seeing candidate results?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Modify gate config after seeing candidate results?\nAllowed labels: same_run, new_run_identity, ok_if_pass.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -2262,7 +2262,7 @@
           },
           {
             "role": "user",
-            "content": "Failed candidate sample in denominator?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Failed candidate sample in denominator?\nAllowed labels: drop, yes_prevents_verified, ignore.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -2312,7 +2312,7 @@
           },
           {
             "role": "user",
-            "content": "Route complex cases to baseline in Candidate B?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Route complex cases to baseline in Candidate B?\nAllowed labels: cheating, allowed_if_configured, forbidden.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -2362,7 +2362,7 @@
           },
           {
             "role": "user",
-            "content": "Paid case succeeds then network fails?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Paid case succeeds then network fails?\nAllowed labels: lose_evidence, resume_without_repay, mock_rest.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -2412,7 +2412,7 @@
           },
           {
             "role": "user",
-            "content": "Key expires mid-run?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Key expires mid-run?\nAllowed labels: mock_finish, incomplete_preserve, delete_run.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
@@ -2462,7 +2462,7 @@
           },
           {
             "role": "user",
-            "content": "Report 31.72% internal result how?\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
+            "content": "Report 31.72% internal result how?\nAllowed labels: round_to_45, measured_internal_dogfooding, customer_proof.\n\nReply with ONLY the exact label/token from the allowed answer set. No explanation. No punctuation. No extra words."
           }
         ],
         "tools": null,
