@@ -341,9 +341,7 @@ async def test_deterministic_path_cost_zero_with_provenance(tmp_path):
     )
     baseline = SimpleNamespace(
         id="trace-1",
-        input_text=(
-            "What origin label does a static code scan finding get?\nAllowed labels: static_scan, runtime."
-        ),
+        input_text=("What origin label does a static code scan finding get?\nAllowed labels: static_scan, runtime."),
         request_snapshot_json=None,
         metadata_json="{}",
         cost_usd=0.002,

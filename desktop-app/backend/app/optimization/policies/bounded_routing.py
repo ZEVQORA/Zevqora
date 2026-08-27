@@ -154,9 +154,7 @@ def extract_task_features(
         required_tools=list(required_tools or []),
         forbidden_tools=list(forbidden_tools or []),
         allowed_labels=labels,
-        safety_sensitive=bool(
-            safety_sensitive or secret or deploy or injection or legacy or cross
-        ),
+        safety_sensitive=bool(safety_sensitive or secret or deploy or injection or legacy or cross),
         secret_path_request=secret,
         deploy_request=deploy,
         cross_product_request=cross,
