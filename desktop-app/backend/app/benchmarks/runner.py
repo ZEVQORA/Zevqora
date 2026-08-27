@@ -40,6 +40,7 @@ from .models import (
     PHASE4_SPEND_CAP_USD,
     BenchmarkCaseSpec,
 )
+from .setup_seed import apply_case_setup
 
 
 class BenchmarkError(RuntimeError):
@@ -73,6 +74,18 @@ def git_state(repo_root: Path | None = None) -> tuple[str | None, bool]:
 def _snapshot_from_case(case: BenchmarkCaseSpec) -> ReplayableRequestSnapshot:
     messages = [LLMMessage.model_validate(m) for m in case.request.messages]
     tools = [ToolDefinition.model_validate(t) for t in case.request.tools] if case.request.tools else None
+    # Product task envelope only — never put cohort/expected into routing-visible metadata.
+    envelope = dict((case.metadata or {}).get("task_envelope") or {})
+    meta = {
+        "operation": envelope.get("operation"),
+        "operation_args": envelope.get("operation_args") or {},
+        "generation_required": bool(envelope.get("generation_required") or False),
+        "complexity": envelope.get("complexity"),
+        "required_tools": list(case.required_tools or []),
+        "forbidden_tools": list(case.forbidden_tools or []),
+    }
+    # Provenance-only keys (stripped before select_route):
+    meta["benchmark_case_id"] = case.case_id
     return ReplayableRequestSnapshot(
         messages=messages,
         tools=tools,
@@ -82,7 +95,7 @@ def _snapshot_from_case(case: BenchmarkCaseSpec) -> ReplayableRequestSnapshot:
         workflow=case.request.workflow,
         symbol=case.request.symbol,
         source_case_id=case.case_id,
-        metadata={"benchmark_case_id": case.case_id, "difficulty": case.difficulty},
+        metadata=meta,
     )
 
 
@@ -94,12 +107,87 @@ async def execute_baseline_case(
     model: str,
     provider: LLMProvider,
     run_id: str,
+    model_first: bool = False,
 ) -> Trace:
+    """Baseline execution. model_first=True: always LLM except hard safety boundaries."""
+    from ..optimization.policies.bounded_routing import RouteTier, extract_task_features, select_route
+
+    apply_case_setup(db, product_id, case)
     snapshot = _snapshot_from_case(case)
-    request = snapshot.to_llm_request(provider=provider.name, model=model)
-    response = await provider.complete(request)
-    bounded = bound_text(response.content)
-    cost = response.cost
+
+    # Hard safety still applies under model-first (honest product boundary).
+    route_meta = {
+        k: v
+        for k, v in (snapshot.metadata or {}).items()
+        if k not in {"benchmark_case_id", "case_id", "expected", "cohort", "difficulty"}
+    }
+    features = extract_task_features(
+        messages=[m.model_dump() for m in snapshot.messages],
+        tools=[t.model_dump() for t in snapshot.tools] if snapshot.tools else None,
+        required_tools=case.required_tools,
+        forbidden_tools=case.forbidden_tools,
+        max_tokens=snapshot.max_tokens,
+        safety_sensitive=case.protected,
+        metadata=route_meta,
+    )
+    safety = select_route(features)
+    use_safety = safety.tier == RouteTier.DETERMINISTIC and (
+        features.secret_path_request
+        or features.deploy_request
+        or features.injection_signal
+        or features.legacy_verification_claim
+        or features.cross_product_request
+    )
+
+    tool_calls: list = []
+    if use_safety:
+        import time as _time
+
+        t0 = _time.perf_counter()
+        content = safety.deterministic_answer or ""
+        if safety.deterministic_tool:
+            from ..agent.tools import execute_tool
+
+            args = {"product_id": product_id}
+            tool_calls.append(
+                {"id": f"base-{uuid.uuid4().hex[:8]}", "name": safety.deterministic_tool, "arguments": args}
+            )
+            try:
+                execute_tool(db, safety.deterministic_tool, args)
+                content = safety.deterministic_tool
+            except ValueError:
+                content = safety.deterministic_answer or "refuse"
+        bounded = bound_text(content)
+        latency_ms = (_time.perf_counter() - t0) * 1000.0
+        cost_usd = 0.0
+        cost_source = "deterministic_no_provider"
+        pricing_version = None
+        provider_name = "none"
+        requested_model = None
+        resolved_model = None
+        provider_request_id = None
+        usage_in = usage_out = usage_cached = usage_reason = 0
+        finish_reason = "stop"
+    else:
+        request = snapshot.to_llm_request(provider=provider.name, model=model)
+        response = await provider.complete(request)
+        bounded = bound_text(response.content)
+        cost = response.cost
+        cost_usd = cost.cost_usd if cost else None
+        cost_source = cost.cost_source.value if cost and cost.cost_source else None
+        pricing_version = cost.pricing_version if cost else None
+        latency_ms = response.latency_ms
+        provider_name = response.provider
+        requested_model = response.requested_model
+        resolved_model = response.resolved_model or model
+        provider_request_id = response.provider_request_id
+        usage_in = response.usage.input_tokens
+        usage_out = response.usage.output_tokens
+        usage_cached = response.usage.cached_input_tokens
+        usage_reason = response.usage.reasoning_tokens
+        finish_reason = response.finish_reason.value
+        tool_calls = [tc.model_dump() for tc in response.tool_calls]
+
     trace = Trace(
         id=str(uuid.uuid4()),
         product_id=product_id,
@@ -107,22 +195,22 @@ async def execute_baseline_case(
         timestamp=utcnow(),
         symbol=case.request.symbol,
         workflow=case.request.workflow,
-        provider=response.provider,
-        model=response.resolved_model or model,
-        requested_model=response.requested_model,
-        response_model=response.resolved_model,
-        provider_request_id=response.provider_request_id,
+        provider=provider_name,
+        model=resolved_model or model,
+        requested_model=requested_model,
+        response_model=resolved_model,
+        provider_request_id=provider_request_id,
         input_text=messages_to_flat_text(case.request.messages),
         output_text=bounded.text,
         expected_output=str(case.expected) if case.expected is not None else None,
-        input_tokens=response.usage.input_tokens,
-        output_tokens=response.usage.output_tokens,
-        cached_input_tokens=response.usage.cached_input_tokens,
-        reasoning_tokens=response.usage.reasoning_tokens,
-        latency_ms=response.latency_ms,
-        cost_usd=cost.cost_usd if cost else None,
-        cost_source=cost.cost_source.value if cost and cost.cost_source else None,
-        pricing_version=cost.pricing_version if cost else None,
+        input_tokens=usage_in,
+        output_tokens=usage_out,
+        cached_input_tokens=usage_cached,
+        reasoning_tokens=usage_reason,
+        latency_ms=latency_ms,
+        cost_usd=cost_usd,
+        cost_source=cost_source,
+        pricing_version=pricing_version,
         input_hash=snapshot.snapshot_hash(),
         output_hash=bounded.full_hash,
         protected=case.protected,
@@ -133,8 +221,9 @@ async def execute_baseline_case(
                 "benchmark_run_id": run_id,
                 "benchmark_case_id": case.case_id,
                 "execution_role": "baseline",
-                "tool_calls": [tc.model_dump() for tc in response.tool_calls],
-                "finish_reason": response.finish_reason.value,
+                "model_first": model_first,
+                "tool_calls": tool_calls,
+                "finish_reason": finish_reason,
                 "required_tools": list(case.required_tools or []),
                 "forbidden_tools": list(case.forbidden_tools or []),
             },
@@ -236,17 +325,21 @@ async def run_benchmark(
     strategy: str = "model_substitution",
     cheap_model: str | None = None,
     policy_baseline_model: str | None = None,
+    model_first_baseline: bool = False,
+    allow_dirty_git: bool = False,
+    benchmark_version: str | None = None,
 ) -> BenchmarkRun:
     commit_sha, dirty = git_state()
-    if not dry_run and dirty:
+    if not dry_run and dirty and not allow_dirty_git:
         raise BenchmarkError("Refusing real benchmark on dirty git working tree. Commit first.")
 
+    bench_ver = benchmark_version or BENCHMARK_VERSION
     llm = provider or get_provider("openrouter")
     candidate_cfg_meta: dict[str, Any] = {"model": candidate_model, "strategy": strategy}
     if strategy == "bounded_routing":
         candidate_cfg_meta.update(
             {
-                "policy_version": "bounded_routing_v1.0.0",
+                "policy_version": "bounded_routing_v1.1.0",
                 "cheap_model": cheap_model or candidate_model,
                 "baseline_model": policy_baseline_model or baseline_model,
             }
@@ -257,7 +350,7 @@ async def run_benchmark(
             product_id=product.id,
             dataset_version_id=dataset_version.id,
             status="PLANNED",
-            benchmark_version=BENCHMARK_VERSION,
+            benchmark_version=bench_ver,
             baseline_config_json=json.dumps({"model": baseline_model, "label": run_label}, ensure_ascii=False),
             candidate_config_json=json.dumps(candidate_cfg_meta, ensure_ascii=False),
             baseline_model=baseline_model,
@@ -290,7 +383,7 @@ async def run_benchmark(
             product_id=product.id,
             dataset_version_id=dataset_version.id,
             status="RUNNING",
-            benchmark_version=BENCHMARK_VERSION,
+            benchmark_version=bench_ver,
             baseline_config_json=json.dumps(
                 {"model": baseline_model, "label": run_label, "frozen": True}, ensure_ascii=False
             ),
@@ -336,7 +429,13 @@ async def run_benchmark(
                 return
         async with sem:
             trace = await execute_baseline_case(
-                db, product_id=product.id, case=case, model=baseline_model, provider=llm, run_id=run.id
+                db,
+                product_id=product.id,
+                case=case,
+                model=baseline_model,
+                provider=llm,
+                run_id=run.id,
+                model_first=model_first_baseline or strategy == "bounded_routing",
             )
             if trace.cost_usd:
                 spent += trace.cost_usd
@@ -455,6 +554,7 @@ async def run_benchmark(
     protected_pass = 0
     protected_total = 0
     route_counts = {"deterministic": 0, "cheap_bounded": 0, "baseline_strong": 0, "fallback": 0}
+    cohort_stats: dict[str, dict[str, Any]] = {}
 
     for case in cases:
         trace = baseline_traces[case.case_id]
@@ -462,6 +562,19 @@ async def run_benchmark(
         task_fp_b = task_fingerprint_from_trace(trace)
         task_fp_c = sample.get("task_fingerprint") if sample else None
         comparable = bool(sample and task_fp_c == task_fp_b)
+        cohort = str((case.metadata or {}).get("cohort") or case.difficulty)
+        bucket = cohort_stats.setdefault(
+            cohort,
+            {
+                "n": 0,
+                "baseline_cost": 0.0,
+                "candidate_cost": 0.0,
+                "baseline_quality_sum": 0.0,
+                "candidate_quality_sum": 0.0,
+                "quality_n": 0,
+            },
+        )
+        bucket["n"] += 1
         row = db.scalar(
             select(BenchmarkCaseResult).where(
                 BenchmarkCaseResult.benchmark_run_id == run.id,
@@ -493,13 +606,14 @@ async def run_benchmark(
         if comparable and trace.cost_usd is not None and sample and sample.get("cost_usd") is not None:
             b_costs.append(trace.cost_usd)
             c_costs.append(float(sample["cost_usd"]))
+            bucket["baseline_cost"] += float(trace.cost_usd)
+            bucket["candidate_cost"] += float(sample["cost_usd"])
         if trace.latency_ms is not None:
             b_lats.append(trace.latency_ms)
         if sample and sample.get("latency_ms") is not None:
             c_lats.append(float(sample["latency_ms"]))
         if case.protected:
             protected_total += 1
-            # pull eval case result
             from ..db_models import EvaluationCaseResult
 
             er = db.scalar(
@@ -512,7 +626,34 @@ async def run_benchmark(
                 protected_pass += 1
             row.candidate_quality = er.candidate_score if er else None
             row.baseline_quality = er.baseline_score if er else None
+        else:
+            from ..db_models import EvaluationCaseResult
+
+            er = db.scalar(
+                select(EvaluationCaseResult).where(
+                    EvaluationCaseResult.evaluation_run_id == evaluation.id,
+                    EvaluationCaseResult.case_id == case.case_id,
+                )
+            )
+            if er:
+                row.candidate_quality = er.candidate_score
+                row.baseline_quality = er.baseline_score
+        if row.baseline_quality is not None and row.candidate_quality is not None:
+            bucket["baseline_quality_sum"] += float(row.baseline_quality)
+            bucket["candidate_quality_sum"] += float(row.candidate_quality)
+            bucket["quality_n"] += 1
         db.add(row)
+
+    for cohort, bucket in cohort_stats.items():
+        qn = bucket["quality_n"] or 1
+        bucket["baseline_quality"] = bucket["baseline_quality_sum"] / qn if bucket["quality_n"] else None
+        bucket["candidate_quality"] = bucket["candidate_quality_sum"] / qn if bucket["quality_n"] else None
+        b = bucket["baseline_cost"]
+        c = bucket["candidate_cost"]
+        bucket["absolute_savings"] = b - c
+        bucket["percent_savings"] = ((b - c) / b * 100.0) if b else None
+        del bucket["baseline_quality_sum"]
+        del bucket["candidate_quality_sum"]
 
     stats = paired_cost_savings(b_costs, c_costs)
     ci = bootstrap_ci(b_costs, c_costs, seed=seed) if len(b_costs) >= 5 else {"sufficient": False, "n": len(b_costs)}
@@ -530,8 +671,19 @@ async def run_benchmark(
         run.latency_delta_ms = run.candidate_latency_ms - run.baseline_latency_ms
     run.protected_pass_rate = (protected_pass / protected_total) if protected_total else None
     run.completed_case_count = len(cases)
+    # Validity: mixed workload should exercise all three tiers for full runs.
+    tiers_used = sum(1 for k in ("deterministic", "cheap_bounded", "baseline_strong") if route_counts.get(k, 0) > 0)
     run.statistics_json = json.dumps(
-        {"paired": stats, "bootstrap": ci, "route_distribution": route_counts},
+        {
+            "paired": stats,
+            "bootstrap": ci,
+            "route_distribution": route_counts,
+            "cohort_stats": cohort_stats,
+            "benchmark_validity": {
+                "tiers_exercised": tiers_used,
+                "mixed_workload_ok": tiers_used >= 3 or len(cases) < 50,
+            },
+        },
         ensure_ascii=False,
     )
     run.status = evaluation.status
