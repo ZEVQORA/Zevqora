@@ -9,6 +9,7 @@ from ...core.content import bound_text
 from ...core.errors import PricingUnavailableError
 from ...core.hashing import sha256_text
 from ...db_models import CandidatePlan, Finding, Trace
+from ...evidence.replay import ReplayableRequestSnapshot
 from ...providers.base import LLMProvider
 from ...providers.factory import get_provider
 from ...providers.models import LLMMessage, LLMRequest
@@ -100,6 +101,8 @@ class ModelSubstitutionStrategy(OptimizationStrategy):
         finding: Finding | None = None,
         *,
         candidate_model: str | None = None,
+        include_protected: bool = False,
+        sample_trace_ids: list[str] | None = None,
     ) -> EligibilityResult:
         if not candidate_model:
             return EligibilityResult(
@@ -120,17 +123,22 @@ class ModelSubstitutionStrategy(OptimizationStrategy):
             if matching:
                 scoped = matching
 
+        include_protected = include_protected
         usable: list[Trace] = []
-        for t in scoped:
-            if t.protected:
-                continue
-            if not (t.input_text or t.expected_output):
-                continue
-            if t.output_text is None and t.expected_output is None:
-                continue
-            usable.append(t)
+        if sample_trace_ids:
+            by_id = {t.id: t for t in scoped}
+            usable = [by_id[i] for i in sample_trace_ids if i in by_id]
+        else:
+            for t in scoped:
+                if t.protected and not include_protected:
+                    continue
+                if not (t.input_text or t.expected_output):
+                    continue
+                if t.output_text is None and t.expected_output is None:
+                    continue
+                usable.append(t)
 
-        limit = settings.max_candidate_samples
+        limit = settings.max_candidate_samples if not sample_trace_ids else len(usable)
         selected = usable[:limit]
         if not selected:
             return EligibilityResult(
@@ -155,8 +163,18 @@ class ModelSubstitutionStrategy(OptimizationStrategy):
         *,
         candidate_model: str | None = None,
         max_budget_usd: float | None = None,
+        include_protected: bool = False,
+        sample_trace_ids: list[str] | None = None,
     ) -> PlanDraft:
-        elig = self.eligibility(db, product_id, traces, finding, candidate_model=candidate_model)
+        elig = self.eligibility(
+            db,
+            product_id,
+            traces,
+            finding,
+            candidate_model=candidate_model,
+            include_protected=include_protected,
+            sample_trace_ids=sample_trace_ids,
+        )
         budget = max_budget_usd if max_budget_usd is not None else settings.max_experiment_cost_usd
         if not elig.eligible:
             return PlanDraft(
@@ -177,7 +195,7 @@ class ModelSubstitutionStrategy(OptimizationStrategy):
             estimate_sample_cost_usd(candidate_model or "", t, max_output_tokens=SMOKE_MAX_OUTPUT_TOKENS)
             for t in sample_traces
         ]
-        if any(e is None for e in estimates) and budget > 0:
+        if any(e is None for e in estimates) and budget > 0 and not sample_trace_ids:
             # Strict budget without predictable cost → blocked for automatic paid runs.
             return PlanDraft(
                 strategy=StrategyName.MODEL_SUBSTITUTION,
@@ -270,27 +288,51 @@ class ModelSubstitutionStrategy(OptimizationStrategy):
                 execution_proven=False,
             )
 
-        user_content = baseline.input_text or baseline.expected_output or ""
         temperature = float(cfg.get("temperature", 0.0))
         max_tokens = int(cfg.get("max_tokens") or SMOKE_MAX_OUTPUT_TOKENS)
-        request = LLMRequest(
-            provider="openrouter",
-            model=model,
-            messages=[LLMMessage(role="user", content=user_content)],
-            temperature=temperature,
-            max_tokens=max_tokens,
-            metadata={
-                "baseline_trace_id": baseline.id,
-                "strategy": self.name,
-                "product_id": plan.product_id,
-                "workflow": baseline.workflow,
-                "temperature": temperature,
-                "system_prompt_version": None,
-                "response_format": None,
-            },
-        )
+        snap_json = getattr(baseline, "request_snapshot_json", None)
+        if snap_json:
+            snapshot = ReplayableRequestSnapshot.model_validate_json(snap_json)
+            request = snapshot.to_llm_request(provider="openrouter", model=model)
+            request.metadata.update(
+                {
+                    "baseline_trace_id": baseline.id,
+                    "strategy": self.name,
+                    "product_id": plan.product_id,
+                    "replay_snapshot_hash": snapshot.snapshot_hash(),
+                }
+            )
+            if cfg.get("max_tokens") is not None:
+                request.max_tokens = max_tokens
+            if cfg.get("temperature") is not None:
+                request.temperature = temperature
+        else:
+            user_content = baseline.input_text or baseline.expected_output or ""
+            meta = {}
+            if baseline.metadata_json:
+                try:
+                    raw = json.loads(baseline.metadata_json)
+                    if isinstance(raw, dict):
+                        meta = raw
+                except json.JSONDecodeError:
+                    meta = {}
+            request = LLMRequest(
+                provider="openrouter",
+                model=model,
+                messages=[LLMMessage(role="user", content=user_content)],
+                temperature=temperature,
+                max_tokens=max_tokens,
+                metadata={
+                    "baseline_trace_id": baseline.id,
+                    "strategy": self.name,
+                    "product_id": plan.product_id,
+                    "workflow": baseline.workflow,
+                    "temperature": temperature,
+                    "system_prompt_version": meta.get("system_prompt_version"),
+                    "response_format": meta.get("response_format"),
+                },
+            )
         task_fp = task_fingerprint_from_request(request)
-        # Baseline task fingerprint must match for true same-task substitution.
         baseline_fp = task_fingerprint_from_trace(baseline)
         config_fp = execution_configuration_fingerprint(
             provider="openrouter",

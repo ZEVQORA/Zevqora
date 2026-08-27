@@ -263,12 +263,22 @@ class RequiredFactsGrader(Grader):
     def grade(self, *, actual: str | None, expected: Any, spec: GraderSpec, context: dict[str, Any]) -> GraderResult:
         cfg = spec.config or {}
         facts = list(cfg.get("facts") or expected or [])
+        forbidden = list(cfg.get("forbidden_phrases") or [])
         if actual is None:
             return GraderResult(
                 grader=self.name, version=self.version, score=0.0, passed=False, details={"error": "actual_missing"}
             )
         case_insensitive = bool(cfg.get("case_insensitive", True))
         hay = actual.casefold() if case_insensitive else actual
+        violations = [p for p in forbidden if (p.casefold() if case_insensitive else p) in hay]
+        if violations:
+            return GraderResult(
+                grader=self.name,
+                version=self.version,
+                score=0.0,
+                passed=False,
+                details={"forbidden_found": violations},
+            )
         found = []
         missing = []
         for fact in facts:

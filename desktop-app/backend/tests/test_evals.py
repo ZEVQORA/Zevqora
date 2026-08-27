@@ -82,7 +82,7 @@ def _trace(db, product_id, *, rid, text, out, cost=0.02, protected=False, expect
 
 
 def test_head_is_phase3(tmp_path):
-    assert HEAD_REVISION == "0004_evaluation_verification"
+    assert HEAD_REVISION == "0005_benchmark_dogfood"
     db = tmp_path / "h.db"
     ensure_schema(f"sqlite:///{db.as_posix()}", backup_dir=tmp_path / "b")
     import sqlite3

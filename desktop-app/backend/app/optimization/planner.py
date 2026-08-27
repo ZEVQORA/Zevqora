@@ -61,6 +61,8 @@ def create_plans(
     strategy: str | None = None,
     candidate_model: str | None = None,
     max_budget_usd: float | None = None,
+    include_protected: bool = False,
+    sample_trace_ids: list[str] | None = None,
 ) -> list[CandidatePlan]:
     """Deterministic planner — no LLM. Emits READY or BLOCKED plans only."""
     finding = None
@@ -83,13 +85,19 @@ def create_plans(
 
     for name in names:
         strat = get_strategy(name)
+        plan_kwargs: dict = {
+            "candidate_model": candidate_model,
+            "max_budget_usd": budget,
+        }
+        if name == StrategyName.MODEL_SUBSTITUTION.value:
+            plan_kwargs["include_protected"] = include_protected
+            plan_kwargs["sample_trace_ids"] = sample_trace_ids
         draft = strat.plan(
             db,
             product_id,
             traces,
             finding,
-            candidate_model=candidate_model,
-            max_budget_usd=budget,
+            **plan_kwargs,
         )
         created.append(_persist(db, product_id, draft))
     return created

@@ -35,7 +35,9 @@ backend/build/
 backend/dist/
 *.spec
 
-# IDE / OS
+# Build / runtime artifacts
+artifacts/
+backend/artifacts/
 .vscode/
 .idea/
 .DS_Store

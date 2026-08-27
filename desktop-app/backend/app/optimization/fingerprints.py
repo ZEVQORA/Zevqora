@@ -27,6 +27,15 @@ def _parse_meta(trace: Trace) -> dict[str, Any]:
 
 def task_fingerprint_from_trace(trace: Trace) -> str:
     """Model-independent task identity for baseline ↔ candidate equivalence."""
+    snap_json = getattr(trace, "request_snapshot_json", None)
+    if snap_json:
+        try:
+            from ..evidence.replay import ReplayableRequestSnapshot
+
+            snap = ReplayableRequestSnapshot.model_validate_json(snap_json)
+            return snap.task_fingerprint()
+        except Exception:
+            pass
     meta = _parse_meta(trace)
     payload = {
         "input_hash": sha256_text(trace.input_text) or sha256_text(trace.expected_output),
