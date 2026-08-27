@@ -68,6 +68,7 @@ v2 is designed to measure **mechanism quality** (deterministic elimination + bou
 - Cases were chosen from product operations and honest synthesis tasks, **before** candidate full-run results.
 - Do not retune labels, envelopes, or expected tokens after seeing a candidate pass rate or cost delta.
 - Historical Run A (~37.5% REJECTED on v1) remains the naive model-substitution baseline. Rounding or reshaping v2 toward “45%” would invalidate honesty claims.
+- **Phase 4C full run (immutable):** measured **42.01%** raw cost reduction; status **REJECTED** (`quality_floor`). Stretch **45%** was **not reached** and is **not** a verified claim. Pack: `docs/evidence/phase4c-v2/`.
 
 If a run shows large cost savings with failed quality or protected gates, status stays **REJECTED** — cheaper is not VERIFIED.
 

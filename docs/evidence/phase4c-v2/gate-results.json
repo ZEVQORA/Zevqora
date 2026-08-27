@@ -1,0 +1,354 @@
+{
+  "benchmark_run_id": "d5ff5d0f-99b5-468a-9bd6-3fd14faaf6df",
+  "evaluation_run_id": "fef58cfc-f6b4-47a0-8031-a727e295eb91",
+  "status": "REJECTED",
+  "rejection_reason": "Failed gates: quality_floor",
+  "gates": [
+    {
+      "name": "evidence_completeness",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "complete": true,
+        "missing": []
+      },
+      "threshold": "all_required_present",
+      "reason": "All required evaluation evidence present."
+    },
+    {
+      "name": "minimum_samples",
+      "required": true,
+      "outcome": "passed",
+      "observed": 50,
+      "threshold": 50,
+      "reason": "sample_count=50; minimum=50."
+    },
+    {
+      "name": "quality_floor",
+      "required": true,
+      "outcome": "failed",
+      "observed": 0.87,
+      "threshold": 0.95,
+      "reason": "candidate_quality=0.87; floor=0.95."
+    },
+    {
+      "name": "non_inferiority",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "baseline": 0.61,
+        "candidate": 0.87,
+        "delta": 0.26,
+        "tolerance": 0.0
+      },
+      "threshold": 0.61,
+      "reason": "candidate_quality >= baseline_quality - tolerance (0.61)."
+    },
+    {
+      "name": "protected_slice",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "protected_count": 5,
+        "failures": 0
+      },
+      "threshold": 0,
+      "reason": "Every protected case must pass; one failure rejects."
+    },
+    {
+      "name": "cost_improvement",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "baseline": 0.00098655,
+        "candidate": 0.0005721,
+        "pct": 42.010034970351235
+      },
+      "threshold": {
+        "strict_less": true,
+        "min_pct": 0.0
+      },
+      "reason": "Candidate total cost must be lower than baseline."
+    },
+    {
+      "name": "latency_regression",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "baseline": 1100.997669999997,
+        "candidate": 781.0635140000522,
+        "limit": 1651.4965049999955
+      },
+      "threshold": 1651.4965049999955,
+      "reason": "candidate_latency <= baseline * (1 + 50.0/100)."
+    },
+    {
+      "name": "fallback",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "fallback_configured": true,
+        "fallback_exercised": false
+      },
+      "threshold": true,
+      "reason": "Plan must define usable fallback metadata (not runtime-exercised proof)."
+    },
+    {
+      "name": "execution_success",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "execution_succeeded": true,
+        "execution_proven": true,
+        "case_errors": 0
+      },
+      "threshold": {
+        "execution_succeeded": true,
+        "execution_proven": true,
+        "case_errors": 0
+      },
+      "reason": "Required candidate samples must succeed with execution-proven evidence."
+    }
+  ],
+  "failed_gates_only": [
+    {
+      "name": "quality_floor",
+      "required": true,
+      "outcome": "failed",
+      "observed": 0.87,
+      "threshold": 0.95,
+      "reason": "candidate_quality=0.87; floor=0.95."
+    }
+  ],
+  "quality_floor_case_contribution": {
+    "note": "Gate fails on aggregate candidate_quality only; cases below score 1.0 that reduce the mean are listed.",
+    "cases_with_candidate_score_lt_1": [
+      {
+        "case_id": "bnd-015",
+        "cohort": "BOUNDED_MODEL_REQUIRED",
+        "protected": false,
+        "baseline_score": 1.0,
+        "candidate_score": 0.0,
+        "graders": [
+          {
+            "grader": "field_accuracy",
+            "version": "1.0.0",
+            "score": 0.0,
+            "passed": false,
+            "details": {
+              "error": "object_required"
+            }
+          }
+        ],
+        "route": {
+          "final_route": "cheap_bounded",
+          "initial_route": "cheap_bounded",
+          "fallback_occurred": false,
+          "provider_call_count": 1,
+          "resolved_model": "google/gemini-2.5-flash-lite",
+          "cost_usd": 1.92e-05,
+          "cost_source": "provider_reported",
+          "status": "succeeded",
+          "output_hash": "930e42d52bd8b7be59dd4b2c57eb82e8ef1558012f4ff6176b75d3935b03d9ea"
+        },
+        "failure_class": "candidate_capability"
+      },
+      {
+        "case_id": "cpx-002",
+        "cohort": "COMPLEX_MODEL_REQUIRED",
+        "protected": false,
+        "baseline_score": 0.0,
+        "candidate_score": 0.0,
+        "graders": [
+          {
+            "grader": "classification",
+            "version": "1.0.0",
+            "score": 0.0,
+            "passed": false,
+            "details": {
+              "predicted": "verified",
+              "expected": "incomplete",
+              "strict": true
+            }
+          }
+        ],
+        "route": {
+          "final_route": "baseline_strong",
+          "initial_route": "baseline_strong",
+          "fallback_occurred": false,
+          "provider_call_count": 1,
+          "resolved_model": "openai/gpt-4o-mini",
+          "cost_usd": 2.025e-05,
+          "cost_source": "provider_reported",
+          "status": "succeeded",
+          "output_hash": "1c34f88707b55e6104c4eb20e71ffa3d33e414b71ef689a15fad0640d0ac58cb"
+        },
+        "failure_class": "candidate_capability"
+      },
+      {
+        "case_id": "cpx-004",
+        "cohort": "COMPLEX_MODEL_REQUIRED",
+        "protected": false,
+        "baseline_score": 0.0,
+        "candidate_score": 0.0,
+        "graders": [
+          {
+            "grader": "classification",
+            "version": "1.0.0",
+            "score": 0.0,
+            "passed": false,
+            "details": {
+              "predicted": "include",
+              "expected": "exclude",
+              "strict": true
+            }
+          }
+        ],
+        "route": {
+          "final_route": "baseline_strong",
+          "initial_route": "baseline_strong",
+          "fallback_occurred": false,
+          "provider_call_count": 1,
+          "resolved_model": "openai/gpt-4o-mini",
+          "cost_usd": 1.995e-05,
+          "cost_source": "provider_reported",
+          "status": "succeeded",
+          "output_hash": "c0cbff04cc90f5b4cd53a53533285f7d741f24a5279f746b8370ad0f2c982f3e"
+        },
+        "failure_class": "candidate_capability"
+      },
+      {
+        "case_id": "cpx-005",
+        "cohort": "COMPLEX_MODEL_REQUIRED",
+        "protected": false,
+        "baseline_score": 0.5,
+        "candidate_score": 0.5,
+        "graders": [
+          {
+            "grader": "required_facts",
+            "version": "1.1.0",
+            "score": 0.5,
+            "passed": false,
+            "details": {
+              "found": [
+                "internal dogfooding"
+              ],
+              "missing": [
+                "not customer proof"
+              ],
+              "semantics": "1.1.0"
+            }
+          }
+        ],
+        "route": {
+          "final_route": "baseline_strong",
+          "initial_route": "baseline_strong",
+          "fallback_occurred": false,
+          "provider_call_count": 1,
+          "resolved_model": "openai/gpt-4o-mini",
+          "cost_usd": 3.885e-05,
+          "cost_source": "provider_reported",
+          "status": "succeeded",
+          "output_hash": "78f07165057ce64f828d90e0d493f1f0fb1ac778d67d85b97359df69d3c4cc6d"
+        },
+        "failure_class": "candidate_capability"
+      },
+      {
+        "case_id": "cpx-006",
+        "cohort": "COMPLEX_MODEL_REQUIRED",
+        "protected": false,
+        "baseline_score": 0.0,
+        "candidate_score": 0.0,
+        "graders": [
+          {
+            "grader": "classification",
+            "version": "1.0.0",
+            "score": 0.0,
+            "passed": false,
+            "details": {
+              "predicted": "same_run",
+              "expected": "new_run_identity",
+              "strict": true
+            }
+          }
+        ],
+        "route": {
+          "final_route": "baseline_strong",
+          "initial_route": "baseline_strong",
+          "fallback_occurred": false,
+          "provider_call_count": 1,
+          "resolved_model": "openai/gpt-4o-mini",
+          "cost_usd": 2.19e-05,
+          "cost_source": "provider_reported",
+          "status": "succeeded",
+          "output_hash": "b1d8a366ca1df9e510253d0aadf198db33fdf53e9a5645f86e4b53d1675cf38c"
+        },
+        "failure_class": "candidate_capability"
+      },
+      {
+        "case_id": "cpx-008",
+        "cohort": "COMPLEX_MODEL_REQUIRED",
+        "protected": false,
+        "baseline_score": 0.0,
+        "candidate_score": 0.0,
+        "graders": [
+          {
+            "grader": "classification",
+            "version": "1.0.0",
+            "score": 0.0,
+            "passed": false,
+            "details": {
+              "predicted": "drop",
+              "expected": "yes_prevents_verified",
+              "strict": true
+            }
+          }
+        ],
+        "route": {
+          "final_route": "baseline_strong",
+          "initial_route": "baseline_strong",
+          "fallback_occurred": false,
+          "provider_call_count": 1,
+          "resolved_model": "openai/gpt-4o-mini",
+          "cost_usd": 1.995e-05,
+          "cost_source": "provider_reported",
+          "status": "succeeded",
+          "output_hash": "d90ee9ccf6bea1d2942a7b21319338198dec2a746f8a0d0771621f00da2e0864"
+        },
+        "failure_class": "candidate_capability"
+      },
+      {
+        "case_id": "det-001",
+        "cohort": "DETERMINISTIC_ELIGIBLE",
+        "protected": false,
+        "baseline_score": 0.0,
+        "candidate_score": 0.0,
+        "graders": [
+          {
+            "grader": "exact_match",
+            "version": "1.0.0",
+            "score": 0.0,
+            "passed": false,
+            "details": {
+              "mode": "text",
+              "trim": true,
+              "case_insensitive": false
+            }
+          }
+        ],
+        "route": {
+          "final_route": "deterministic",
+          "initial_route": "deterministic",
+          "fallback_occurred": false,
+          "provider_call_count": 0,
+          "resolved_model": null,
+          "cost_usd": 0.0,
+          "cost_source": "deterministic_no_provider",
+          "status": "succeeded",
+          "output_hash": "ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d"
+        },
+        "failure_class": "evidence_issue"
+      }
+    ]
+  }
+}

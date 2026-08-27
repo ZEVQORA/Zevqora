@@ -143,6 +143,8 @@ workspace scan → chunks → FTS5 lexical retrieval → bounded context → age
 
 Never mix labels. Never call dogfood “customer traction.” Never treat 45% as measured unless a run proves it.
 
+**Phase 4C status (2026-08-27, immutable):** internal `zev_dogfood_v2` run measured **42.01%** raw cost reduction and was **REJECTED** (`quality_floor`). That is **not** verified savings. See `docs/evidence/phase4c-v2/`. Stretch **45%** remains a target only — **retired as a measured claim**.
+
 ---
 
 ## Database / migration architecture

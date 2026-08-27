@@ -309,6 +309,7 @@ See `docs/backend-v0.2-architecture.md`.
 - `zev_dogfood_v1` dataset (~50 cases)
 - Baseline + candidate runners + REPORT.md / JSON artifacts
 - Report actual measured savings; never fabricate 45%
+- **Phase 4C (`zev_dogfood_v2`) measured 42.01% raw cost reduction and was REJECTED by `quality_floor` — not verified savings.** Stretch 45% is **not measured**. Evidence pack: `docs/evidence/phase4c-v2/`.
 
 ## Phase 5 — Secure lexical RAG
 
