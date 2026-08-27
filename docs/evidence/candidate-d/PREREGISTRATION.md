@@ -69,4 +69,4 @@ If REJECTED: preserve the run and diagnose failed gates honestly.
 
 ## Git SHA at preregistration
 
-Filled at commit time in the accompanying commit message / `git rev-parse HEAD` after freeze commit.
+`38813df34934af0a781e34c8bdb9f59f82e70352`
