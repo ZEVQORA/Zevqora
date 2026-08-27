@@ -5,16 +5,19 @@ import uuid
 from collections import Counter
 from datetime import datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db_models import Experiment, Trace
 from ..schemas import EconomicsOut, TraceIn
+from ..telemetry.normalizer import normalize_imported_trace
 
 
 def import_traces(db: Session, product_id: str, traces: list[TraceIn]) -> int:
     imported = 0
     for item in traces:
+        normalized = normalize_imported_trace(item)
+        fields = normalized["fields"]
         trace = Trace(
             id=str(uuid.uuid4()),
             product_id=product_id,
@@ -23,24 +26,37 @@ def import_traces(db: Session, product_id: str, traces: list[TraceIn]) -> int:
             symbol=item.symbol,
             workflow=item.workflow,
             provider=item.provider,
-            model=item.model,
-            input_text=item.input_text,
-            output_text=item.output_text,
+            model=item.model or fields.requested_model,
+            requested_model=fields.requested_model,
+            response_model=fields.response_model,
+            provider_request_id=fields.provider_request_id,
+            input_text=normalized["input_text"],
+            output_text=normalized["output_text"],
             expected_output=item.expected_output,
             candidate_output=item.candidate_output,
             input_tokens=item.input_tokens,
             output_tokens=item.output_tokens,
+            cached_input_tokens=fields.cached_input_tokens,
+            reasoning_tokens=fields.reasoning_tokens,
             latency_ms=item.latency_ms,
+            ttft_ms=fields.ttft_ms,
             candidate_latency_ms=item.candidate_latency_ms,
             cost_usd=item.cost_usd,
+            cost_source=fields.cost_source,
+            pricing_version=fields.pricing_version,
             candidate_cost_usd=item.candidate_cost_usd,
+            attempt=fields.attempt,
+            retry_reason=fields.retry_reason,
+            input_hash=fields.input_hash,
+            output_hash=fields.output_hash,
             protected=item.protected,
-            metadata_json=json.dumps(item.metadata, ensure_ascii=False),
+            metadata_json=json.dumps({**item.metadata, **normalized["metadata"]}, ensure_ascii=False),
         )
         db.add(trace)
         imported += 1
     db.commit()
     from .diagnosis import diagnose_runtime_evidence
+
     diagnose_runtime_evidence(db, product_id)
     return imported
 
@@ -72,7 +88,10 @@ def economics(db: Session, product_id: str) -> EconomicsOut:
         verified_savings_usd=round(verified_savings, 8),
         verified_experiments=len(verified),
         note=(
-            "Observed values come only from imported execution evidence. No monthly projection is fabricated."
+            "Observed values come only from imported execution evidence. "
+            "Imported costs are imported_external provenance, not provider-verified. "
+            "No monthly projection is fabricated. "
+            "Experiment verification of pre-filled candidate_* fields is LEGACY and not execution-proven."
             if traces
             else "No runtime evidence imported yet. Static findings are not Verified Savings."
         ),

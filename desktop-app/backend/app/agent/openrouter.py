@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import json
-from typing import Any
 
-import httpx
 from sqlalchemy.orm import Session
 
 from ..config import settings
+from ..core.errors import ProviderError
+from ..providers.factory import get_provider
+from ..providers.models import LLMMessage, LLMRequest, ToolDefinition
 from ..schemas import ToolEvent
 from .tools import TOOL_DEFINITIONS, execute_tool
 
@@ -26,18 +27,8 @@ Hard rules:
 """
 
 
-def _content_text(content: Any) -> str:
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts: list[str] = []
-        for item in content:
-            if isinstance(item, dict):
-                text = item.get("text") or item.get("content")
-                if isinstance(text, str):
-                    parts.append(text)
-        return "\n".join(parts)
-    return ""
+def _tool_definitions() -> list[ToolDefinition]:
+    return [ToolDefinition.model_validate(item) for item in TOOL_DEFINITIONS]
 
 
 async def run_openrouter_agent(
@@ -46,80 +37,79 @@ async def run_openrouter_agent(
     product_id: str | None,
     history: list[dict[str, str]],
     model: str | None,
+    provider_name: str | None = None,
 ) -> tuple[str, str, list[ToolEvent]]:
+    """Zev tool-loop orchestration. Provider HTTP lives in providers/openrouter.py."""
     chosen_model = model or settings.agent_model
-    messages: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
-    messages.extend(history)
+    provider = get_provider(provider_name)
+
+    messages: list[LLMMessage] = [LLMMessage(role="system", content=SYSTEM_PROMPT)]
+    messages.extend(LLMMessage(role=item["role"], content=item["content"]) for item in history)
     if product_id:
         messages.append(
-            {
-                "role": "system",
-                "content": f"The currently selected ZEVQORA product_id is {product_id}. Use it for tools unless the user explicitly changes product.",
-            }
+            LLMMessage(
+                role="system",
+                content=(
+                    f"The currently selected ZEVQORA product_id is {product_id}. "
+                    "Use it for tools unless the user explicitly changes product."
+                ),
+            )
         )
 
-    headers = {
-        "Authorization": f"Bearer {settings.openrouter_api_key}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": settings.openrouter_site_url,
-        "X-Title": "ZEVQORA Desktop",
-    }
     tool_events: list[ToolEvent] = []
 
-    async with httpx.AsyncClient(timeout=90.0) as client:
-        for _ in range(settings.agent_max_steps):
-            response = await client.post(
-                f"{settings.openrouter_base_url}/chat/completions",
-                headers=headers,
-                json={
-                    "model": chosen_model,
-                    "messages": messages,
-                    "tools": TOOL_DEFINITIONS,
-                    "tool_choice": "auto",
-                    "temperature": 0.2,
-                },
-            )
-            if response.status_code >= 400:
-                detail = response.text[:600]
-                raise RuntimeError(f"OpenRouter request failed ({response.status_code}): {detail}")
-            data = response.json()
-            choices = data.get("choices") or []
-            if not choices:
-                raise RuntimeError("OpenRouter returned no choices.")
-            message = choices[0].get("message") or {}
-            tool_calls = message.get("tool_calls") or []
-            if not tool_calls:
-                return _content_text(message.get("content")) or "I finished the analysis but received no text response.", chosen_model, tool_events
+    for _ in range(settings.agent_max_steps):
+        request = LLMRequest(
+            provider=provider.name,
+            model=chosen_model,
+            messages=messages,
+            tools=_tool_definitions(),
+            tool_choice="auto",
+            temperature=0.2,
+        )
+        try:
+            response = await provider.complete(request)
+        except ProviderError as exc:
+            raise RuntimeError(str(exc)) from exc
 
+        resolved_model = response.resolved_model or chosen_model
+        if not response.tool_calls:
+            return (
+                response.content or "I finished the analysis but received no text response.",
+                resolved_model,
+                tool_events,
+            )
+
+        messages.append(
+            LLMMessage(
+                role="assistant",
+                content=response.content,
+                tool_calls=response.tool_calls,
+            )
+        )
+        for call in response.tool_calls:
+            name = call.name
+            args = dict(call.arguments)
+            try:
+                if product_id:
+                    # Product context is selected by the desktop UI, not by model-generated arguments.
+                    args["product_id"] = product_id
+                result, summary = execute_tool(db, name, args)
+                tool_events.append(ToolEvent(name=name, status="done", summary=summary))
+            except Exception as exc:
+                result = json.dumps({"error": str(exc)})
+                tool_events.append(ToolEvent(name=name, status="error", summary=str(exc)))
             messages.append(
-                {
-                    "role": "assistant",
-                    "content": message.get("content"),
-                    "tool_calls": tool_calls,
-                }
-            )
-            for call in tool_calls:
-                fn = call.get("function") or {}
-                name = fn.get("name") or "unknown"
-                try:
-                    raw_args = fn.get("arguments") or "{}"
-                    args = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
-                    if product_id:
-                        # Product context is selected by the desktop UI, not by model-generated arguments.
-                        # Always override it so a tool call cannot cross into another connected workspace.
-                        args["product_id"] = product_id
-                    result, summary = execute_tool(db, name, args)
-                    tool_events.append(ToolEvent(name=name, status="done", summary=summary))
-                except Exception as exc:
-                    result = json.dumps({"error": str(exc)})
-                    tool_events.append(ToolEvent(name=name, status="error", summary=str(exc)))
-                messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": call.get("id"),
-                        "name": name,
-                        "content": result,
-                    }
+                LLMMessage(
+                    role="tool",
+                    content=result,
+                    name=name,
+                    tool_call_id=call.id,
                 )
+            )
 
-    return "I reached the tool-step limit. Ask me to continue from the evidence already collected.", chosen_model, tool_events
+    return (
+        "I reached the tool-step limit. Ask me to continue from the evidence already collected.",
+        chosen_model,
+        tool_events,
+    )
