@@ -302,10 +302,8 @@ class ModelSubstitutionStrategy(OptimizationStrategy):
                     "replay_snapshot_hash": snapshot.snapshot_hash(),
                 }
             )
-            if cfg.get("max_tokens") is not None:
-                request.max_tokens = max_tokens
-            if cfg.get("temperature") is not None:
-                request.temperature = temperature
+            # Preserve snapshot temperature/max_tokens for task fingerprint equivalence.
+            # Plan-level overrides apply only when snapshot does not define them.
         else:
             user_content = baseline.input_text or baseline.expected_output or ""
             meta = {}
@@ -337,8 +335,8 @@ class ModelSubstitutionStrategy(OptimizationStrategy):
         config_fp = execution_configuration_fingerprint(
             provider="openrouter",
             model=model,
-            temperature=temperature,
-            max_tokens=max_tokens,
+            temperature=request.temperature,
+            max_tokens=request.max_tokens,
             extra={"strategy": self.name},
         )
         llm: LLMProvider = provider if isinstance(provider, LLMProvider) else get_provider()
