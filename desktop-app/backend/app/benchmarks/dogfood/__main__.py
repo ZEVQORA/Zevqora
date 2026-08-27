@@ -85,11 +85,16 @@ async def _execute(args: argparse.Namespace, *, pilot: bool) -> int:
         print(f"Refusing run: estimate {est['estimated_total_max_usd']} > cap {args.max_cost_usd}")
         return 2
 
-    out_dir = Path(args.output_dir) if args.output_dir else Path(tempfile.mkdtemp(prefix="zevqora-bench-"))
-    db_path = out_dir / "benchmark.db"
+    import time
+
+    label = "pilot" if pilot else "full"
+    stamp = int(time.time())
+    run_root = out_dir / f"{label}-{stamp}"
+    run_root.mkdir(parents=True, exist_ok=True)
+    db_path = run_root / "benchmark.db"
     db = _session(db_path)
     try:
-        product = seed_benchmark_product(db, root_path=Path(__file__).resolve().parents[3])
+        product = seed_benchmark_product(db, root_path=run_root / "workspace")
         dver = ensure_dataset_version(db, dataset)
         provider = (
             MockProvider(
