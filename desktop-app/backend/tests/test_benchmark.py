@@ -46,7 +46,7 @@ def test_dataset_hash_changes_when_case_changes():
     d = load_dataset()
     cases = list(d.cases)
     cases[0] = cases[0].model_copy(update={"title": "changed"})
-    assert dataset_hash_from_cases(cases) != d.dataset_hash
+    assert dataset_hash_from_cases(cases, name=d.name, version=d.version) != d.dataset_hash
 
 
 def test_replay_snapshot_task_fingerprint_stable():
