@@ -6,18 +6,42 @@ import json
 from pathlib import Path
 
 from ..core.hashing import sha256_json
-from .models import DATASET_NAME, DATASET_PATH, DATASET_VERSION, BenchmarkCaseSpec, BenchmarkDataset
+from .models import (
+    DATASET_NAME,
+    DATASET_PATH,
+    DATASET_V2_NAME,
+    DATASET_V2_PATH,
+    DATASET_V2_VERSION,
+    DATASET_VERSION,
+    BenchmarkCaseSpec,
+    BenchmarkDataset,
+)
 
 
 def canonical_cases_payload(cases: list[BenchmarkCaseSpec]) -> list[dict]:
-    return [c.model_dump(mode="json") for c in cases]
+    """Stable case dump for hashing. Omits empty Phase-4C setup extensions so v1 hash stays valid."""
+    out: list[dict] = []
+    for c in cases:
+        d = c.model_dump(mode="json")
+        setup = dict(d.get("setup") or {})
+        for k in ("ai_calls", "evaluation_runs", "candidate_executions"):
+            if not setup.get(k):
+                setup.pop(k, None)
+        d["setup"] = setup
+        out.append(d)
+    return out
 
 
-def dataset_hash_from_cases(cases: list[BenchmarkCaseSpec]) -> str:
+def dataset_hash_from_cases(
+    cases: list[BenchmarkCaseSpec],
+    *,
+    name: str,
+    version: str,
+) -> str:
     return sha256_json(
         {
-            "name": DATASET_NAME,
-            "version": DATASET_VERSION,
+            "name": name,
+            "version": version,
             "cases": canonical_cases_payload(cases),
         }
     )
@@ -30,17 +54,24 @@ def difficulty_counts(cases: list[BenchmarkCaseSpec]) -> dict[str, int]:
     return counts
 
 
-def load_dataset(path: Path | None = None) -> BenchmarkDataset:
-    p = path or DATASET_PATH
+def load_dataset(path: Path | None = None, *, name: str | None = None) -> BenchmarkDataset:
+    if path is None:
+        if name == DATASET_V2_NAME:
+            path = DATASET_V2_PATH
+        else:
+            path = DATASET_PATH
+    p = Path(path)
     raw = json.loads(p.read_text(encoding="utf-8"))
     cases = [BenchmarkCaseSpec.model_validate(c) for c in raw["cases"]]
+    ds_name = raw.get("name") or name or DATASET_NAME
+    ds_version = raw.get("version") or (DATASET_V2_VERSION if ds_name == DATASET_V2_NAME else DATASET_VERSION)
     expected_hash = raw.get("dataset_hash")
-    computed = dataset_hash_from_cases(cases)
+    computed = dataset_hash_from_cases(cases, name=ds_name, version=ds_version)
     if expected_hash and expected_hash != computed:
         raise ValueError(f"Dataset hash mismatch: file={expected_hash} computed={computed}")
     return BenchmarkDataset(
-        name=raw.get("name", DATASET_NAME),
-        version=raw.get("version", DATASET_VERSION),
+        name=ds_name,
+        version=ds_version,
         dataset_hash=computed,
         cases=cases,
         difficulty_counts=difficulty_counts(cases),

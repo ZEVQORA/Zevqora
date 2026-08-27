@@ -11,6 +11,14 @@ from ..evals.models import GateConfig, GraderSpec
 BENCHMARK_VERSION = "dogfood_v1"
 DATASET_NAME = "zev_dogfood_v1"
 DATASET_VERSION = "1.0.0"
+DATASET_PATH = Path(__file__).resolve().parent / "data" / "zev_dogfood_v1.json"
+
+# Phase 4C mixed-workload dataset (parallel to v1; v1 remains immutable).
+DATASET_V2_NAME = "zev_dogfood_v2"
+DATASET_V2_VERSION = "2.0.0"
+DATASET_V2_PATH = Path(__file__).resolve().parent / "data" / "zev_dogfood_v2.json"
+BENCHMARK_VERSION_V2 = "dogfood_v2"
+
 PHASE4_SPEND_CAP_USD = 2.0
 DEFAULT_SEED = 42
 DEFAULT_CONCURRENCY = 2
@@ -27,6 +35,22 @@ CANDIDATE_B_PILOT_CASE_IDS = [
     "complex-004",
     "complex-007",
     "protected-003",
+]
+
+# Phase 4C mixed pilot: 3 det + 4 bounded + 4 complex + 1 protected
+PILOT_V2_CASE_IDS = [
+    "det-001",
+    "det-003",
+    "det-011",
+    "bnd-001",
+    "bnd-004",
+    "bnd-008",
+    "bnd-012",
+    "cpx-001",
+    "cpx-005",
+    "cpx-009",
+    "cpx-013",
+    "prot-001",
 ]
 
 # Pinned internal benchmark baseline — NOT production openrouter/auto traffic.
@@ -58,6 +82,17 @@ FULL_GATE_CONFIG = GateConfig(
     require_fallback=True,
 )
 
+# Phase 4C gates — frozen before full v2 run (stricter non-inferiority).
+FULL_GATE_CONFIG_V2 = GateConfig(
+    min_samples=50,
+    quality_floor=0.95,
+    non_inferiority_tolerance=0.0,
+    require_cost_improvement=True,
+    require_latency=True,
+    max_latency_regression_pct=50.0,
+    require_fallback=True,
+)
+
 PILOT_GATE_CONFIG = GateConfig(
     min_samples=10,
     quality_floor=0.95,
@@ -68,7 +103,16 @@ PILOT_GATE_CONFIG = GateConfig(
     require_fallback=True,
 )
 
-DATASET_PATH = Path(__file__).resolve().parent / "data" / "zev_dogfood_v1.json"
+PILOT_GATE_CONFIG_V2 = GateConfig(
+    min_samples=12,
+    quality_floor=0.95,
+    non_inferiority_tolerance=0.0,
+    require_cost_improvement=True,
+    require_latency=True,
+    max_latency_regression_pct=50.0,
+    require_fallback=True,
+)
+
 ARTIFACTS_ROOT = Path(__file__).resolve().parents[2] / "artifacts" / "benchmarks"
 
 
@@ -78,6 +122,9 @@ class BenchmarkCaseSetup(BaseModel):
     findings: list[dict] = Field(default_factory=list)
     traces: list[dict] = Field(default_factory=list)
     experiments: list[dict] = Field(default_factory=list)
+    ai_calls: list[dict] = Field(default_factory=list)
+    evaluation_runs: list[dict] = Field(default_factory=list)
+    candidate_executions: list[dict] = Field(default_factory=list)
     product_name: str = "ZEVQORA Benchmark Workspace"
 
 
