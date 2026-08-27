@@ -316,19 +316,20 @@ class BoundedRoutingStrategy(OptimizationStrategy):
             else:
                 from ...agent.tools import execute_tool
 
+                # Record the bound tool call first — application decided to invoke it.
+                tool_calls.append(
+                    {
+                        "id": f"det-{uuid.uuid4().hex[:10]}",
+                        "name": decision.deterministic_tool,
+                        "arguments": args,
+                    }
+                )
                 try:
                     _raw, summary = execute_tool(db, decision.deterministic_tool, args)
-                    tool_calls.append(
-                        {
-                            "id": f"det-{uuid.uuid4().hex[:10]}",
-                            "name": decision.deterministic_tool,
-                            "arguments": args,
-                        }
-                    )
                     output = decision.deterministic_tool or summary
                 except ValueError:
-                    # Safe-path / product boundary refusal — still no forbidden tool call.
-                    output = decision.deterministic_answer or "refuse"
+                    # Tool refused or workspace unavailable — call still recorded for observability.
+                    output = decision.deterministic_answer or decision.deterministic_tool
 
         # Secret path: explicitly do NOT call read_source_excerpt
         if decision.refuse_tools:

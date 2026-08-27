@@ -557,6 +557,12 @@ async def run_benchmark(
 
 
 def seed_benchmark_product(db: Session, *, root_path: Path) -> Product:
+    root_path = Path(root_path)
+    root_path.mkdir(parents=True, exist_ok=True)
+    # Minimal safe source file so scan_workspace can execute against a real workspace.
+    sample = root_path / "README.md"
+    if not sample.exists():
+        sample.write_text("# ZEVQORA Benchmark Workspace\n", encoding="utf-8")
     product = Product(
         id=str(uuid.uuid4()),
         name="ZEVQORA Dogfood Benchmark",
