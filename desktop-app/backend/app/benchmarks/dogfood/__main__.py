@@ -11,13 +11,13 @@ from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from ..core.config import settings
-from ..core.db_migrate import ensure_schema
-from ..providers.factory import get_provider, reset_providers_for_tests
-from ..providers.mock import MockProvider
-from ..providers.models import LLMUsage
-from .dataset import filter_cases, load_dataset
-from .models import (
+from ...core.config import settings
+from ...core.db_migrate import ensure_schema
+from ...providers.factory import get_provider, reset_providers_for_tests
+from ...providers.mock import MockProvider
+from ...providers.models import LLMUsage
+from ..dataset import filter_cases, load_dataset
+from ..models import (
     BENCHMARK_BASELINE_MODEL,
     BENCHMARK_CANDIDATE_MODEL,
     FULL_GATE_CONFIG,
@@ -25,7 +25,7 @@ from .models import (
     PILOT_CASE_IDS,
     PILOT_GATE_CONFIG,
 )
-from .runner import ensure_dataset_version, estimate_run_cost, git_state, run_benchmark, seed_benchmark_product
+from ..runner import ensure_dataset_version, estimate_run_cost, git_state, run_benchmark, seed_benchmark_product
 
 
 def _session(db_path: Path):
@@ -135,7 +135,7 @@ def cmd_report(args: argparse.Namespace) -> int:
     )
     if not run_dir.exists():
         # try artifacts root
-        from .models import ARTIFACTS_ROOT
+        from ..models import ARTIFACTS_ROOT
 
         run_dir = ARTIFACTS_ROOT / args.run_id
     report = run_dir / "REPORT.md"
