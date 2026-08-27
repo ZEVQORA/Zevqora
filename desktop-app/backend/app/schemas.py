@@ -136,6 +136,10 @@ class ExperimentOut(BaseModel):
     candidate_latency_ms: float | None
     gates: list[GateOut]
     evidence_version: str
+    verification_source: str = "LEGACY_CANDIDATE_EVIDENCE"
+    execution_proven: bool = False
+    evaluation_run_id: str | None = None
+    candidate_execution_id: str | None = None
     created_at: datetime
 
 
@@ -254,3 +258,45 @@ class OptimizationExecutionOut(BaseModel):
     provenance_hash: str
     created_at: datetime
     note: str = "candidate measured cost / cost delta only — not VERIFIED SAVINGS. Evaluation gates are Phase 3."
+
+
+class EvaluationCreateRequest(BaseModel):
+    candidate_execution_id: str
+    finding_id: str | None = None
+    cases: list[dict[str, Any]] | None = None
+    gate_config: dict[str, Any] | None = None
+    project_experiment: bool = True
+
+
+class EvaluationOut(BaseModel):
+    id: str
+    product_id: str
+    candidate_plan_id: str | None
+    candidate_execution_id: str
+    finding_id: str | None
+    status: str
+    evaluation_version: str
+    sample_count: int
+    protected_sample_count: int
+    baseline_quality: float | None
+    candidate_quality: float | None
+    quality_delta: float | None
+    baseline_cost_usd: float | None
+    candidate_cost_usd: float | None
+    raw_cost_delta_usd: float | None
+    raw_cost_delta_percent: float | None
+    baseline_latency_ms: float | None
+    candidate_latency_ms: float | None
+    evidence_completeness: bool
+    verification_source: str
+    execution_proven: bool
+    evidence_version: str
+    gates: list[dict[str, Any]]
+    rejection_reason: str | None
+    grader_config_hash: str
+    gate_config_hash: str
+    created_at: datetime
+    completed_at: datetime | None
+    note: str = (
+        "Authoritative verification record. VERIFIED requires execution-proven CandidateExecution + all required gates."
+    )

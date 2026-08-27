@@ -29,6 +29,7 @@ class Product(Base):
     implementations: Mapped[list[Implementation]] = relationship(cascade="all, delete-orphan")
     candidate_plans: Mapped[list[CandidatePlan]] = relationship(cascade="all, delete-orphan")
     candidate_executions: Mapped[list[CandidateExecution]] = relationship(cascade="all, delete-orphan")
+    evaluation_runs: Mapped[list[EvaluationRun]] = relationship(cascade="all, delete-orphan")
 
 
 class AICall(Base):
@@ -115,6 +116,10 @@ class Experiment(Base):
     candidate_latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
     gates_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     evidence_version: Mapped[str] = mapped_column(String(120), nullable=False)
+    verification_source: Mapped[str] = mapped_column(String(40), nullable=False, default="LEGACY_CANDIDATE_EVIDENCE")
+    execution_proven: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    evaluation_run_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    candidate_execution_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
 
@@ -198,4 +203,75 @@ class CandidateExecution(Base):
     error_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
     fallback_used: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     provenance_hash: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class EvaluationRun(Base):
+    """Authoritative Phase 3 verification record. Terminal rows are immutable in semantics."""
+
+    __tablename__ = "evaluation_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    product_id: Mapped[str] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"), index=True)
+    candidate_plan_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    candidate_execution_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    finding_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    evaluation_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    gate_system_version: Mapped[str] = mapped_column(String(40), nullable=False, default="gates_v1")
+    grader_config_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    grader_config_hash: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    gate_config_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    gate_config_hash: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    baseline_evidence_hash: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    candidate_execution_provenance_hash: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    sample_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    protected_sample_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    baseline_quality: Mapped[float | None] = mapped_column(Float, nullable=True)
+    candidate_quality: Mapped[float | None] = mapped_column(Float, nullable=True)
+    quality_delta: Mapped[float | None] = mapped_column(Float, nullable=True)
+    baseline_cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    candidate_cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    raw_cost_delta_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    raw_cost_delta_percent: Mapped[float | None] = mapped_column(Float, nullable=True)
+    baseline_latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    candidate_latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    evidence_completeness: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    verification_source: Mapped[str] = mapped_column(String(40), nullable=False)
+    execution_proven: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    evidence_version: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    gates_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    case_results: Mapped[list[EvaluationCaseResult]] = relationship(cascade="all, delete-orphan")
+
+
+class EvaluationCaseResult(Base):
+    __tablename__ = "evaluation_case_results"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    evaluation_run_id: Mapped[str] = mapped_column(ForeignKey("evaluation_runs.id", ondelete="CASCADE"), index=True)
+    case_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    baseline_trace_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    candidate_execution_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    task_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    protected: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    grader_specs_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    expected_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    baseline_output_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    candidate_output_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    baseline_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    candidate_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    baseline_grader_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    candidate_grader_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    baseline_cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    candidate_cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    baseline_cost_source: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    candidate_cost_source: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    baseline_latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    candidate_latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    error_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    case_provenance_hash: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)

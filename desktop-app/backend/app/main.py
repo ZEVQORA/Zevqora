@@ -18,6 +18,8 @@ from .core.errors import MigrationError
 from .core.logging import configure_logging, get_logger
 from .db import SessionLocal, configure_engine, get_db
 from .db_models import AICall, Finding, Product, Trace
+from .evals.models import EvaluationCaseSpec, GateConfig
+from .evals.runner import create_and_run_evaluation, get_evaluation, list_evaluations
 from .evidence.service import economics, import_traces
 from .experiments.service import list_experiments, run_experiment
 from .implementation.service import ImplementationError, list_implementations, prepare_implementation
@@ -31,6 +33,8 @@ from .schemas import (
     AICallOut,
     ConnectLocalRequest,
     EconomicsOut,
+    EvaluationCreateRequest,
+    EvaluationOut,
     ExperimentOut,
     ExperimentRunRequest,
     FindingOut,
@@ -49,7 +53,7 @@ from .schemas import (
 )
 from .workspace.scanner import scan_product
 
-VERSION = "0.2.0-phase2"
+VERSION = "0.2.0-phase3"
 logger = get_logger(__name__)
 
 
@@ -145,6 +149,39 @@ def execution_out(row) -> OptimizationExecutionOut:
         fallback_used=row.fallback_used,
         provenance_hash=row.provenance_hash,
         created_at=row.created_at,
+    )
+
+
+def evaluation_out(row) -> EvaluationOut:
+    return EvaluationOut(
+        id=row.id,
+        product_id=row.product_id,
+        candidate_plan_id=row.candidate_plan_id,
+        candidate_execution_id=row.candidate_execution_id,
+        finding_id=row.finding_id,
+        status=row.status,
+        evaluation_version=row.evaluation_version,
+        sample_count=row.sample_count,
+        protected_sample_count=row.protected_sample_count,
+        baseline_quality=row.baseline_quality,
+        candidate_quality=row.candidate_quality,
+        quality_delta=row.quality_delta,
+        baseline_cost_usd=row.baseline_cost_usd,
+        candidate_cost_usd=row.candidate_cost_usd,
+        raw_cost_delta_usd=row.raw_cost_delta_usd,
+        raw_cost_delta_percent=row.raw_cost_delta_percent,
+        baseline_latency_ms=row.baseline_latency_ms,
+        candidate_latency_ms=row.candidate_latency_ms,
+        evidence_completeness=row.evidence_completeness,
+        verification_source=row.verification_source,
+        execution_proven=row.execution_proven,
+        evidence_version=row.evidence_version,
+        gates=json.loads(row.gates_json or "[]"),
+        rejection_reason=row.rejection_reason,
+        grader_config_hash=row.grader_config_hash,
+        gate_config_hash=row.gate_config_hash,
+        created_at=row.created_at,
+        completed_at=row.completed_at,
     )
 
 
@@ -464,6 +501,40 @@ def _register_routes(app: FastAPI) -> None:
         if not row:
             raise HTTPException(status_code=404, detail="Candidate execution not found.")
         return execution_out(row)
+
+    @app.post("/api/v1/products/{product_id}/evaluations", response_model=EvaluationOut)
+    def evaluations_create(product_id: str, request: EvaluationCreateRequest, db: Session = Depends(get_db)):
+        product = db.scalar(select(Product).where(Product.id == product_id))
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found.")
+        try:
+            cases = None
+            if request.cases:
+                cases = [EvaluationCaseSpec.model_validate(c) for c in request.cases]
+            gate_cfg = GateConfig.model_validate(request.gate_config or {})
+            run = create_and_run_evaluation(
+                db,
+                product_id,
+                candidate_execution_id=request.candidate_execution_id,
+                finding_id=request.finding_id,
+                cases=cases,
+                gate_config=gate_cfg,
+                project_experiment=request.project_experiment,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return evaluation_out(run)
+
+    @app.get("/api/v1/products/{product_id}/evaluations", response_model=list[EvaluationOut])
+    def evaluations_list(product_id: str, db: Session = Depends(get_db)):
+        return [evaluation_out(r) for r in list_evaluations(db, product_id)]
+
+    @app.get("/api/v1/products/{product_id}/evaluations/{evaluation_id}", response_model=EvaluationOut)
+    def evaluations_get(product_id: str, evaluation_id: str, db: Session = Depends(get_db)):
+        row = get_evaluation(db, product_id, evaluation_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Evaluation not found.")
+        return evaluation_out(row)
 
 
 app = create_app()
