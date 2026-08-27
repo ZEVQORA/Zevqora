@@ -227,13 +227,17 @@ def create_and_run_evaluation(
                 specs=spec.graders,
                 context=context,
             )
+            # Candidate tools only — never inherit baseline tool_calls via falsy [] or.
+            sample_tools = sample.get("tool_calls")
+            if sample_tools is None:
+                sample_tools = []
             c_score, c_details, c_pass = _grade_output(
                 actual=sample.get("output_text"),
                 expected=spec.expected,
                 specs=spec.graders,
                 context={
                     **context,
-                    "tool_calls": sample.get("tool_calls") or context.get("tool_calls") or [],
+                    "tool_calls": list(sample_tools),
                 },
             )
 

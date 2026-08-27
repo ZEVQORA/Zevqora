@@ -13,6 +13,8 @@ class CostSource(StrEnum):
     IMPORTED_EXTERNAL = "imported_external"
     # Measured no-provider path (exact reuse). Distinct from unknown (None) and from 0.0 fakes.
     DETERMINISTIC_REUSE = "deterministic_reuse"
+    # Deterministic product/policy execution — no LLM provider call.
+    DETERMINISTIC_NO_PROVIDER = "deterministic_no_provider"
 
 
 class FinishReason(StrEnum):

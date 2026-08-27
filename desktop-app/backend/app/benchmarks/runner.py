@@ -135,6 +135,8 @@ async def execute_baseline_case(
                 "execution_role": "baseline",
                 "tool_calls": [tc.model_dump() for tc in response.tool_calls],
                 "finish_reason": response.finish_reason.value,
+                "required_tools": list(case.required_tools or []),
+                "forbidden_tools": list(case.forbidden_tools or []),
             },
             ensure_ascii=False,
         ),
@@ -231,12 +233,24 @@ async def run_benchmark(
     concurrency: int = 2,
     resume_run_id: str | None = None,
     dry_run: bool = False,
+    strategy: str = "model_substitution",
+    cheap_model: str | None = None,
+    policy_baseline_model: str | None = None,
 ) -> BenchmarkRun:
     commit_sha, dirty = git_state()
     if not dry_run and dirty:
         raise BenchmarkError("Refusing real benchmark on dirty git working tree. Commit first.")
 
     llm = provider or get_provider("openrouter")
+    candidate_cfg_meta: dict[str, Any] = {"model": candidate_model, "strategy": strategy}
+    if strategy == "bounded_routing":
+        candidate_cfg_meta.update(
+            {
+                "policy_version": "bounded_routing_v1.0.0",
+                "cheap_model": cheap_model or candidate_model,
+                "baseline_model": policy_baseline_model or baseline_model,
+            }
+        )
     if dry_run:
         run = BenchmarkRun(
             id=str(uuid.uuid4()),
@@ -245,9 +259,7 @@ async def run_benchmark(
             status="PLANNED",
             benchmark_version=BENCHMARK_VERSION,
             baseline_config_json=json.dumps({"model": baseline_model, "label": run_label}, ensure_ascii=False),
-            candidate_config_json=json.dumps(
-                {"model": candidate_model, "strategy": "model_substitution"}, ensure_ascii=False
-            ),
+            candidate_config_json=json.dumps(candidate_cfg_meta, ensure_ascii=False),
             baseline_model=baseline_model,
             candidate_model=candidate_model,
             git_commit_sha=commit_sha,
@@ -272,6 +284,7 @@ async def run_benchmark(
         if not run:
             raise BenchmarkError("Resume run not found.")
     else:
+        frozen_cfg = {**candidate_cfg_meta, "frozen": True}
         run = BenchmarkRun(
             id=run_id,
             product_id=product.id,
@@ -281,9 +294,7 @@ async def run_benchmark(
             baseline_config_json=json.dumps(
                 {"model": baseline_model, "label": run_label, "frozen": True}, ensure_ascii=False
             ),
-            candidate_config_json=json.dumps(
-                {"model": candidate_model, "strategy": "model_substitution", "frozen": True}, ensure_ascii=False
-            ),
+            candidate_config_json=json.dumps(frozen_cfg, ensure_ascii=False),
             baseline_model=baseline_model,
             candidate_model=candidate_model,
             git_commit_sha=commit_sha,
@@ -356,13 +367,17 @@ async def run_benchmark(
     # Candidate via product path
     import app.core.config as config_mod
 
-    config_mod.settings.candidate_models = tuple(set(config_mod.settings.candidate_models) | {candidate_model})
+    models_to_allow = {candidate_model}
+    if strategy == "bounded_routing":
+        models_to_allow.add(cheap_model or candidate_model)
+        models_to_allow.add(policy_baseline_model or baseline_model)
+    config_mod.settings.candidate_models = tuple(set(config_mod.settings.candidate_models) | models_to_allow)
     config_mod.settings.max_candidate_samples = max(len(cases), config_mod.settings.max_candidate_samples)
     trace_ids = [t.id for t in baseline_traces.values()]
     plans = create_plans(
         db,
         product.id,
-        strategy="model_substitution",
+        strategy=strategy,
         candidate_model=candidate_model,
         max_budget_usd=max_cost_usd - spent,
         include_protected=True,
@@ -381,6 +396,10 @@ async def run_benchmark(
     cfg = json.loads(plan.candidate_config_json or "{}")
     cfg["max_tokens"] = max(c.request.max_tokens for c in cases)
     cfg["benchmark_mode"] = True
+    if strategy == "bounded_routing":
+        cfg["cheap_model"] = cheap_model or candidate_model
+        cfg["baseline_model"] = policy_baseline_model or baseline_model
+        cfg["model"] = cfg["cheap_model"]
     plan.candidate_config_json = json.dumps(cfg, ensure_ascii=False)
     db.add(plan)
     db.commit()
@@ -435,6 +454,7 @@ async def run_benchmark(
     c_lats: list[float] = []
     protected_pass = 0
     protected_total = 0
+    route_counts = {"deterministic": 0, "cheap_bounded": 0, "baseline_strong": 0, "fallback": 0}
 
     for case in cases:
         trace = baseline_traces[case.case_id]
@@ -463,6 +483,11 @@ async def run_benchmark(
             row.candidate_cost_usd = sample.get("cost_usd")
             row.candidate_cost_source = sample.get("cost_source")
             row.candidate_latency_ms = sample.get("latency_ms")
+            final_route = sample.get("final_route") or sample.get("route_selected")
+            if final_route in route_counts:
+                route_counts[final_route] += 1
+            if sample.get("fallback_occurred"):
+                route_counts["fallback"] += 1
         row.task_fingerprint = task_fp_b
         row.comparable = comparable
         if comparable and trace.cost_usd is not None and sample and sample.get("cost_usd") is not None:
@@ -505,7 +530,10 @@ async def run_benchmark(
         run.latency_delta_ms = run.candidate_latency_ms - run.baseline_latency_ms
     run.protected_pass_rate = (protected_pass / protected_total) if protected_total else None
     run.completed_case_count = len(cases)
-    run.statistics_json = json.dumps({"paired": stats, "bootstrap": ci}, ensure_ascii=False)
+    run.statistics_json = json.dumps(
+        {"paired": stats, "bootstrap": ci, "route_distribution": route_counts},
+        ensure_ascii=False,
+    )
     run.status = evaluation.status
     run.failure_reason = evaluation.rejection_reason
     run.evidence_hash = sha256_json(
@@ -515,6 +543,8 @@ async def run_benchmark(
             "gate_config_hash": run.gate_config_hash,
             "evaluation_evidence": evaluation.evidence_version,
             "git_commit_sha": run.git_commit_sha,
+            "strategy": strategy,
+            "candidate_config": candidate_cfg_meta,
         }
     )
     run.completed_at = utcnow()

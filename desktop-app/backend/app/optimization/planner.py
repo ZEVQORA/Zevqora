@@ -89,7 +89,7 @@ def create_plans(
             "candidate_model": candidate_model,
             "max_budget_usd": budget,
         }
-        if name == StrategyName.MODEL_SUBSTITUTION.value:
+        if name in {StrategyName.MODEL_SUBSTITUTION.value, StrategyName.BOUNDED_ROUTING.value}:
             plan_kwargs["include_protected"] = include_protected
             plan_kwargs["sample_trace_ids"] = sample_trace_ids
         draft = strat.plan(

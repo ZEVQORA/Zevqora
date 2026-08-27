@@ -254,6 +254,7 @@ async def execute_plan(
                 baseline=baseline,
                 reuse_source=reuse_source,
                 provider=provider,
+                db=db,
             )
 
         async with budget_lock:

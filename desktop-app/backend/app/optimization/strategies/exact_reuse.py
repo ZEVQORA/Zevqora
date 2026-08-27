@@ -219,6 +219,7 @@ class ExactReuseStrategy(OptimizationStrategy):
         baseline: Trace,
         reuse_source: Trace | None = None,
         provider: object | None = None,
+        db=None,
     ) -> SampleResult:
         started = time.perf_counter()
         if reuse_source is None or not reuse_source.output_text:

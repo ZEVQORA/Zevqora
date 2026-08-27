@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from .strategies.base import OptimizationStrategy
+from .strategies.bounded_routing import BoundedRoutingStrategy
 from .strategies.exact_reuse import ExactReuseStrategy
 from .strategies.model_substitution import ModelSubstitutionStrategy
 
 _STRATEGIES: dict[str, OptimizationStrategy] = {
     ExactReuseStrategy.name: ExactReuseStrategy(),
     ModelSubstitutionStrategy.name: ModelSubstitutionStrategy(),
+    BoundedRoutingStrategy.name: BoundedRoutingStrategy(),
 }
 
 

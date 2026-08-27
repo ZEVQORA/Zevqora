@@ -28,6 +28,7 @@ class ExecutionStatus(StrEnum):
 class StrategyName(StrEnum):
     EXACT_REUSE = "exact_reuse"
     MODEL_SUBSTITUTION = "model_substitution"
+    BOUNDED_ROUTING = "bounded_routing"
 
 
 class ErrorCategory(StrEnum):
@@ -87,6 +88,14 @@ class SampleResult(BaseModel):
     error_detail: str | None = None
     execution_proven: bool = True
     evidence_label: str = EXECUTION_PROVEN
+    tool_calls: list[dict[str, Any]] = Field(default_factory=list)
+    route_selected: str | None = None
+    route_reason: str | None = None
+    initial_route: str | None = None
+    final_route: str | None = None
+    fallback_occurred: bool = False
+    fallback_reason: str | None = None
+    routing_observability: dict[str, Any] = Field(default_factory=dict)
 
 
 class PlanDraft(BaseModel):

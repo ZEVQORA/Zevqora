@@ -276,6 +276,7 @@ class ModelSubstitutionStrategy(OptimizationStrategy):
         baseline: Trace,
         reuse_source: Trace | None = None,
         provider: object | None = None,
+        db=None,
     ) -> SampleResult:
         cfg = json.loads(plan.candidate_config_json or "{}")
         model = cfg.get("model")

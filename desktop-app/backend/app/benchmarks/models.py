@@ -15,6 +15,20 @@ PHASE4_SPEND_CAP_USD = 2.0
 DEFAULT_SEED = 42
 DEFAULT_CONCURRENCY = 2
 
+# Phase 4B Candidate B pilot: 4 simple / 3 medium / 2 complex / 1 protected
+CANDIDATE_B_PILOT_CASE_IDS = [
+    "simple-001",
+    "simple-011",
+    "simple-017",
+    "simple-018",
+    "medium-001",
+    "medium-014",
+    "medium-015",
+    "complex-004",
+    "complex-007",
+    "protected-003",
+]
+
 # Pinned internal benchmark baseline — NOT production openrouter/auto traffic.
 BENCHMARK_BASELINE_MODEL = "openai/gpt-4o-mini"
 # Cheaper candidate verified against live OpenRouter catalog (2026-08-27).

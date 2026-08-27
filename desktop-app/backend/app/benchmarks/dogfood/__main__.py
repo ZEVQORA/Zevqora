@@ -20,6 +20,7 @@ from ..dataset import filter_cases, load_dataset
 from ..models import (
     BENCHMARK_BASELINE_MODEL,
     BENCHMARK_CANDIDATE_MODEL,
+    CANDIDATE_B_PILOT_CASE_IDS,
     FULL_GATE_CONFIG,
     PHASE4_SPEND_CAP_USD,
     PILOT_CASE_IDS,
@@ -70,8 +71,12 @@ async def _execute(args: argparse.Namespace, *, pilot: bool) -> int:
         print("FAIL: OPENROUTER_API_KEY required for real benchmark (or pass --mock for validation).")
         return 2
     dataset = load_dataset()
+    strategy = getattr(args, "strategy", None) or "model_substitution"
     if pilot:
-        cases = filter_cases(dataset, PILOT_CASE_IDS)
+        if strategy == "bounded_routing":
+            cases = filter_cases(dataset, CANDIDATE_B_PILOT_CASE_IDS)
+        else:
+            cases = filter_cases(dataset, PILOT_CASE_IDS)
         gate = PILOT_GATE_CONFIG
         label = "pilot"
     else:
@@ -121,11 +126,20 @@ async def _execute(args: argparse.Namespace, *, pilot: bool) -> int:
             max_cost_usd=args.max_cost_usd,
             concurrency=args.concurrency,
             dry_run=False,
+            strategy=strategy,
+            cheap_model=getattr(args, "cheap_model", None) or candidate,
+            policy_baseline_model=getattr(args, "policy_baseline_model", None) or baseline,
         )
         print(f"benchmark_run_id={run.id}")
         print(f"status={run.status}")
+        print(f"strategy={strategy}")
         print(f"cost_savings_percent={run.cost_savings_percent}")
+        print(f"baseline_quality={run.baseline_quality}")
+        print(f"candidate_quality={run.candidate_quality}")
+        print(f"protected_pass_rate={run.protected_pass_rate}")
+        print(f"statistics={run.statistics_json}")
         print(f"artifact_dir={run.artifact_dir}")
+        print(f"evidence_hash={run.evidence_hash}")
         return 0 if run.status in {"VERIFIED", "REJECTED", "INCOMPLETE"} else 1
     finally:
         db.close()
@@ -172,6 +186,13 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--output-dir", default=None)
         p.add_argument("--case-ids", default=None)
         p.add_argument("--mock", action="store_true")
+        p.add_argument(
+            "--strategy",
+            default="model_substitution",
+            choices=["model_substitution", "bounded_routing"],
+        )
+        p.add_argument("--cheap-model", default=None)
+        p.add_argument("--policy-baseline-model", default=None)
 
     p_rep = sub.add_parser("report")
     p_rep.add_argument("--run-id", required=True)

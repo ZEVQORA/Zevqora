@@ -196,7 +196,7 @@ class AgentChatResponse(BaseModel):
 
 class OptimizationPlanCreateRequest(BaseModel):
     finding_id: str | None = None
-    strategy: Literal["exact_reuse", "model_substitution"] | None = None
+    strategy: Literal["exact_reuse", "model_substitution", "bounded_routing"] | None = None
     candidate_model: str | None = Field(default=None, max_length=160)
     max_budget_usd: float | None = Field(default=None, ge=0, le=1000)
 

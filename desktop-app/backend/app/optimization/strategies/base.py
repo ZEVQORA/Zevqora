@@ -51,5 +51,6 @@ class OptimizationStrategy(ABC):
         baseline: Trace,
         reuse_source: Trace | None = None,
         provider: object | None = None,
+        db: Session | None = None,
     ) -> SampleResult:
         raise NotImplementedError
