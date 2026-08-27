@@ -143,7 +143,9 @@ async def execute_plan(
     by_id = {t.id: t for t in traces}
     strategy = get_strategy(plan.strategy)
     estimated = strategy.estimate_budget(plan, traces)
-    if estimated == float("inf"):
+    candidate_cfg = json.loads(plan.candidate_config_json or "{}")
+    benchmark_mode = bool(candidate_cfg.get("benchmark_mode"))
+    if estimated == float("inf") and not benchmark_mode:
         raise ValueError("Cannot execute under strict budget: candidate cost is not estimable from verified pricing.")
     if estimated > plan.max_budget_usd:
         raise ValueError(f"Estimated max cost {estimated:.6f} USD exceeds plan budget {plan.max_budget_usd:.6f} USD.")

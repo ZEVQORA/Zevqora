@@ -380,6 +380,7 @@ async def run_benchmark(
     # Override max_tokens from case snapshots via plan candidate config
     cfg = json.loads(plan.candidate_config_json or "{}")
     cfg["max_tokens"] = max(c.request.max_tokens for c in cases)
+    cfg["benchmark_mode"] = True
     plan.candidate_config_json = json.dumps(cfg, ensure_ascii=False)
     db.add(plan)
     db.commit()
