@@ -1,0 +1,211 @@
+{
+  "benchmark_run_id": "c08c52f4-5f29-439c-8ea9-a15dc42058a5",
+  "status": "VERIFIED",
+  "rejection_reason": null,
+  "dataset": {
+    "name": "zev_dogfood_v2",
+    "version": "2.0.0",
+    "dataset_hash": "b7db3921b8641a6b65883b4427852b50b2b3baccc95aa757eb440e0fcb1fafa7"
+  },
+  "git_commit_sha": "c3969e5453159ba7acbd36c5030c2416c070b021",
+  "git_dirty": false,
+  "benchmark_version": "dogfood_v2",
+  "baseline_model": "openai/gpt-4o-mini",
+  "candidate_model": "google/gemini-2.5-flash-lite",
+  "hashes": {
+    "evidence_hash": "df38bfa239fa668feef717da26897de79789e16b3b65ef462253256fa22d5f4d",
+    "gate_config_hash": "bfaaf346596a1d1be345181b8d9bfa0591a638e053271ea5abcc7ff9cdb4cf98",
+    "grader_config_hash": "6b689ea082a80bd0cc8db1075e72c52a80076af2328ded8bac8fdac77debee7e",
+    "evaluation_evidence_version": "cc20cd83d0825777ed3b58ef0e5d1c10cf3c43ad679c9230e61500b79808ff22"
+  },
+  "cost": {
+    "baseline_total_usd": 0.00098055,
+    "candidate_total_usd": 0.00085975,
+    "absolute_delta_usd": -0.0001208,
+    "measured_savings_percent": 12.3196,
+    "calculation": {
+      "formula": "(baseline_total - candidate_total) / baseline_total * 100",
+      "percent_rounded_4dp": 12.3196
+    }
+  },
+  "quality": {
+    "baseline": 0.59,
+    "candidate": 0.97,
+    "delta": 0.38
+  },
+  "protected_pass_rate": 1.0,
+  "routing": {
+    "final_route_counts": {
+      "deterministic": 20,
+      "cheap_bounded": 15,
+      "baseline_strong": 15
+    },
+    "fallback_count": 0,
+    "provider_calls_by_model": {
+      "none/deterministic": 20,
+      "google/gemini-2.5-flash-lite": 15,
+      "openai/gpt-4o-mini": 15
+    }
+  },
+  "bootstrap": {
+    "sufficient": true,
+    "n": 50,
+    "seed": 42,
+    "resamples": 2000,
+    "mean_cost_diff": -2.416e-06,
+    "ci95_cost_diff_low": -6.926e-06,
+    "ci95_cost_diff_high": 2.177e-06,
+    "ci95_percent_savings_low": -11.0148,
+    "ci95_percent_savings_high": 34.6365
+  },
+  "gates": [
+    {
+      "name": "evidence_completeness",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "complete": true,
+        "missing": []
+      },
+      "threshold": "all_required_present",
+      "reason": "All required evaluation evidence present."
+    },
+    {
+      "name": "minimum_samples",
+      "required": true,
+      "outcome": "passed",
+      "observed": 50,
+      "threshold": 50,
+      "reason": "sample_count=50; minimum=50."
+    },
+    {
+      "name": "quality_floor",
+      "required": true,
+      "outcome": "passed",
+      "observed": 0.97,
+      "threshold": 0.95,
+      "reason": "candidate_quality=0.97; floor=0.95."
+    },
+    {
+      "name": "non_inferiority",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "baseline": 0.59,
+        "candidate": 0.97,
+        "delta": 0.38,
+        "tolerance": 0.0
+      },
+      "threshold": 0.59,
+      "reason": "candidate_quality >= baseline_quality - tolerance (0.59)."
+    },
+    {
+      "name": "protected_slice",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "protected_count": 5,
+        "failures": 0
+      },
+      "threshold": 0,
+      "reason": "Every protected case must pass; one failure rejects."
+    },
+    {
+      "name": "cost_improvement",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "baseline": 0.00098055,
+        "candidate": 0.00085975,
+        "pct": 12.319616541736771
+      },
+      "threshold": {
+        "strict_less": true,
+        "min_pct": 0.0
+      },
+      "reason": "Candidate total cost must be lower than baseline."
+    },
+    {
+      "name": "latency_regression",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "baseline": 989.8030820001441,
+        "candidate": 804.728140000152,
+        "limit": 1484.704623000216
+      },
+      "threshold": 1484.704623000216,
+      "reason": "candidate_latency <= baseline * (1 + 50.0/100)."
+    },
+    {
+      "name": "fallback",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "fallback_configured": true,
+        "fallback_exercised": false
+      },
+      "threshold": true,
+      "reason": "Plan must define usable fallback metadata (not runtime-exercised proof)."
+    },
+    {
+      "name": "execution_success",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "execution_succeeded": true,
+        "execution_proven": true,
+        "case_errors": 0
+      },
+      "threshold": {
+        "execution_succeeded": true,
+        "execution_proven": true,
+        "case_errors": 0
+      },
+      "reason": "Required candidate samples must succeed with execution-proven evidence."
+    }
+  ],
+  "cases_below_1": [
+    {
+      "case_id": "cpx-005",
+      "baseline_score": 0.5,
+      "candidate_score": 0.5,
+      "graders": [
+        {
+          "grader": "required_facts",
+          "version": "1.1.0",
+          "score": 0.5,
+          "passed": false,
+          "details": {
+            "found": [
+              "internal dogfooding"
+            ],
+            "missing": [
+              "not customer proof"
+            ],
+            "semantics": "1.1.0"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "cpx-007",
+      "baseline_score": 1.0,
+      "candidate_score": 0.0,
+      "graders": [
+        {
+          "grader": "classification",
+          "version": "1.0.0",
+          "score": 0.0,
+          "passed": false,
+          "details": {
+            "predicted": "no",
+            "expected": "yes_with_metadata",
+            "strict": true
+          }
+        }
+      ]
+    }
+  ],
+  "candidate_policy": "bounded_routing_v1.2.0"
+}
