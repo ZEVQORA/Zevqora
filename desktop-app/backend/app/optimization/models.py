@@ -59,13 +59,21 @@ class EligibilityResult(BaseModel):
 class SampleResult(BaseModel):
     baseline_trace_id: str
     status: Literal["succeeded", "failed", "skipped"] = "succeeded"
+    task_fingerprint: str | None = None
+    candidate_config_fingerprint: str | None = None
+    provider: str | None = None
+    requested_model: str | None = None
+    resolved_model: str | None = None
     output_text: str | None = None
+    output_hash: str | None = None
     input_tokens: int | None = None
     output_tokens: int | None = None
     cached_input_tokens: int | None = None
+    reasoning_tokens: int | None = None
     cost_usd: float | None = None
     cost_source: str | None = None
     pricing_version: str | None = None
+    baseline_cost_source: str | None = None
     latency_ms: float | None = None
     provider_request_id: str | None = None
     provider_call_count: int = 0

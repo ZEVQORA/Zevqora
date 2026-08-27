@@ -12,6 +12,12 @@ from ...providers.base import LLMProvider
 from ...providers.factory import get_provider
 from ...providers.models import LLMMessage, LLMRequest
 from ...providers.pricing import get_pricing_snapshot
+from ..fingerprints import (
+    baseline_evidence_hash,
+    execution_configuration_fingerprint,
+    task_fingerprint_from_request,
+    task_fingerprint_from_trace,
+)
 from ..models import (
     EligibilityResult,
     ErrorCategory,
@@ -44,18 +50,30 @@ def classify_provider_error(exc: Exception) -> tuple[ErrorCategory, str]:
     return ErrorCategory.UNKNOWN, str(exc)[:500]
 
 
-def estimate_sample_cost_usd(model: str, baseline: Trace) -> float | None:
-    """Conservative estimate using baseline token counts when rates exist."""
+def estimate_sample_cost_usd(
+    model: str,
+    baseline: Trace,
+    *,
+    max_output_tokens: int | None = None,
+) -> float | None:
+    """Conservative estimate using baseline token counts (and optional max output) when rates exist."""
     pricing = get_pricing_snapshot()
     if not pricing.has_verified_rates(model):
         return None
     from ...providers.models import LLMUsage
 
+    text = baseline.input_text or baseline.expected_output or ""
+    # Floor when imported traces lack token counts — prefer over-estimate to under-estimate.
+    approx_in = max(len(text) // 4, 1) if text else 0
+    in_tokens = max(baseline.input_tokens or 0, approx_in, 64 if text else 0)
+    out_tokens = baseline.output_tokens or 0
+    if max_output_tokens is not None:
+        out_tokens = max(out_tokens, max_output_tokens)
     usage = LLMUsage(
-        input_tokens=baseline.input_tokens or 0,
-        output_tokens=baseline.output_tokens or 0,
+        input_tokens=in_tokens,
+        output_tokens=out_tokens,
         cached_input_tokens=baseline.cached_input_tokens or 0,
-        total_tokens=(baseline.input_tokens or 0) + (baseline.output_tokens or 0),
+        total_tokens=in_tokens + out_tokens,
     )
     try:
         cost = pricing.resolve_cost(provider="openrouter", model=model, usage=usage, provider_cost_usd=None)
@@ -65,6 +83,9 @@ def estimate_sample_cost_usd(model: str, baseline: Trace) -> float | None:
         return None
     # Pad 25% for conservatism when budgeting.
     return float(cost.cost_usd) * 1.25
+
+
+SMOKE_MAX_OUTPUT_TOKENS = 64
 
 
 class ModelSubstitutionStrategy(OptimizationStrategy):
@@ -151,7 +172,10 @@ class ModelSubstitutionStrategy(OptimizationStrategy):
 
         by_id = {t.id: t for t in traces}
         sample_traces = [by_id[i] for i in elig.evidence_trace_ids if i in by_id]
-        estimates = [estimate_sample_cost_usd(candidate_model or "", t) for t in sample_traces]
+        estimates = [
+            estimate_sample_cost_usd(candidate_model or "", t, max_output_tokens=SMOKE_MAX_OUTPUT_TOKENS)
+            for t in sample_traces
+        ]
         if any(e is None for e in estimates) and budget > 0:
             # Strict budget without predictable cost → blocked for automatic paid runs.
             return PlanDraft(
@@ -176,11 +200,14 @@ class ModelSubstitutionStrategy(OptimizationStrategy):
             finding_id=finding.id if finding else None,
             baseline_config={
                 "baseline_trace_ids": elig.evidence_trace_ids,
+                "baseline_evidence_hash": baseline_evidence_hash(sample_traces),
+                "task_fingerprints": {t.id: task_fingerprint_from_trace(t) for t in sample_traces},
                 "baseline_hashes": {
                     t.id: {
                         "input_hash": t.input_hash or sha256_text(t.input_text),
                         "output_hash": t.output_hash or sha256_text(t.output_text),
                         "model": t.model,
+                        "cost_source": t.cost_source,
                     }
                     for t in sample_traces
                 },
@@ -188,6 +215,7 @@ class ModelSubstitutionStrategy(OptimizationStrategy):
             candidate_config={
                 "model": candidate_model,
                 "temperature": 0.0,
+                "max_tokens": SMOKE_MAX_OUTPUT_TOKENS,
                 "estimated_max_cost_usd": estimated_total,
             },
             reason=elig.reason,
@@ -216,7 +244,7 @@ class ModelSubstitutionStrategy(OptimizationStrategy):
             t = by_id.get(tid)
             if not t:
                 continue
-            est = estimate_sample_cost_usd(model, t)
+            est = estimate_sample_cost_usd(model, t, max_output_tokens=SMOKE_MAX_OUTPUT_TOKENS)
             if est is None:
                 return float("inf")
             total += est
@@ -242,16 +270,33 @@ class ModelSubstitutionStrategy(OptimizationStrategy):
             )
 
         user_content = baseline.input_text or baseline.expected_output or ""
+        temperature = float(cfg.get("temperature", 0.0))
+        max_tokens = int(cfg.get("max_tokens") or SMOKE_MAX_OUTPUT_TOKENS)
         request = LLMRequest(
             provider="openrouter",
             model=model,
             messages=[LLMMessage(role="user", content=user_content)],
-            temperature=float(cfg.get("temperature", 0.0)),
+            temperature=temperature,
+            max_tokens=max_tokens,
             metadata={
                 "baseline_trace_id": baseline.id,
                 "strategy": self.name,
                 "product_id": plan.product_id,
+                "workflow": baseline.workflow,
+                "temperature": temperature,
+                "system_prompt_version": None,
+                "response_format": None,
             },
+        )
+        task_fp = task_fingerprint_from_request(request)
+        # Baseline task fingerprint must match for true same-task substitution.
+        baseline_fp = task_fingerprint_from_trace(baseline)
+        config_fp = execution_configuration_fingerprint(
+            provider="openrouter",
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            extra={"strategy": self.name},
         )
         llm: LLMProvider = provider if isinstance(provider, LLMProvider) else get_provider()
         try:
@@ -261,6 +306,10 @@ class ModelSubstitutionStrategy(OptimizationStrategy):
             return SampleResult(
                 baseline_trace_id=baseline.id,
                 status="failed",
+                task_fingerprint=task_fp,
+                candidate_config_fingerprint=config_fp,
+                provider=getattr(llm, "name", None),
+                requested_model=model,
                 error_category=category.value,
                 error_detail=detail,
                 provider_call_count=1,
@@ -271,6 +320,7 @@ class ModelSubstitutionStrategy(OptimizationStrategy):
         cost_source = response.cost.cost_source.value if response.cost and response.cost.cost_source else None
         pricing_version = response.cost.pricing_version if response.cost else None
         baseline_cost = baseline.cost_usd
+        # Delta only when baseline cost exists; never invent zero baseline.
         delta = None
         if cost_usd is not None and baseline_cost is not None:
             delta = cost_usd - baseline_cost
@@ -278,17 +328,31 @@ class ModelSubstitutionStrategy(OptimizationStrategy):
         return SampleResult(
             baseline_trace_id=baseline.id,
             status="succeeded",
+            task_fingerprint=task_fp,
+            candidate_config_fingerprint=config_fp,
+            provider=response.provider,
+            requested_model=response.requested_model,
+            resolved_model=response.resolved_model,
             output_text=response.content,
+            output_hash=sha256_text(response.content),
             input_tokens=response.usage.input_tokens,
             output_tokens=response.usage.output_tokens,
             cached_input_tokens=response.usage.cached_input_tokens,
+            reasoning_tokens=response.usage.reasoning_tokens,
             cost_usd=cost_usd,
             cost_source=cost_source,
             pricing_version=pricing_version,
+            baseline_cost_source=baseline.cost_source,
             latency_ms=response.latency_ms,
             provider_request_id=response.provider_request_id,
             provider_call_count=1,
             baseline_cost_usd=baseline_cost,
             candidate_cost_delta_usd=delta,
             execution_proven=True,
+            # Store mismatch note in error_detail only when fingerprints diverge (still measured).
+            error_detail=(
+                None
+                if task_fp == baseline_fp
+                else "task_fingerprint differs from baseline (metadata-only baseline vs request shape)."
+            ),
         )

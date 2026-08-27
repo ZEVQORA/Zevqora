@@ -122,8 +122,95 @@ def test_exact_reuse_identity_differs_on_model_and_prompt(tmp_path):
             model="m1",
             metadata={"system_prompt_version": "v2"},
         )
+        d = _trace(
+            db,
+            p.id,
+            request_id="d",
+            input_text="hello",
+            output_text="world",
+            model="m1",
+            metadata={"response_format": {"type": "json_object"}},
+        )
+        e = _trace(
+            db,
+            p.id,
+            request_id="e",
+            input_text="hello",
+            output_text="world",
+            model="m1",
+            metadata={"tool_schema_hash": "abc"},
+        )
+        f = _trace(
+            db,
+            p.id,
+            request_id="f",
+            input_text="hello",
+            output_text="world",
+            model="m1",
+            metadata={"temperature": 0.7},
+        )
         assert reuse_identity_hash(a) != reuse_identity_hash(b)
         assert reuse_identity_hash(a) != reuse_identity_hash(c)
+        assert reuse_identity_hash(a) != reuse_identity_hash(d)
+        assert reuse_identity_hash(a) != reuse_identity_hash(e)
+        assert reuse_identity_hash(a) != reuse_identity_hash(f)
+    finally:
+        db.close()
+
+
+def test_execution_key_changes_when_baseline_content_changes(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "candidate_models", ("mock/test-model",))
+    monkeypatch.setattr(settings, "max_experiment_cost_usd", 1.0)
+    db = _session(tmp_path)
+    try:
+        p = _product(db)
+        t = _trace(db, p.id, request_id="r1", input_text="task-a", output_text="baseline", cost=0.05)
+        plan = create_plans(
+            db,
+            p.id,
+            strategy=StrategyName.MODEL_SUBSTITUTION.value,
+            candidate_model="mock/test-model",
+            max_budget_usd=1.0,
+        )[0]
+        key1 = execution_key_for(plan, baseline_traces=[t])
+        t.input_text = "task-a-CHANGED"
+        t.input_hash = None
+        db.add(t)
+        db.commit()
+        db.refresh(t)
+        key2 = execution_key_for(plan, baseline_traces=[t])
+        assert key1 != key2
+    finally:
+        db.close()
+
+
+def test_sample_results_include_case_level_fingerprints(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "candidate_models", ("mock/test-model",))
+    monkeypatch.setattr(settings, "max_experiment_cost_usd", 1.0)
+    db = _session(tmp_path)
+    try:
+        p = _product(db)
+        _trace(db, p.id, request_id="r1", input_text="task-a", output_text="baseline", cost=0.05)
+        plan = create_plans(
+            db,
+            p.id,
+            strategy=StrategyName.MODEL_SUBSTITUTION.value,
+            candidate_model="mock/test-model",
+            max_budget_usd=1.0,
+        )[0]
+        mock = MockProvider(
+            default_content="candidate-out",
+            usage=LLMUsage(input_tokens=11, output_tokens=7, total_tokens=18),
+            provider_cost_usd=0.01,
+        )
+        execution = _run(execute_plan(db, p.id, plan.id, provider=mock))
+        samples = json.loads(execution.sample_results_json)
+        assert samples[0]["task_fingerprint"]
+        assert samples[0]["candidate_config_fingerprint"]
+        assert samples[0]["output_hash"]
+        assert samples[0]["requested_model"] == "mock/test-model"
+        assert samples[0]["provider"] == "mock"
+        assert samples[0]["baseline_cost_source"] == CostSource.IMPORTED_EXTERNAL.value
     finally:
         db.close()
 

@@ -17,14 +17,27 @@ from .registry import get_strategy
 from .strategies.model_substitution import estimate_sample_cost_usd
 
 
-def execution_key_for(plan: CandidatePlan) -> str:
-    """Idempotency key: plan + baseline scope + candidate config (no timestamps)."""
+def execution_key_for(plan: CandidatePlan, *, baseline_traces: list[Trace] | None = None) -> str:
+    """Idempotency key tied to plan config AND immutable baseline evidence.
+
+    sample_scope Trace IDs alone are insufficient: if evidence content changes under
+    the same IDs, the key must change. Timestamps are excluded.
+    """
+    from .fingerprints import baseline_evidence_hash
+
+    scope_ids = json.loads(plan.sample_scope_json or "[]")
+    if baseline_traces is None:
+        evidence_hash = json.loads(plan.baseline_config_json or "{}").get("baseline_evidence_hash")
+    else:
+        scoped = [t for t in baseline_traces if t.id in set(scope_ids)]
+        evidence_hash = baseline_evidence_hash(scoped)
     return sha256_json(
         {
             "plan_id": plan.id,
             "config_hash": plan.config_hash,
-            "sample_scope": json.loads(plan.sample_scope_json or "[]"),
+            "sample_scope": scope_ids,
             "candidate_config": json.loads(plan.candidate_config_json or "{}"),
+            "baseline_evidence_hash": evidence_hash,
         }
     )
 
@@ -110,18 +123,23 @@ async def execute_plan(
         PlanStatus.FAILED.value,
     }:
         if plan.status == PlanStatus.EXECUTING.value:
-            existing = _find_idempotent(db, execution_key_for(plan))
+            existing = _find_idempotent(
+                db,
+                execution_key_for(
+                    plan, baseline_traces=list(db.scalars(select(Trace).where(Trace.product_id == product_id)))
+                ),
+            )
             if existing:
                 return existing
         raise ValueError(f"Plan status {plan.status} is not executable.")
 
-    key = execution_key_for(plan)
+    traces = list(db.scalars(select(Trace).where(Trace.product_id == product_id)))
+    key = execution_key_for(plan, baseline_traces=traces)
     if not force_rerun:
         existing = _find_idempotent(db, key)
         if existing is not None:
             return existing
 
-    traces = list(db.scalars(select(Trace).where(Trace.product_id == product_id)))
     by_id = {t.id: t for t in traces}
     strategy = get_strategy(plan.strategy)
     estimated = strategy.estimate_budget(plan, traces)

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from ...core.hashing import sha256_json, sha256_text
 from ...db_models import CandidatePlan, Finding, Trace
 from ...providers.models import CostSource
+from ..fingerprints import baseline_evidence_hash, task_fingerprint_from_trace
 from ..models import EligibilityResult, PlanDraft, PlanStatus, SampleResult, StrategyName
 from .base import OptimizationStrategy
 
@@ -43,6 +44,8 @@ def reuse_identity(trace: Trace) -> dict[str, Any]:
         "model": (trace.model or trace.requested_model or "").strip(),
         "temperature": meta.get("temperature"),
         "system_prompt_version": meta.get("system_prompt_version") or meta.get("prompt_version"),
+        "system_prompt_hash": meta.get("system_prompt_hash") or sha256_text(meta.get("system_prompt")),
+        "response_format": meta.get("response_format"),
         "tool_schema_hash": meta.get("tool_schema_hash"),
         "context_id": meta.get("context_id") or meta.get("retrieval_context_id"),
         "model_config": meta.get("model_config") or meta.get("generation_config"),
@@ -163,12 +166,21 @@ class ExactReuseStrategy(OptimizationStrategy):
                 required_evidence=["repeated_equivalent_runtime_traces"],
             )
 
+        by_id = {t.id: t for t in traces}
+        scoped = [by_id[i] for i in elig.evidence_trace_ids if i in by_id]
+        # Include source members for evidence hash completeness.
+        for members in elig.cache_groups.values():
+            for mid in members:
+                if mid in by_id and by_id[mid] not in scoped:
+                    scoped.append(by_id[mid])
+
         return PlanDraft(
             strategy=StrategyName.EXACT_REUSE,
             status=PlanStatus.READY,
             finding_id=finding.id if finding else None,
             baseline_config={
                 "cache_groups": elig.cache_groups,
+                "baseline_evidence_hash": baseline_evidence_hash(scoped),
                 "identity_fields": [
                     "input_hash",
                     "symbol",
@@ -177,6 +189,8 @@ class ExactReuseStrategy(OptimizationStrategy):
                     "model",
                     "temperature",
                     "system_prompt_version",
+                    "system_prompt_hash",
+                    "response_format",
                     "tool_schema_hash",
                     "context_id",
                     "model_config",
@@ -235,17 +249,28 @@ class ExactReuseStrategy(OptimizationStrategy):
 
         latency_ms = (time.perf_counter() - started) * 1000.0
         baseline_cost = baseline.cost_usd
+        output = reuse_source.output_text
         # Measured no-provider path: cost is 0 with explicit deterministic_reuse provenance.
         return SampleResult(
             baseline_trace_id=baseline.id,
             status="succeeded",
-            output_text=reuse_source.output_text,
+            task_fingerprint=task_fingerprint_from_trace(baseline),
+            candidate_config_fingerprint=sha256_json(
+                {"strategy": self.name, "reuse_source_id": reuse_source.id, "provider_call_count": 0}
+            ),
+            provider="none",
+            requested_model=None,
+            resolved_model=None,
+            output_text=output,
+            output_hash=sha256_text(output),
             input_tokens=0,
             output_tokens=0,
             cached_input_tokens=0,
+            reasoning_tokens=0,
             cost_usd=0.0,
             cost_source=CostSource.DETERMINISTIC_REUSE.value,
             pricing_version=None,
+            baseline_cost_source=baseline.cost_source,
             latency_ms=latency_ms,
             provider_request_id=None,
             provider_call_count=0,

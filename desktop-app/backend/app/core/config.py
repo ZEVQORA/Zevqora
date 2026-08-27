@@ -9,6 +9,34 @@ def _backend_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def _load_dotenv(path: Path) -> None:
+    """Load KEY=VALUE from a local .env without overriding existing process env.
+
+    Does not print values. Missing file is a no-op.
+    """
+    if not path.is_file():
+        return
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if not key:
+            continue
+        if key not in os.environ:
+            os.environ[key] = value
+
+
+_load_dotenv(_backend_root() / ".env")
+_load_dotenv(_backend_root().parent / ".env")
+
+
 @dataclass
 class Settings:
     api_host: str = os.getenv("ZEVQORA_API_HOST", "127.0.0.1")

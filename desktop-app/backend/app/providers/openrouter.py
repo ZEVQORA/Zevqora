@@ -181,6 +181,9 @@ class OpenRouterProvider(LLMProvider):
             "model": request.model,
             "messages": self._message_payload(request.messages),
             "temperature": request.temperature,
+            # Ask OpenRouter for usage accounting when supported.
+            "usage": {"include": True},
+            "stream": False,
         }
         if request.tools:
             payload["tools"] = [t.model_dump() for t in request.tools]
