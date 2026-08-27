@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db_models import Experiment, Finding, Trace
+from ..evals.models import VERIFICATION_SOURCE_LEGACY
 from ..schemas import ExperimentOut, ExperimentRunRequest, GateOut
 
 
@@ -57,6 +58,10 @@ def _to_out(exp: Experiment) -> ExperimentOut:
         candidate_latency_ms=exp.candidate_latency_ms,
         gates=gates,
         evidence_version=exp.evidence_version,
+        verification_source=getattr(exp, "verification_source", None) or VERIFICATION_SOURCE_LEGACY,
+        execution_proven=bool(getattr(exp, "execution_proven", False)),
+        evaluation_run_id=getattr(exp, "evaluation_run_id", None),
+        candidate_execution_id=getattr(exp, "candidate_execution_id", None),
         created_at=exp.created_at,
     )
 
@@ -171,6 +176,10 @@ def run_experiment(db: Session, product_id: str, request: ExperimentRunRequest) 
         candidate_latency_ms=candidate_latency,
         gates_json=json.dumps(gates),
         evidence_version=evidence_version,
+        verification_source=VERIFICATION_SOURCE_LEGACY,
+        execution_proven=False,
+        evaluation_run_id=None,
+        candidate_execution_id=None,
     )
     db.add(exp)
     if finding:

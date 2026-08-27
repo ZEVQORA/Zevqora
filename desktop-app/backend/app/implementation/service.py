@@ -173,6 +173,27 @@ async def prepare_implementation(
         raise ImplementationError("Experiment not found for this product.")
     if experiment.status != "VERIFIED":
         raise ImplementationError("Only a VERIFIED experiment is eligible for implementation preparation.")
+    # Phase 3 hard rule: legacy manually-populated candidate evidence cannot unlock implementation.
+    if not getattr(experiment, "execution_proven", False) or not getattr(experiment, "evaluation_run_id", None):
+        raise ImplementationError(
+            "Legacy verification is not execution-proven and must be re-run through "
+            "CandidateExecution + Evaluation before implementation preparation."
+        )
+    from ..db_models import EvaluationRun
+    from ..evals.models import VERIFICATION_SOURCE_EXECUTION, EvaluationStatus
+
+    evaluation = db.scalar(
+        select(EvaluationRun).where(
+            EvaluationRun.id == experiment.evaluation_run_id,
+            EvaluationRun.product_id == product_id,
+        )
+    )
+    if not evaluation or evaluation.status != EvaluationStatus.VERIFIED.value:
+        raise ImplementationError("Authoritative EvaluationRun must be VERIFIED for implementation preparation.")
+    if evaluation.verification_source != VERIFICATION_SOURCE_EXECUTION or not evaluation.execution_proven:
+        raise ImplementationError("Evaluation is not execution-proven.")
+    if not experiment.candidate_execution_id or experiment.candidate_execution_id != evaluation.candidate_execution_id:
+        raise ImplementationError("Experiment is not linked to the verified CandidateExecution provenance.")
     if not experiment.finding_id:
         raise ImplementationError("This experiment is not linked to a source finding.")
     finding = db.scalar(select(Finding).where(Finding.id == experiment.finding_id))
