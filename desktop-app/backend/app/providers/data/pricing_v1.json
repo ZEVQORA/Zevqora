@@ -1,0 +1,22 @@
+{
+  "version": "pricing_v1_test_fixture",
+  "retrieved_at": "2026-08-27T00:00:00Z",
+  "source": "test_fixture_only",
+  "source_url": null,
+  "notes": "Deterministic fixture for unit tests and offline MockProvider estimates. Not production market pricing. Unknown real models must return cost unavailable.",
+  "models": {
+    "mock/test-model": {
+      "provider": "mock",
+      "input_per_million": 1.0,
+      "output_per_million": 2.0,
+      "cached_input_per_million": 0.1
+    },
+    "openrouter/auto": {
+      "provider": "openrouter",
+      "input_per_million": null,
+      "output_per_million": null,
+      "cached_input_per_million": null,
+      "notes": "Placeholder entry without rates — estimates unavailable until verified."
+    }
+  }
+}
