@@ -102,6 +102,8 @@ def test_resolve_cost_provider_reported_priority(tmp_path):
     )
     assert cost.cost_source == CostSource.PROVIDER_REPORTED
     assert cost.cost_usd == pytest.approx(0.0042)
+    assert cost.pricing_version is None
+    assert cost.provider_metadata_version == "v1"
 
 
 def test_resolve_cost_unknown_returns_none(tmp_path):

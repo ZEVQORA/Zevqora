@@ -144,8 +144,6 @@ def test_traces_economics_experiments_legacy_candidate_fields(client: TestClient
 def test_implementations_list_and_prepare_mocked(client: TestClient, tmp_path: Path, monkeypatch):
     import subprocess
 
-    from app.implementation import service as impl_service
-
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "service.py").write_text("def classify(x):\n    return 'old'\n", encoding="utf-8")
@@ -160,9 +158,7 @@ def test_implementations_list_and_prepare_mocked(client: TestClient, tmp_path: P
         "product"
     ]["id"]
 
-    # Seed VERIFIED experiment linked to a static finding using TestClient DB session is hard;
-    # use implementation service fixtures through monkeypatch after inserting via SQLAlchemy.
-
+    # Seed legacy VERIFIED experiment — Phase 3 must refuse implementation preparation.
     from app.db import SessionLocal
     from app.db_models import Experiment, Finding
 
@@ -199,20 +195,11 @@ def test_implementations_list_and_prepare_mocked(client: TestClient, tmp_path: P
                 candidate_quality=1.0,
                 gates_json="[]",
                 evidence_version="replay:test",
+                verification_source="LEGACY_CANDIDATE_EVIDENCE",
+                execution_proven=False,
             )
         )
         db.commit()
-
-    async def fake_generate(**kwargs):
-        return "Use the verified cheaper path.", "def classify(x):\n    return 'new'\n"
-
-    monkeypatch.setattr(impl_service, "_generate_replacement", fake_generate)
-    monkeypatch.setattr(
-        impl_service.settings,
-        "worktree_root",
-        str(tmp_path / "worktrees"),
-        raising=False,
-    )
 
     listed = client.get(f"/api/v1/products/{product_id}/implementations")
     assert listed.status_code == 200
@@ -222,15 +209,8 @@ def test_implementations_list_and_prepare_mocked(client: TestClient, tmp_path: P
         f"/api/v1/products/{product_id}/implementations/prepare",
         json={"experiment_id": experiment_id, "run_tests": False},
     )
-    assert prepared.status_code == 200
-    body = prepared.json()
-    assert body["status"] == "PREPARED_NO_TESTS"
-    assert "return 'new'" in body["diff_text"]
-    assert body["worktree_path"]
-
-    # cleanup worktree
-    subprocess.run(["git", "worktree", "remove", "--force", body["worktree_path"]], cwd=repo, check=False)
-    subprocess.run(["git", "branch", "-D", body["branch_name"]], cwd=repo, check=False)
+    assert prepared.status_code == 422
+    assert "not execution-proven" in prepared.json()["detail"]
 
 
 def test_agent_chat_local_fallback_without_key(client: TestClient, tmp_path: Path, monkeypatch):

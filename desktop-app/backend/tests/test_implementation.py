@@ -1,5 +1,4 @@
 import subprocess
-import types
 import uuid
 
 import pytest
@@ -9,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.db import Base
 from app.db_models import Experiment, Finding, Product
 from app.implementation import service
+from app.implementation.service import ImplementationError
 from app.schemas import ImplementationPrepareRequest
 
 
@@ -17,7 +17,7 @@ def git(repo, *args):
 
 
 @pytest.mark.asyncio
-async def test_verified_candidate_uses_isolated_worktree(tmp_path, monkeypatch):
+async def test_legacy_verified_blocks_implementation(tmp_path, monkeypatch):
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "service.py").write_text("def classify(x):\n    return 'old'\n", encoding="utf-8")
@@ -64,31 +64,15 @@ async def test_verified_candidate_uses_isolated_worktree(tmp_path, monkeypatch):
                 candidate_quality=1.0,
                 gates_json="[]",
                 evidence_version="replay:test",
+                verification_source="LEGACY_CANDIDATE_EVIDENCE",
+                execution_proven=False,
             )
         )
         db.commit()
 
-        async def fake_generate(**kwargs):
-            return "Use the verified cheaper path.", "def classify(x):\n    return 'new'\n"
-
-        monkeypatch.setattr(service, "_generate_replacement", fake_generate)
-        monkeypatch.setattr(
-            service,
-            "settings",
-            types.SimpleNamespace(
-                worktree_root=str(tmp_path / "worktrees"),
-                agent_model="openrouter/auto",
-            ),
-        )
-        result = await service.prepare_implementation(
-            db,
-            product_id,
-            ImplementationPrepareRequest(experiment_id=experiment_id),
-        )
-        assert result.status == "PREPARED_NO_TESTS"
-        assert "return 'new'" in result.diff_text
-        assert (repo / "service.py").read_text(encoding="utf-8") == "def classify(x):\n    return 'old'\n"
-        assert result.worktree_path != str(repo)
-
-        subprocess.run(["git", "worktree", "remove", "--force", result.worktree_path], cwd=repo, check=False)
-        subprocess.run(["git", "branch", "-D", result.branch_name], cwd=repo, check=False)
+        with pytest.raises(ImplementationError, match="not execution-proven"):
+            await service.prepare_implementation(
+                db,
+                product_id,
+                ImplementationPrepareRequest(experiment_id=experiment_id),
+            )
