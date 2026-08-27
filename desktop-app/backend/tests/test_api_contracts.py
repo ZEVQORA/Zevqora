@@ -253,3 +253,56 @@ def test_agent_chat_local_fallback_without_key(client: TestClient, tmp_path: Pat
     assert body["provider"] == "local"
     assert body["openrouter_configured"] is False
     assert "message" in body
+
+
+def test_optimization_api_exact_reuse_flow(client: TestClient, tmp_path: Path, monkeypatch):
+    monkeypatch.setattr("app.core.config.settings.candidate_models", ("mock/test-model",))
+    workspace = tmp_path / "optws"
+    workspace.mkdir()
+    (workspace / "a.py").write_text("print(1)\n", encoding="utf-8")
+    product_id = client.post("/api/v1/products/connect-local", json={"path": str(workspace)}).json()["product"]["id"]
+
+    jsonl = "\n".join(
+        [
+            '{"request_id":"o1","symbol":"classify","input_text":"same","output_text":"yes","cost_usd":0.02,"provider":"mock","model":"mock/test-model"}',
+            '{"request_id":"o2","symbol":"classify","input_text":"same","output_text":"yes","cost_usd":0.02,"provider":"mock","model":"mock/test-model"}',
+        ]
+    )
+    assert (
+        client.post(f"/api/v1/products/{product_id}/traces/import", json={"traces": [], "jsonl": jsonl}).json()[
+            "imported"
+        ]
+        == 2
+    )
+
+    plans = client.post(
+        f"/api/v1/products/{product_id}/optimization/plans",
+        json={"strategy": "exact_reuse"},
+    )
+    assert plans.status_code == 200
+    body = plans.json()
+    assert len(body) == 1
+    plan_id = body[0]["id"]
+    assert body[0]["status"] == "READY"
+
+    got = client.get(f"/api/v1/products/{product_id}/optimization/plans/{plan_id}")
+    assert got.status_code == 200
+
+    executed = client.post(
+        f"/api/v1/products/{product_id}/optimization/plans/{plan_id}/execute",
+        json={"force_rerun": False},
+    )
+    assert executed.status_code == 200
+    exe = executed.json()
+    assert exe["status"] == "SUCCEEDED"
+    assert exe["provider_call_count"] == 0
+    assert exe["cost_usd"] == 0.0
+    assert exe["cost_source"] == "deterministic_reuse"
+    assert "not VERIFIED" in exe["note"]
+
+    listed = client.get(f"/api/v1/products/{product_id}/optimization/executions")
+    assert listed.status_code == 200
+    assert len(listed.json()) >= 1
+    one = client.get(f"/api/v1/products/{product_id}/optimization/executions/{exe['id']}")
+    assert one.status_code == 200
+    assert one.json()["provenance_hash"]
