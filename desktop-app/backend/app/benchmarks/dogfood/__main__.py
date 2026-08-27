@@ -87,6 +87,7 @@ async def _execute(args: argparse.Namespace, *, pilot: bool) -> int:
 
     import time
 
+    out_dir = Path(args.output_dir) if args.output_dir else Path(tempfile.mkdtemp(prefix="zevqora-bench-"))
     label = "pilot" if pilot else "full"
     stamp = int(time.time())
     run_root = out_dir / f"{label}-{stamp}"
