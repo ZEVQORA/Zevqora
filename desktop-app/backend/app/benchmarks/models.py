@@ -17,8 +17,8 @@ DEFAULT_CONCURRENCY = 2
 
 # Pinned internal benchmark baseline — NOT production openrouter/auto traffic.
 BENCHMARK_BASELINE_MODEL = "openai/gpt-4o-mini"
-# Cheaper candidate verified during pilot dry-run against live OpenRouter catalog.
-BENCHMARK_CANDIDATE_MODEL = "google/gemini-2.0-flash-001"
+# Cheaper candidate verified against live OpenRouter catalog (2026-08-27).
+BENCHMARK_CANDIDATE_MODEL = "google/gemini-2.5-flash-lite"
 
 PILOT_CASE_IDS = [
     "simple-001",
