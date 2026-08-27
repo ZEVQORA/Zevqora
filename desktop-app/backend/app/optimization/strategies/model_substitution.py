@@ -5,6 +5,7 @@ import json
 from sqlalchemy.orm import Session
 
 from ...core.config import settings
+from ...core.content import bound_text
 from ...core.errors import PricingUnavailableError
 from ...core.hashing import sha256_text
 from ...db_models import CandidatePlan, Finding, Trace
@@ -325,6 +326,7 @@ class ModelSubstitutionStrategy(OptimizationStrategy):
         if cost_usd is not None and baseline_cost is not None:
             delta = cost_usd - baseline_cost
 
+        bounded = bound_text(response.content)
         return SampleResult(
             baseline_trace_id=baseline.id,
             status="succeeded",
@@ -333,8 +335,11 @@ class ModelSubstitutionStrategy(OptimizationStrategy):
             provider=response.provider,
             requested_model=response.requested_model,
             resolved_model=response.resolved_model,
-            output_text=response.content,
-            output_hash=sha256_text(response.content),
+            output_text=bounded.text,
+            output_hash=bounded.full_hash,
+            output_truncated=bounded.truncated,
+            output_original_chars=bounded.original_chars,
+            output_stored_chars=bounded.stored_chars,
             input_tokens=response.usage.input_tokens,
             output_tokens=response.usage.output_tokens,
             cached_input_tokens=response.usage.cached_input_tokens,

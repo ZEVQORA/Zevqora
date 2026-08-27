@@ -66,6 +66,9 @@ class SampleResult(BaseModel):
     resolved_model: str | None = None
     output_text: str | None = None
     output_hash: str | None = None
+    output_truncated: bool = False
+    output_original_chars: int | None = None
+    output_stored_chars: int | None = None
     input_tokens: int | None = None
     output_tokens: int | None = None
     cached_input_tokens: int | None = None

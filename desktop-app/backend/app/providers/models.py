@@ -55,6 +55,7 @@ class CostBreakdown(BaseModel):
 
     cost_usd: float | None
     cost_source: CostSource | None
+    # Snapshot version used for ESTIMATES only. Must be None for provider_reported dollars.
     pricing_version: str | None = None
     provider: str
     model: str
@@ -62,6 +63,10 @@ class CostBreakdown(BaseModel):
     output_rate_per_million: float | None = None
     cached_rate_per_million: float | None = None
     computed_at: datetime | None = None
+    # Optional catalog metadata (separate from pricing_version semantics).
+    provider_metadata_source: str | None = None
+    provider_metadata_retrieved_at: str | None = None
+    provider_metadata_version: str | None = None
 
 
 class LLMRequest(BaseModel):

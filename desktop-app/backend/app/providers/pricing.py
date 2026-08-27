@@ -73,17 +73,17 @@ class PricingSnapshot:
         provider_cost_usd: float | None,
     ) -> CostBreakdown:
         if provider_cost_usd is not None and provider_cost_usd >= 0:
-            entry = self.models.get(model) or {}
             return CostBreakdown(
                 cost_usd=round(float(provider_cost_usd), 10),
                 cost_source=CostSource.PROVIDER_REPORTED,
-                pricing_version=self.version,
+                # Dollars came from the provider — do not imply local snapshot arithmetic.
+                pricing_version=None,
                 provider=provider,
                 model=model,
-                input_rate_per_million=entry.get("input_per_million"),
-                output_rate_per_million=entry.get("output_per_million"),
-                cached_rate_per_million=entry.get("cached_input_per_million"),
                 computed_at=datetime.now(UTC),
+                provider_metadata_source=self.source,
+                provider_metadata_retrieved_at=self.retrieved_at,
+                provider_metadata_version=self.version,
             )
         try:
             return self.estimate_cost(provider=provider, model=model, usage=usage)
