@@ -3,18 +3,20 @@ from __future__ import annotations
 import json
 import os
 import re
-import shlex
 import subprocess
 import uuid
 from pathlib import Path
 from typing import Any
 
-import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..config import settings
+from ..core.errors import ProviderError, SubprocessError, UnsafeCommandError
+from ..core.subprocesses import run_argv, run_command_string
 from ..db_models import Experiment, Finding, Implementation, Product
+from ..providers.factory import get_provider
+from ..providers.models import LLMMessage, LLMRequest
 from ..schemas import ImplementationOut, ImplementationPrepareRequest
 from ..workspace.scanner import contains_secret_like_value, is_safe_source_path
 
@@ -32,6 +34,7 @@ def _run_git(args: list[str], cwd: Path, timeout: int = 30) -> subprocess.Comple
             capture_output=True,
             timeout=timeout,
             check=False,
+            shell=False,
         )
     except FileNotFoundError as exc:
         raise ImplementationError("Git is required for isolated implementation worktrees.") from exc
@@ -55,19 +58,6 @@ def _extract_json(text: str) -> dict[str, Any]:
         if isinstance(value, dict):
             return value
     raise ImplementationError("The model did not return the required JSON implementation object.")
-
-
-def _message_content(message: dict[str, Any]) -> str:
-    content = message.get("content")
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        chunks = []
-        for part in content:
-            if isinstance(part, dict) and isinstance(part.get("text"), str):
-                chunks.append(part["text"])
-        return "\n".join(chunks)
-    return ""
 
 
 async def _generate_replacement(
@@ -120,31 +110,23 @@ Rules:
         "user_instructions": instructions,
         "current_file": source_text,
     }
-    headers = {
-        "Authorization": f"Bearer {settings.openrouter_api_key}",
-        "Content-Type": "application/json",
-        "X-Title": "ZEVQORA Desktop",
-    }
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        response = await client.post(
-            f"{settings.openrouter_base_url}/chat/completions",
-            headers=headers,
-            json={
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": json.dumps(user, ensure_ascii=False)},
-                ],
-                "temperature": 0.1,
-            },
-        )
-    if response.status_code >= 400:
-        raise ImplementationError(f"OpenRouter implementation request failed ({response.status_code}): {response.text[:500]}")
-    body = response.json()
-    choices = body.get("choices") or []
-    if not choices:
-        raise ImplementationError("OpenRouter returned no implementation choice.")
-    raw = _message_content(choices[0].get("message") or {})
+    provider = get_provider("openrouter")
+    request = LLMRequest(
+        provider="openrouter",
+        model=model,
+        messages=[
+            LLMMessage(role="system", content=system),
+            LLMMessage(role="user", content=json.dumps(user, ensure_ascii=False)),
+        ],
+        temperature=0.1,
+        timeout_seconds=120.0,
+    )
+    try:
+        response = await provider.complete(request)
+    except ProviderError as exc:
+        raise ImplementationError(str(exc)) from exc
+
+    raw = response.content or ""
     parsed = _extract_json(raw)
     content = parsed.get("content")
     summary = parsed.get("summary")
@@ -198,7 +180,8 @@ async def prepare_implementation(
         raise ImplementationError("Linked finding not found.")
     if finding.origin != "static_scan" or finding.file_path == "runtime evidence":
         raise ImplementationError(
-            "This verified experiment is runtime-derived and has no safe source target. Ask Zev for an implementation plan instead of writing code automatically."
+            "This verified experiment is runtime-derived and has no safe source target. "
+            "Ask Zev for an implementation plan instead of writing code automatically."
         )
 
     root = Path(product.root_path).resolve()
@@ -236,7 +219,11 @@ async def prepare_implementation(
             raise ImplementationError("Generated worktree target failed the safe source policy.")
         source_text = target.read_text(encoding="utf-8", errors="replace")
         if contains_secret_like_value(source_text):
-            raise ImplementationError("Hardcoded secret-like material was detected in the target source file. ZEVQORA refuses to send or rewrite this file until the credential is removed/rotated and replaced with safe configuration.")
+            raise ImplementationError(
+                "Hardcoded secret-like material was detected in the target source file. "
+                "ZEVQORA refuses to send or rewrite this file until the credential is removed/rotated "
+                "and replaced with safe configuration."
+            )
         chosen_model = request.model or settings.agent_model
         summary, replacement = await _generate_replacement(
             model=chosen_model,
@@ -253,16 +240,14 @@ async def prepare_implementation(
         compile_output = ""
         compile_exit: int | None = None
         if worktree_target.suffix.lower() == ".py":
-            compile_proc = subprocess.run(
+            compile_result = run_argv(
                 [os.environ.get("PYTHON", "python"), "-m", "py_compile", str(worktree_target)],
-                cwd=str(worktree),
-                text=True,
-                capture_output=True,
-                timeout=30,
-                check=False,
+                cwd=worktree,
+                timeout_seconds=30,
+                max_output_bytes=6000,
             )
-            compile_exit = compile_proc.returncode
-            compile_output = (compile_proc.stdout + compile_proc.stderr)[-6000:]
+            compile_exit = compile_result.exit_code
+            compile_output = (compile_result.stdout + compile_result.stderr)[-6000:]
 
         test_command = None
         test_exit = compile_exit
@@ -271,17 +256,22 @@ async def prepare_implementation(
             if not request.test_command or not request.test_command.strip():
                 raise ImplementationError("run_tests=true requires an explicit user-approved test_command.")
             test_command = request.test_command.strip()
-            test_proc = subprocess.run(
-                test_command,
-                cwd=str(worktree),
-                text=True,
-                capture_output=True,
-                timeout=180,
-                check=False,
-                shell=True,
-            )
-            test_exit = test_proc.returncode
-            test_output = (test_proc.stdout + test_proc.stderr)[-20000:]
+            try:
+                test_result = run_command_string(
+                    test_command,
+                    cwd=worktree,
+                    timeout_seconds=settings.subprocess_timeout_seconds,
+                    max_output_bytes=settings.subprocess_max_output_bytes,
+                )
+            except UnsafeCommandError as exc:
+                raise ImplementationError(str(exc)) from exc
+            except SubprocessError as exc:
+                raise ImplementationError(str(exc)) from exc
+            test_exit = test_result.exit_code
+            test_output = (test_result.stdout + test_result.stderr)[-settings.subprocess_max_output_bytes :]
+            if test_result.timed_out:
+                test_exit = test_exit if test_exit is not None else 124
+                test_output = (test_output + "\n[timed out]")[-settings.subprocess_max_output_bytes :]
 
         diff_proc = _run_git(["diff", "--no-ext-diff", "--", str(rel_from_repo).replace("\\", "/")], worktree)
         diff_text = diff_proc.stdout
