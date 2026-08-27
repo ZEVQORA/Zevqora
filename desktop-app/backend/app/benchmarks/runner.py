@@ -31,6 +31,7 @@ from ..evidence.replay import ReplayableRequestSnapshot
 from ..optimization.executor import execute_plan
 from ..optimization.fingerprints import task_fingerprint_from_trace
 from ..optimization.planner import create_plans
+from ..optimization.policies.bounded_routing import POLICY_VERSION_FULL
 from ..providers.base import LLMProvider
 from ..providers.factory import get_provider
 from ..providers.models import LLMMessage, ToolDefinition
@@ -83,7 +84,11 @@ def _snapshot_from_case(case: BenchmarkCaseSpec) -> ReplayableRequestSnapshot:
         "complexity": envelope.get("complexity"),
         "required_tools": list(case.required_tools or []),
         "forbidden_tools": list(case.forbidden_tools or []),
+        # Product-state seed for isolated restore (not a cohort/expected answer).
+        "product_state_seed": case.setup.model_dump(mode="json"),
     }
+    if envelope.get("output_schema") is not None:
+        meta["output_schema"] = envelope.get("output_schema")
     # Provenance-only keys (stripped before select_route):
     meta["benchmark_case_id"] = case.case_id
     return ReplayableRequestSnapshot(
@@ -337,11 +342,26 @@ async def run_benchmark(
     llm = provider or get_provider("openrouter")
     candidate_cfg_meta: dict[str, Any] = {"model": candidate_model, "strategy": strategy}
     if strategy == "bounded_routing":
+        from ..optimization.policies.bounded_routing import policy_config_fingerprint
+        from ..optimization.policies.product_invariants import (
+            PRODUCT_INVARIANTS_VERSION,
+            product_invariants_hash,
+        )
+        from ..optimization.policies.structured_output import STRUCTURED_OUTPUT_VERSION
+        from .setup_seed import FIXTURE_HARNESS_VERSION
+
+        cheap = cheap_model or candidate_model
+        strong = policy_baseline_model or baseline_model
         candidate_cfg_meta.update(
             {
-                "policy_version": "bounded_routing_v1.1.0",
-                "cheap_model": cheap_model or candidate_model,
-                "baseline_model": policy_baseline_model or baseline_model,
+                "policy_version": POLICY_VERSION_FULL,
+                "cheap_model": cheap,
+                "baseline_model": strong,
+                "policy_config_hash": policy_config_fingerprint(cheap_model=cheap, baseline_model=strong),
+                "structured_output_version": STRUCTURED_OUTPUT_VERSION,
+                "product_invariants_version": PRODUCT_INVARIANTS_VERSION,
+                "product_invariants_hash": product_invariants_hash(),
+                "fixture_harness_version": FIXTURE_HARNESS_VERSION,
             }
         )
     if dry_run:

@@ -1,11 +1,18 @@
-"""Materialize benchmark case.setup fixtures into product DB state."""
+"""Benchmark/product fixture harness — isolated materialization of case setup.
+
+Version fixture_harness_v1.1.0:
+- clear product-scoped fixture rows before each materialization
+- baseline and candidate restore equivalent starting state from a seed payload
+"""
 
 from __future__ import annotations
 
 import json
+import threading
 import uuid
 from typing import Any
 
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from ..db_models import (
@@ -16,13 +23,71 @@ from ..db_models import (
     Finding,
     utcnow,
 )
-from .models import BenchmarkCaseSpec
+from .models import BenchmarkCaseSetup, BenchmarkCaseSpec
+
+FIXTURE_HARNESS_VERSION = "fixture_harness_v1.1.0"
+
+_seed_lock = threading.Lock()
 
 
-def apply_case_setup(db: Session, product_id: str, case: BenchmarkCaseSpec) -> None:
-    """Seed authoritative product rows for deterministic ops. Idempotent per fixture id."""
-    setup = case.setup
+def _is_fixture_plan_id(plan_id: str | None) -> bool:
+    return bool(plan_id) and str(plan_id).startswith("fixture-")
 
+
+def _is_fixture_ce_id(ce_id: str | None) -> bool:
+    return bool(ce_id) and str(ce_id).startswith("fixture-")
+
+
+def clear_product_fixture_state(db: Session, product_id: str) -> None:
+    """Remove fixture-scoped product rows so the next seed is isolated.
+
+    Live optimization CandidatePlan/Execution rows (non-fixture ids) are preserved.
+    """
+    # Evaluation runs that reference fixture executions or fixture evidence versions.
+    evals = list(db.scalars(select(EvaluationRun).where(EvaluationRun.product_id == product_id)))
+    for er in evals:
+        if _is_fixture_ce_id(er.candidate_execution_id) or str(er.evidence_version or "").startswith("fixture-ev-"):
+            db.delete(er)
+
+    ces = list(db.scalars(select(CandidateExecution).where(CandidateExecution.product_id == product_id)))
+    for ce in ces:
+        if _is_fixture_ce_id(ce.id) or str(ce.provenance_hash or "").startswith("fixture-prov-"):
+            db.delete(ce)
+
+    plans = list(db.scalars(select(CandidatePlan).where(CandidatePlan.product_id == product_id)))
+    for plan in plans:
+        if _is_fixture_plan_id(plan.id) or plan.plan_version == "fixture":
+            db.delete(plan)
+
+    db.execute(delete(AICall).where(AICall.product_id == product_id))
+    db.execute(delete(Finding).where(Finding.product_id == product_id))
+    db.flush()
+
+
+def materialize_product_state_seed(
+    db: Session,
+    product_id: str,
+    seed: dict[str, Any] | BenchmarkCaseSetup,
+    *,
+    clear_first: bool = True,
+) -> None:
+    """Materialize a deterministic product-state seed (no case_id / expected / cohort)."""
+    setup = seed if isinstance(seed, BenchmarkCaseSetup) else BenchmarkCaseSetup.model_validate(seed)
+    with _seed_lock:
+        if clear_first:
+            clear_product_fixture_state(db, product_id)
+        _insert_setup_rows(db, product_id, setup)
+        db.commit()
+
+
+def apply_case_setup(db: Session, product_id: str, case: BenchmarkCaseSpec) -> dict[str, Any]:
+    """Clear then seed authoritative product rows for this case. Returns seed payload."""
+    seed = case.setup.model_dump(mode="json")
+    materialize_product_state_seed(db, product_id, seed, clear_first=True)
+    return seed
+
+
+def _insert_setup_rows(db: Session, product_id: str, setup: BenchmarkCaseSetup) -> None:
     for raw in setup.ai_calls:
         cid = str(raw.get("id") or uuid.uuid4())
         if db.get(AICall, cid):
@@ -61,8 +126,6 @@ def apply_case_setup(db: Session, product_id: str, case: BenchmarkCaseSpec) -> N
             )
         )
 
-    # Plans + executions first (EvaluationRun references execution id).
-    # Track pending inserts — Session.get() does not see unflushed objects.
     plan_by_ce: dict[str, str] = {}
     pending_plans: set[str] = set()
     pending_ces: set[str] = set()
@@ -126,7 +189,6 @@ def apply_case_setup(db: Session, product_id: str, case: BenchmarkCaseSpec) -> N
             continue
         ce_id = str(raw.get("candidate_execution_id") or "")
         if ce_id and ce_id not in pending_ces and not db.get(CandidateExecution, ce_id):
-            # Ensure a stub execution exists for FK-less integrity of ops.
             plan_id = str(raw.get("candidate_plan_id") or f"fixture-plan-for-{ce_id}")
             if plan_id not in pending_plans and not db.get(CandidatePlan, plan_id):
                 db.add(
@@ -185,5 +247,3 @@ def apply_case_setup(db: Session, product_id: str, case: BenchmarkCaseSpec) -> N
                 completed_at=utcnow(),
             )
         )
-
-    db.commit()

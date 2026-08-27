@@ -35,10 +35,14 @@ from ..policies.bounded_routing import (
     POLICY_VERSION_FULL,
     RouteTier,
     RoutingObservability,
-    cheap_system_instruction,
     extract_task_features,
-    parse_label_output,
     select_route,
+)
+from ..policies.product_invariants import PRODUCT_INVARIANTS_VERSION, invariants_system_block
+from ..policies.structured_output import (
+    STRUCTURED_OUTPUT_VERSION,
+    structured_system_instruction,
+    validate_structured_output,
 )
 from .base import OptimizationStrategy
 from .model_substitution import classify_provider_error, estimate_sample_cost_usd
@@ -258,6 +262,13 @@ class BoundedRoutingStrategy(OptimizationStrategy):
             llm = get_provider()
 
         started = time.perf_counter()
+        # Restore isolated product-state seed before any path that may read product DB.
+        seed = features.product_state_seed
+        if seed and db is not None:
+            from ...benchmarks.setup_seed import materialize_product_state_seed
+
+            materialize_product_state_seed(db, plan.product_id, seed, clear_first=True)
+
         if decision.tier == RouteTier.DETERMINISTIC:
             return await self._execute_deterministic(
                 plan=plan,
@@ -483,17 +494,25 @@ class BoundedRoutingStrategy(OptimizationStrategy):
         fallback_from: str | None = None,
         fallback_reason: str | None = None,
     ) -> SampleResult:
-        # Build constrained messages for cheap path
+        # Build constrained messages for cheap / strong paths
         out_messages: list[LLMMessage] = []
+        contract = decision.output_contract
         if tier == RouteTier.CHEAP_BOUNDED:
-            out_messages.append(LLMMessage(role="system", content=cheap_system_instruction(decision.allowed_labels)))
-            # Keep original user content only (skip prior system to avoid dilution)
+            from ..policies.structured_output import OutputContract as _OC
+
+            sys_text = structured_system_instruction(contract or _OC())
+            out_messages.append(LLMMessage(role="system", content=sys_text))
             for m in messages:
                 role = m.get("role") if isinstance(m, dict) else getattr(m, "role", None)
                 content = m.get("content") if isinstance(m, dict) else getattr(m, "content", None)
                 if role == "user":
                     out_messages.append(LLMMessage(role="user", content=str(content or "")))
         else:
+            inv_block = invariants_system_block(list(decision.product_invariants or []))
+            if inv_block:
+                out_messages.append(LLMMessage(role="system", content=inv_block))
+            if contract and contract.kind in {"labels", "json_object"}:
+                out_messages.append(LLMMessage(role="system", content=structured_system_instruction(contract)))
             for m in messages:
                 if isinstance(m, dict):
                     out_messages.append(LLMMessage.model_validate(m))
@@ -506,6 +525,16 @@ class BoundedRoutingStrategy(OptimizationStrategy):
         if snap_json and tier == RouteTier.BASELINE_STRONG and not fallback_from:
             snapshot = ReplayableRequestSnapshot.model_validate_json(snap_json)
             request = snapshot.to_llm_request(provider="openrouter", model=model)
+            # Prepend product invariants / output contract without altering task fingerprint inputs:
+            # fingerprint already frozen from baseline; inject for generation quality only.
+            prefix: list[LLMMessage] = []
+            inv_block = invariants_system_block(list(decision.product_invariants or []))
+            if inv_block:
+                prefix.append(LLMMessage(role="system", content=inv_block))
+            if contract and contract.kind in {"labels", "json_object"}:
+                prefix.append(LLMMessage(role="system", content=structured_system_instruction(contract)))
+            if prefix:
+                request.messages = [*prefix, *list(request.messages)]
             request.metadata.update(
                 {
                     "baseline_trace_id": baseline.id,
@@ -604,10 +633,12 @@ class BoundedRoutingStrategy(OptimizationStrategy):
         calls = provider_calls_so_far + 1
         latency_ms = (time.perf_counter() - started) * 1000.0
 
-        if enforce_labels and decision.allowed_labels:
-            parsed = parse_label_output(content, decision.allowed_labels)
-            if parsed is None and tier == RouteTier.CHEAP_BOUNDED:
-                # Trigger fallback — preserve this call's cost.
+        # Structured output / label contract validation (Tier 2 triggers fallback on failure)
+        enforce_contract = bool(contract and contract.kind != "none")
+        validation_failure = None
+        if enforce_contract and contract is not None:
+            vr = validate_structured_output(content, contract)
+            if not vr.ok and tier == RouteTier.CHEAP_BOUNDED:
                 return SampleResult(
                     baseline_trace_id=baseline.id,
                     status="failed",
@@ -628,10 +659,27 @@ class BoundedRoutingStrategy(OptimizationStrategy):
                     initial_route=initial_route,
                     final_route=tier.value,
                     fallback_occurred=True,
-                    fallback_reason="invalid_structured_output",
+                    fallback_reason=f"invalid_structured_output:{vr.reason}",
+                    routing_observability=RoutingObservability(
+                        initial_route=initial_route,
+                        route_reason=route_reason,
+                        final_route=tier.value,
+                        fallback_occurred=True,
+                        fallback_reason=f"invalid_structured_output:{vr.reason}",
+                        requested_provider=response.provider,
+                        requested_model=model,
+                        provider_call_count=calls,
+                        cost_usd=total_cost,
+                        cost_source=cost_source,
+                        latency_ms=latency_ms,
+                        structured_output_version=STRUCTURED_OUTPUT_VERSION,
+                        validation_failure=vr.reason,
+                    ).model_dump(),
                 )
-            if parsed is not None:
-                content = parsed
+            if vr.ok and vr.normalized_text is not None:
+                content = vr.normalized_text
+            elif not vr.ok:
+                validation_failure = vr.reason
 
         tool_calls = [tc.model_dump() if hasattr(tc, "model_dump") else tc for tc in (response.tool_calls or [])]
         bounded = bound_text(content)
@@ -651,6 +699,9 @@ class BoundedRoutingStrategy(OptimizationStrategy):
             cost_usd=total_cost,
             cost_source=cost_source,
             latency_ms=latency_ms,
+            structured_output_version=STRUCTURED_OUTPUT_VERSION if contract and contract.kind != "none" else None,
+            product_invariants_version=PRODUCT_INVARIANTS_VERSION if decision.product_invariants else None,
+            validation_failure=validation_failure,
         )
         return SampleResult(
             baseline_trace_id=baseline.id,

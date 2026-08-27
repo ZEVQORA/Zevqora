@@ -261,5 +261,5 @@ async def test_deterministic_operation_cost_zero(tmp_path):
 
 
 def test_policy_version_is_v1_1():
-    assert POLICY_VERSION_FULL == "bounded_routing_v1.1.0"
+    assert POLICY_VERSION_FULL == "bounded_routing_v1.2.0"
     assert get_strategy(StrategyName.BOUNDED_ROUTING.value).name == "bounded_routing"
