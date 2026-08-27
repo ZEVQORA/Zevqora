@@ -21,7 +21,10 @@ from .db_models import AICall, Finding, Product, Trace
 from .evidence.service import economics, import_traces
 from .experiments.service import list_experiments, run_experiment
 from .implementation.service import ImplementationError, list_implementations, prepare_implementation
-from .providers.factory import aclose_providers
+from .optimization.bridge import project_execution_onto_traces
+from .optimization.executor import execute_plan, get_execution, list_executions
+from .optimization.planner import create_plans, get_plan, list_plans
+from .providers.factory import aclose_providers, get_provider
 from .schemas import (
     AgentChatRequest,
     AgentChatResponse,
@@ -35,6 +38,10 @@ from .schemas import (
     ImplementationOut,
     ImplementationPrepareRequest,
     MonitoringRequest,
+    OptimizationExecuteRequest,
+    OptimizationExecutionOut,
+    OptimizationPlanCreateRequest,
+    OptimizationPlanOut,
     ProductOut,
     ScanResult,
     TraceImportRequest,
@@ -42,7 +49,7 @@ from .schemas import (
 )
 from .workspace.scanner import scan_product
 
-VERSION = "0.2.0-phase1"
+VERSION = "0.2.0-phase2"
 logger = get_logger(__name__)
 
 
@@ -81,6 +88,63 @@ def ai_call_out(row: AICall) -> AICallOut:
         provider=row.provider,
         symbol=row.symbol,
         excerpt=row.excerpt,
+    )
+
+
+def plan_out(plan) -> OptimizationPlanOut:
+    return OptimizationPlanOut(
+        id=plan.id,
+        product_id=plan.product_id,
+        finding_id=plan.finding_id,
+        strategy=plan.strategy,
+        status=plan.status,
+        reason=plan.reason,
+        expected_mechanism=plan.expected_mechanism,
+        risk=plan.risk,
+        fallback=plan.fallback,
+        max_budget_usd=plan.max_budget_usd,
+        sample_scope=json.loads(plan.sample_scope_json or "[]"),
+        baseline_config=json.loads(plan.baseline_config_json or "{}"),
+        candidate_config=json.loads(plan.candidate_config_json or "{}"),
+        required_evidence=json.loads(plan.required_evidence_json or "[]"),
+        plan_version=plan.plan_version,
+        config_hash=plan.config_hash,
+        blocked_reason=plan.blocked_reason,
+        created_at=plan.created_at,
+    )
+
+
+def execution_out(row) -> OptimizationExecutionOut:
+    return OptimizationExecutionOut(
+        id=row.id,
+        candidate_plan_id=row.candidate_plan_id,
+        product_id=row.product_id,
+        status=row.status,
+        execution_key=row.execution_key,
+        attempt=row.attempt,
+        parent_execution_id=row.parent_execution_id,
+        provider=row.provider,
+        requested_model=row.requested_model,
+        resolved_model=row.resolved_model,
+        started_at=row.started_at,
+        completed_at=row.completed_at,
+        baseline_trace_ids=json.loads(row.baseline_trace_ids_json or "[]"),
+        sample_results=json.loads(row.sample_results_json or "[]"),
+        input_tokens=row.input_tokens,
+        output_tokens=row.output_tokens,
+        cached_input_tokens=row.cached_input_tokens,
+        cost_usd=row.cost_usd,
+        cost_source=row.cost_source,
+        pricing_version=row.pricing_version,
+        latency_ms=row.latency_ms,
+        provider_request_id=row.provider_request_id,
+        provider_call_count=row.provider_call_count,
+        candidate_cost_delta_usd=row.candidate_cost_delta_usd,
+        error_category=row.error_category,
+        error_detail=row.error_detail,
+        fallback_used=row.fallback_used,
+        provenance_hash=row.provenance_hash,
+        created_at=row.created_at,
     )
 
 
@@ -318,6 +382,88 @@ def _register_routes(app: FastAPI) -> None:
             )
         except RuntimeError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    @app.post("/api/v1/products/{product_id}/optimization/plans", response_model=list[OptimizationPlanOut])
+    def optimization_create_plans(
+        product_id: str,
+        request: OptimizationPlanCreateRequest,
+        db: Session = Depends(get_db),
+    ):
+        product = db.scalar(select(Product).where(Product.id == product_id))
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found.")
+        try:
+            plans = create_plans(
+                db,
+                product_id,
+                finding_id=request.finding_id,
+                strategy=request.strategy,
+                candidate_model=request.candidate_model,
+                max_budget_usd=request.max_budget_usd,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return [plan_out(p) for p in plans]
+
+    @app.get("/api/v1/products/{product_id}/optimization/plans", response_model=list[OptimizationPlanOut])
+    def optimization_list_plans(product_id: str, db: Session = Depends(get_db)):
+        return [plan_out(p) for p in list_plans(db, product_id)]
+
+    @app.get(
+        "/api/v1/products/{product_id}/optimization/plans/{plan_id}",
+        response_model=OptimizationPlanOut,
+    )
+    def optimization_get_plan(product_id: str, plan_id: str, db: Session = Depends(get_db)):
+        plan = get_plan(db, product_id, plan_id)
+        if not plan:
+            raise HTTPException(status_code=404, detail="Candidate plan not found.")
+        return plan_out(plan)
+
+    @app.post(
+        "/api/v1/products/{product_id}/optimization/plans/{plan_id}/execute",
+        response_model=OptimizationExecutionOut,
+    )
+    async def optimization_execute_plan(
+        product_id: str,
+        plan_id: str,
+        request: OptimizationExecuteRequest,
+        db: Session = Depends(get_db),
+    ):
+        product = db.scalar(select(Product).where(Product.id == product_id))
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found.")
+        try:
+            # Tests / offline: MockProvider. Never invent agent model IDs for spend.
+            provider = get_provider()
+            execution = await execute_plan(
+                db,
+                product_id,
+                plan_id,
+                provider=provider,
+                force_rerun=request.force_rerun,
+            )
+            if request.project_to_legacy_traces and execution.status == "SUCCEEDED":
+                project_execution_onto_traces(db, execution, overwrite=True)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return execution_out(execution)
+
+    @app.get(
+        "/api/v1/products/{product_id}/optimization/executions",
+        response_model=list[OptimizationExecutionOut],
+    )
+    def optimization_list_executions(product_id: str, db: Session = Depends(get_db)):
+        return [execution_out(e) for e in list_executions(db, product_id)]
+
+    @app.get(
+        "/api/v1/products/{product_id}/optimization/executions/{execution_id}",
+        response_model=OptimizationExecutionOut,
+    )
+    def optimization_get_execution(product_id: str, execution_id: str, db: Session = Depends(get_db)):
+        row = get_execution(db, product_id, execution_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Candidate execution not found.")
+        return execution_out(row)
 
 
 app = create_app()

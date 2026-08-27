@@ -188,3 +188,69 @@ class AgentChatResponse(BaseModel):
     provider: str
     tool_events: list[ToolEvent]
     openrouter_configured: bool
+
+
+class OptimizationPlanCreateRequest(BaseModel):
+    finding_id: str | None = None
+    strategy: Literal["exact_reuse", "model_substitution"] | None = None
+    candidate_model: str | None = Field(default=None, max_length=160)
+    max_budget_usd: float | None = Field(default=None, ge=0, le=1000)
+
+
+class OptimizationPlanOut(BaseModel):
+    id: str
+    product_id: str
+    finding_id: str | None
+    strategy: str
+    status: str
+    reason: str
+    expected_mechanism: str
+    risk: str
+    fallback: str
+    max_budget_usd: float
+    sample_scope: list[str]
+    baseline_config: dict[str, Any]
+    candidate_config: dict[str, Any]
+    required_evidence: list[str]
+    plan_version: str
+    config_hash: str
+    blocked_reason: str | None
+    created_at: datetime
+
+
+class OptimizationExecuteRequest(BaseModel):
+    force_rerun: bool = False
+    project_to_legacy_traces: bool = False
+
+
+class OptimizationExecutionOut(BaseModel):
+    id: str
+    candidate_plan_id: str
+    product_id: str
+    status: str
+    execution_key: str
+    attempt: int
+    parent_execution_id: str | None
+    provider: str | None
+    requested_model: str | None
+    resolved_model: str | None
+    started_at: datetime | None
+    completed_at: datetime | None
+    baseline_trace_ids: list[str]
+    sample_results: list[dict[str, Any]]
+    input_tokens: int | None
+    output_tokens: int | None
+    cached_input_tokens: int | None
+    cost_usd: float | None
+    cost_source: str | None
+    pricing_version: str | None
+    latency_ms: float | None
+    provider_request_id: str | None
+    provider_call_count: int
+    candidate_cost_delta_usd: float | None
+    error_category: str | None
+    error_detail: str | None
+    fallback_used: bool
+    provenance_hash: str
+    created_at: datetime
+    note: str = "candidate measured cost / cost delta only — not VERIFIED SAVINGS. Evaluation gates are Phase 3."
