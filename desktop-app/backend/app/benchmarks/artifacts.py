@@ -18,7 +18,9 @@ def _redact(obj: Any) -> Any:
         out = {}
         for k, v in obj.items():
             lk = str(k).lower()
-            if any(x in lk for x in ("api_key", "secret", "password", "token", "authorization")):
+            if any(x in lk for x in ("api_key", "secret", "password", "authorization")) and "token" not in lk:
+                out[k] = "[REDACTED]"
+            elif lk in {"api_key", "secret", "password", "authorization", "openrouter_api_key"}:
                 out[k] = "[REDACTED]"
             else:
                 out[k] = _redact(v)

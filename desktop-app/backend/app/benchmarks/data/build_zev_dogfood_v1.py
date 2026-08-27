@@ -109,7 +109,14 @@ def _req(
     return BenchmarkCaseRequest(
         messages=[
             {"role": "system", "content": ZEV_SYSTEM},
-            {"role": "user", "content": user},
+            {
+                "role": "user",
+                "content": (
+                    f"{user}\n\n"
+                    "Reply with ONLY the exact label/token from the allowed answer set. "
+                    "No explanation. No punctuation. No extra words."
+                ),
+            },
         ],
         tools=tools,
         temperature=0.0,

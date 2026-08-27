@@ -225,7 +225,19 @@ async def execute_plan(
             if plan.strategy == StrategyName.MODEL_SUBSTITUTION.value and model:
                 sample_est = estimate_sample_cost_usd(model, baseline)
                 remaining = plan.max_budget_usd - spent
-                if sample_est is None or sample_est > remaining + 1e-12:
+                # Unknown estimate: block normal runs; allow authorized benchmark_mode and
+                # rely on post-call cumulative spend enforcement.
+                if sample_est is None:
+                    if not benchmark_mode:
+                        final_status = ExecutionStatus.BUDGET_EXCEEDED
+                        return SampleResult(
+                            baseline_trace_id=trace_id,
+                            status="failed",
+                            error_category="budget_exceeded",
+                            error_detail="Remaining plan budget insufficient for next provider call.",
+                            execution_proven=False,
+                        )
+                elif sample_est > remaining + 1e-12:
                     final_status = ExecutionStatus.BUDGET_EXCEEDED
                     return SampleResult(
                         baseline_trace_id=trace_id,
