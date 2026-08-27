@@ -44,14 +44,21 @@ from .base import OptimizationStrategy
 from .model_substitution import classify_provider_error, estimate_sample_cost_usd
 
 
-def _messages_and_tools_from_baseline(baseline: Trace) -> tuple[list[Any], list[Any] | None, int | None]:
+def _messages_and_tools_from_baseline(
+    baseline: Trace,
+) -> tuple[list[Any], list[Any] | None, int | None, dict[str, Any]]:
     snap_json = getattr(baseline, "request_snapshot_json", None)
     if snap_json:
         snapshot = ReplayableRequestSnapshot.model_validate_json(snap_json)
         messages = [m.model_dump() for m in snapshot.messages]
         tools = [t.model_dump() for t in snapshot.tools] if snapshot.tools else None
-        return messages, tools, snapshot.max_tokens
-    return [{"role": "user", "content": baseline.input_text or ""}], None, None
+        meta = dict(snapshot.metadata or {})
+        # Never feed benchmark identity into the product router.
+        meta.pop("case_id", None)
+        meta.pop("expected", None)
+        meta.pop("cohort", None)
+        return messages, tools, snapshot.max_tokens, meta
+    return [{"role": "user", "content": baseline.input_text or ""}], None, None, {}
 
 
 def _meta(baseline: Trace) -> dict[str, Any]:
@@ -223,8 +230,11 @@ class BoundedRoutingStrategy(OptimizationStrategy):
         cfg = json.loads(plan.candidate_config_json or "{}")
         cheap = cfg.get("cheap_model") or cfg.get("model") or DEFAULT_CHEAP_MODEL
         strong = cfg.get("baseline_model") or DEFAULT_BASELINE_MODEL
-        messages, tools, snap_max = _messages_and_tools_from_baseline(baseline)
-        meta = _meta(baseline)
+        messages, tools, snap_max, snap_meta = _messages_and_tools_from_baseline(baseline)
+        meta = {**snap_meta, **_meta(baseline)}
+        # Trace metadata may carry tool constraints; never cohort/expected/case_id.
+        for banned in ("case_id", "expected", "cohort", "difficulty", "dataset_cohort", "benchmark_case_id"):
+            meta.pop(banned, None)
         features = extract_task_features(
             messages=messages,
             tools=tools,
@@ -232,6 +242,7 @@ class BoundedRoutingStrategy(OptimizationStrategy):
             forbidden_tools=meta.get("forbidden_tools"),
             max_tokens=snap_max,
             safety_sensitive=bool(baseline.protected),
+            metadata=meta,
         )
         decision = select_route(features, cheap_model=cheap, baseline_model=strong)
         task_fp = task_fingerprint_from_trace(baseline)
@@ -302,7 +313,16 @@ class BoundedRoutingStrategy(OptimizationStrategy):
     ) -> SampleResult:
         tool_calls: list[dict[str, Any]] = []
         output = decision.deterministic_answer or ""
-        if decision.deterministic_tool:
+        if decision.deterministic_operation:
+            from ..policies.deterministic_ops import execute_deterministic_operation
+
+            if db is None:
+                raise ValueError("deterministic_operation requires db session")
+            # Reconstruct operation args from baseline snapshot metadata only.
+            _, _, _, snap_meta = _messages_and_tools_from_baseline(baseline)
+            ctx = {"operation_args": dict(snap_meta.get("operation_args") or {})}
+            output = execute_deterministic_operation(db, plan.product_id, decision.deterministic_operation, context=ctx)
+        elif decision.deterministic_tool:
             args = {"product_id": plan.product_id}
             if db is None:
                 tool_calls.append(
@@ -342,6 +362,7 @@ class BoundedRoutingStrategy(OptimizationStrategy):
             route_reason=decision.reason,
             final_route=RouteTier.DETERMINISTIC.value,
             deterministic_tool=decision.deterministic_tool,
+            deterministic_operation=getattr(decision, "deterministic_operation", None),
             provider_call_count=0,
             cost_usd=0.0,
             cost_source=CostSource.DETERMINISTIC_NO_PROVIDER.value,

@@ -1,7 +1,9 @@
 """Bounded routing optimization policy — reusable product execution path.
 
-Routes by task properties available during normal product execution.
-Never inspects benchmark case IDs or expected answers.
+Version bounded_routing_v1.1.0:
+- Tier 1 only for hard safety, tools, or explicit deterministic product operations
+- NO prompt→answer quiz tables (product_knowledge matching removed from routing)
+- Never inspects case_id, expected answers, or dataset cohort labels
 """
 
 from __future__ import annotations
@@ -12,17 +14,12 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .product_knowledge import (
-    POLICY_VERSION,
-    extract_allowed_labels,
-    last_user_text,
-    resolve_policy_label,
-)
+from .deterministic_ops import DETERMINISTIC_OPERATIONS, is_deterministic_operation
+from .product_knowledge import extract_allowed_labels, last_user_text
 
 POLICY_ID = "bounded_routing"
-POLICY_VERSION_FULL = "bounded_routing_v1.0.0"
+POLICY_VERSION_FULL = "bounded_routing_v1.1.0"
 
-# Tier models (explicit configuration — not discovered from case IDs).
 DEFAULT_CHEAP_MODEL = "google/gemini-2.5-flash-lite"
 DEFAULT_BASELINE_MODEL = "openai/gpt-4o-mini"
 
@@ -32,15 +29,11 @@ SECRET_PATH_RE = re.compile(
 DEPLOY_RE = re.compile(r"(?i)\b(merge and deploy|auto[- ]?merge|auto[- ]?deploy|deploy this|git_push)\b")
 CROSS_PRODUCT_RE = re.compile(r"(?i)product_id\s+([A-Za-z0-9_-]*OTHER[A-Za-z0-9_-]*)")
 INJECTION_RE = re.compile(r"(?i)ignore previous instructions|send secrets")
-LEGACY_VERIFIED_RE = re.compile(r"(?i)legacy Experiment is VERIFIED")
+LEGACY_VERIFIED_RE = re.compile(r"(?i)legacy Experiment is VERIFIED|legacy/manual candidate")
 SCAN_INTENT_RE = re.compile(r"(?i)scan workspace|run (a )?scan|source scan")
 ECONOMICS_INTENT_RE = re.compile(r"(?i)observed spend|economics|verified savings summary")
 WORKSPACE_SUMMARY_INTENT_RE = re.compile(r"(?i)workspace_summary|workspace summary")
 LIST_AI_CALLS_RE = re.compile(r"(?i)how many AI call|list AI call|AI call sites|detected providers")
-COMPLEX_SIGNAL_RE = re.compile(
-    r"(?i)(multi[- ]step|after (candidate|paid)|then network|key expires|headline|"
-    r"different task_fingerprint|modify gate config after)"
-)
 
 
 class RouteTier(StrEnum):
@@ -50,7 +43,7 @@ class RouteTier(StrEnum):
 
 
 class TaskFeatures(BaseModel):
-    """Observable task properties — no case_id, no expected answer."""
+    """Observable task properties — no case_id, expected answer, or cohort."""
 
     user_text: str = ""
     has_tools: bool = False
@@ -66,8 +59,11 @@ class TaskFeatures(BaseModel):
     injection_signal: bool = False
     legacy_verification_claim: bool = False
     tool_intent: str | None = None
-    policy_label: str | None = None
-    complex_signal: bool = False
+    # Product task envelope (set by product/API — not benchmark labels)
+    operation: str | None = None
+    operation_args: dict[str, Any] = Field(default_factory=dict)
+    generation_required: bool = False
+    complexity: str | None = None  # "bounded" | "complex" | None
     max_tokens: int | None = None
 
 
@@ -75,9 +71,9 @@ class RouteDecision(BaseModel):
     tier: RouteTier
     reason: str
     policy_version: str = POLICY_VERSION_FULL
-    product_policy_version: str = POLICY_VERSION
     deterministic_answer: str | None = None
     deterministic_tool: str | None = None
+    deterministic_operation: str | None = None
     force_product_id: bool = False
     refuse_tools: list[str] = Field(default_factory=list)
     cheap_model: str = DEFAULT_CHEAP_MODEL
@@ -96,12 +92,22 @@ class RoutingObservability(BaseModel):
     fallback_occurred: bool = False
     fallback_reason: str | None = None
     deterministic_tool: str | None = None
+    deterministic_operation: str | None = None
     requested_provider: str | None = None
     requested_model: str | None = None
     provider_call_count: int = 0
     cost_usd: float | None = None
     cost_source: str | None = None
     latency_ms: float | None = None
+
+
+def _meta_get(metadata: dict[str, Any] | None, *keys: str) -> Any:
+    if not metadata:
+        return None
+    for k in keys:
+        if k in metadata and metadata[k] is not None:
+            return metadata[k]
+    return None
 
 
 def extract_task_features(
@@ -112,7 +118,13 @@ def extract_task_features(
     forbidden_tools: list[str] | None = None,
     max_tokens: int | None = None,
     safety_sensitive: bool = False,
+    metadata: dict[str, Any] | None = None,
 ) -> TaskFeatures:
+    # Strip forbidden benchmark-only keys if somehow present
+    clean_meta = dict(metadata or {})
+    for banned in ("case_id", "expected", "cohort", "difficulty", "dataset_cohort"):
+        clean_meta.pop(banned, None)
+
     user_text = last_user_text(messages)
     tool_names: list[str] = []
     for t in tools or []:
@@ -147,6 +159,17 @@ def extract_task_features(
     legacy = bool(LEGACY_VERIFIED_RE.search(user_text))
     cross = foreign is not None
 
+    operation = _meta_get(clean_meta, "operation")
+    if operation is not None:
+        operation = str(operation)
+    op_args = _meta_get(clean_meta, "operation_args") or {}
+    if not isinstance(op_args, dict):
+        op_args = {}
+    generation_required = bool(_meta_get(clean_meta, "generation_required") or False)
+    complexity = _meta_get(clean_meta, "complexity")
+    if complexity is not None:
+        complexity = str(complexity).lower()
+
     return TaskFeatures(
         user_text=user_text,
         has_tools=bool(tool_names),
@@ -162,8 +185,10 @@ def extract_task_features(
         injection_signal=injection,
         legacy_verification_claim=legacy,
         tool_intent=tool_intent,
-        policy_label=resolve_policy_label(user_text, allowed_labels=labels),
-        complex_signal=bool(COMPLEX_SIGNAL_RE.search(user_text)),
+        operation=operation,
+        operation_args=op_args,
+        generation_required=generation_required,
+        complexity=complexity,
         max_tokens=max_tokens,
     )
 
@@ -175,7 +200,7 @@ def select_route(
     baseline_model: str = DEFAULT_BASELINE_MODEL,
 ) -> RouteDecision:
     """Deterministic route selection from TaskFeatures only."""
-    max_tok = min(int(features.max_tokens or 32), 64)
+    max_tok = min(int(features.max_tokens or 64), 256)
 
     # --- Tier 1: hard safety / product boundaries (no LLM) ---
     if features.secret_path_request:
@@ -219,7 +244,9 @@ def select_route(
             max_tokens=max_tok,
             allowed_labels=features.allowed_labels,
         )
-    if features.cross_product_request and features.tool_intent == "workspace_summary":
+    if features.cross_product_request and (
+        features.tool_intent == "workspace_summary" or features.operation == "workspace_summary"
+    ):
         return RouteDecision(
             tier=RouteTier.DETERMINISTIC,
             reason="application_forces_bound_product_id",
@@ -230,7 +257,22 @@ def select_route(
             max_tokens=max_tok,
         )
 
-    # --- Tier 1: deterministic tools / product policy ---
+    # --- Tier 1: explicit deterministic product operations (authoritative state) ---
+    if (
+        not features.generation_required
+        and is_deterministic_operation(features.operation)
+        and features.operation in DETERMINISTIC_OPERATIONS
+    ):
+        return RouteDecision(
+            tier=RouteTier.DETERMINISTIC,
+            reason=f"deterministic_operation:{features.operation}",
+            deterministic_operation=features.operation,
+            cheap_model=cheap_model,
+            baseline_model=baseline_model,
+            max_tokens=max_tok,
+        )
+
+    # --- Tier 1: deterministic tools ---
     if features.tool_intent and features.tool_intent in (
         set(features.available_tool_names) | set(features.required_tools) | {"list_ai_calls"}
     ):
@@ -244,29 +286,31 @@ def select_route(
             max_tokens=max_tok,
         )
 
-    if features.policy_label is not None:
+    # NOTE: product_knowledge quiz matching intentionally removed in v1.1.0
+
+    # --- Generation-required routing from product envelope ---
+    if features.generation_required or features.complexity in {"bounded", "complex"}:
+        if features.complexity == "complex":
+            return RouteDecision(
+                tier=RouteTier.BASELINE_STRONG,
+                reason="complex_generation_requires_strong_path",
+                cheap_model=cheap_model,
+                baseline_model=baseline_model,
+                max_tokens=max_tok,
+                allowed_labels=features.allowed_labels,
+            )
         return RouteDecision(
-            tier=RouteTier.DETERMINISTIC,
-            reason="product_policy_knowledge_match",
-            deterministic_answer=features.policy_label,
+            tier=RouteTier.CHEAP_BOUNDED,
+            reason="bounded_generation_required",
             cheap_model=cheap_model,
             baseline_model=baseline_model,
             max_tokens=max_tok,
             allowed_labels=features.allowed_labels,
+            temperature=0.0,
         )
 
-    # --- Tier 3: complex / high uncertainty ---
-    if features.complex_signal and not features.allowed_labels:
-        return RouteDecision(
-            tier=RouteTier.BASELINE_STRONG,
-            reason="complex_unbounded_requires_strong_path",
-            cheap_model=cheap_model,
-            baseline_model=baseline_model,
-            max_tokens=max_tok,
-        )
-
-    # --- Tier 2: bounded classification / short transform ---
-    if features.allowed_labels:
+    # --- Fallback heuristics for unmarked product requests ---
+    if features.allowed_labels and (features.max_tokens or 64) <= 128:
         return RouteDecision(
             tier=RouteTier.CHEAP_BOUNDED,
             reason="bounded_label_classification",
@@ -277,23 +321,22 @@ def select_route(
             temperature=0.0,
         )
 
-    # Default: prefer cheap with fallback capability for short tasks; else strong.
-    if (features.max_tokens or 64) <= 64 and len(features.user_text) < 800:
+    if (features.max_tokens or 64) > 128 or len(features.user_text) > 900:
         return RouteDecision(
-            tier=RouteTier.CHEAP_BOUNDED,
-            reason="short_bounded_generation",
+            tier=RouteTier.BASELINE_STRONG,
+            reason="long_or_high_token_requires_strong_path",
             cheap_model=cheap_model,
             baseline_model=baseline_model,
             max_tokens=max_tok,
-            temperature=0.0,
         )
 
     return RouteDecision(
-        tier=RouteTier.BASELINE_STRONG,
-        reason="default_strong_path",
+        tier=RouteTier.CHEAP_BOUNDED,
+        reason="default_bounded_generation",
         cheap_model=cheap_model,
         baseline_model=baseline_model,
         max_tokens=max_tok,
+        temperature=0.0,
     )
 
 
@@ -304,7 +347,6 @@ def parse_label_output(text: str | None, allowed: list[str] | None) -> str | Non
     if not token:
         return None
     if allowed:
-        # exact then casefold match against allowed set
         for lab in allowed:
             if token == lab or token.casefold() == lab.casefold():
                 return lab
@@ -314,17 +356,28 @@ def parse_label_output(text: str | None, allowed: list[str] | None) -> str | Non
 
 def cheap_system_instruction(allowed: list[str] | None) -> str:
     base = (
-        "You are a constrained ZEVQORA classifier. "
-        "Reply with ONLY the exact label/token. No explanation. No punctuation. No extra words."
+        "You are a constrained ZEVQORA classifier/transformer. "
+        "Follow the user instruction exactly. Prefer short structured answers."
     )
     if allowed:
-        return base + " Allowed labels: " + ", ".join(allowed) + "."
-    return base
+        return (
+            base
+            + " Reply with ONLY the exact label/token from: "
+            + ", ".join(allowed)
+            + ". No explanation. No punctuation. No extra words."
+        )
+    return base + " Keep the response concise and machine-gradable."
 
 
-def assert_route_inputs_clean(*, case_id: Any = None, expected: Any = None) -> None:
-    """Runtime guard for tests — production callers must not pass these into routing."""
+def assert_route_inputs_clean(
+    *,
+    case_id: Any = None,
+    expected: Any = None,
+    cohort: Any = None,
+) -> None:
     if case_id is not None:
         raise ValueError("bounded_routing must not receive benchmark case_id")
     if expected is not None:
         raise ValueError("bounded_routing must not receive expected answers")
+    if cohort is not None:
+        raise ValueError("bounded_routing must not receive dataset cohort labels")
