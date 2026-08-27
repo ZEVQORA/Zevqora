@@ -19,7 +19,11 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "workspace_summary",
             "description": "Get the connected product workspace and scan status.",
-            "parameters": {"type": "object", "properties": {"product_id": {"type": "string"}}, "required": ["product_id"]},
+            "parameters": {
+                "type": "object",
+                "properties": {"product_id": {"type": "string"}},
+                "required": ["product_id"],
+            },
         },
     },
     {
@@ -27,7 +31,11 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "scan_workspace",
             "description": "Run a safe read-only source scan. Secret-bearing files are excluded.",
-            "parameters": {"type": "object", "properties": {"product_id": {"type": "string"}}, "required": ["product_id"]},
+            "parameters": {
+                "type": "object",
+                "properties": {"product_id": {"type": "string"}},
+                "required": ["product_id"],
+            },
         },
     },
     {
@@ -35,7 +43,11 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "list_ai_calls",
             "description": "List detected AI execution call sites from the latest static scan.",
-            "parameters": {"type": "object", "properties": {"product_id": {"type": "string"}}, "required": ["product_id"]},
+            "parameters": {
+                "type": "object",
+                "properties": {"product_id": {"type": "string"}},
+                "required": ["product_id"],
+            },
         },
     },
     {
@@ -43,7 +55,11 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "list_findings",
             "description": "List potential waste/optimization findings. Static findings are never automatically Verified Savings.",
-            "parameters": {"type": "object", "properties": {"product_id": {"type": "string"}}, "required": ["product_id"]},
+            "parameters": {
+                "type": "object",
+                "properties": {"product_id": {"type": "string"}},
+                "required": ["product_id"],
+            },
         },
     },
     {
@@ -51,7 +67,11 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "economics_summary",
             "description": "Get observed cost and verified savings from imported evidence.",
-            "parameters": {"type": "object", "properties": {"product_id": {"type": "string"}}, "required": ["product_id"]},
+            "parameters": {
+                "type": "object",
+                "properties": {"product_id": {"type": "string"}},
+                "required": ["product_id"],
+            },
         },
     },
     {
@@ -59,7 +79,11 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "list_experiments",
             "description": "List replay/evaluation experiments and their gates.",
-            "parameters": {"type": "object", "properties": {"product_id": {"type": "string"}}, "required": ["product_id"]},
+            "parameters": {
+                "type": "object",
+                "properties": {"product_id": {"type": "string"}},
+                "required": ["product_id"],
+            },
         },
     },
     {
@@ -182,7 +206,12 @@ def execute_tool(db: Session, name: str, args: dict[str, Any]) -> tuple[str, str
         end = min(end, start + 120)
         lines = requested.read_text(encoding="utf-8", errors="replace").splitlines()
         selected = lines[start - 1 : end]
-        payload = {"file": args["file_path"], "start_line": start, "end_line": min(end, len(lines)), "content": redact_secret_like_values("\n".join(selected))}
+        payload = {
+            "file": args["file_path"],
+            "start_line": start,
+            "end_line": min(end, len(lines)),
+            "content": redact_secret_like_values("\n".join(selected)),
+        }
         return json.dumps(payload), f"Read {args['file_path']} lines {start}-{min(end, len(lines))}."
 
     if name == "run_verification":

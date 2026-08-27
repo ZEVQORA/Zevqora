@@ -48,7 +48,9 @@ async def chat(
         rows = json.loads(result)
         events.append(ToolEvent(name="list_findings", status="done", summary=summary))
         if rows:
-            text = "Potential findings:\n" + "\n".join(f"- {r['title']} — {r['file']}:{r['line']} ({r['evidence_status']})" for r in rows[:8])
+            text = "Potential findings:\n" + "\n".join(
+                f"- {r['title']} — {r['file']}:{r['line']} ({r['evidence_status']})" for r in rows[:8]
+            )
         else:
             text = "No findings yet. Run a workspace scan first."
     elif product_id and any(word in latest for word in ("cost", "spend", "saving", "econom")):

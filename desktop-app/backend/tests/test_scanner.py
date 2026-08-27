@@ -26,8 +26,8 @@ def test_redacts_secret_like_values():
     sample = 'api_key = "EXAMPLE_NOT_A_REAL_KEY_12345"\nprint("safe")'
     assert contains_secret_like_value(sample)
     redacted = redact_secret_like_values(sample)
-    assert 'EXAMPLE_NOT_A_REAL_KEY_12345' not in redacted
-    assert '****' in redacted
+    assert "EXAMPLE_NOT_A_REAL_KEY_12345" not in redacted
+    assert "****" in redacted
 
 
 def test_static_finding_identity_survives_rescan(tmp_path: Path):

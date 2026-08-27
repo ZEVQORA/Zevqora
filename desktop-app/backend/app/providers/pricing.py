@@ -39,9 +39,7 @@ class PricingSnapshot:
     ) -> CostBreakdown:
         entry = self.models.get(model)
         if not entry or entry.get("input_per_million") is None or entry.get("output_per_million") is None:
-            raise PricingUnavailableError(
-                f"No verified pricing rates for model {model!r} in snapshot {self.version}."
-            )
+            raise PricingUnavailableError(f"No verified pricing rates for model {model!r} in snapshot {self.version}.")
         input_rate = float(entry["input_per_million"])
         output_rate = float(entry["output_per_million"])
         cached_rate = entry.get("cached_input_per_million")

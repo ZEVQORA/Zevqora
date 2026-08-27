@@ -62,6 +62,14 @@ def _to_out(exp: Experiment) -> ExperimentOut:
 
 
 def run_experiment(db: Session, product_id: str, request: ExperimentRunRequest) -> ExperimentOut:
+    """
+    LEGACY / NOT YET EXECUTION-PROVEN (Phase 1).
+
+    This path still evaluates pre-filled Trace candidate_* fields rather than
+    executing a CandidatePlan via the provider layer. Do not treat VERIFIED
+    outcomes from this path as proof of live optimization savings. Phase 2
+    replaces this with real candidate execution + provenance.
+    """
     finding = None
     if request.finding_id:
         finding = db.scalar(
@@ -92,23 +100,15 @@ def run_experiment(db: Session, product_id: str, request: ExperimentRunRequest) 
     baseline_quality = _quality(rows_with_candidate, candidate=False)
     candidate_quality = _quality(rows_with_candidate, candidate=True)
     baseline_cost = sum(r.cost_usd or 0.0 for r in rows_with_candidate) if rows_with_candidate else None
-    candidate_cost = (
-        sum(r.candidate_cost_usd or 0.0 for r in rows_with_candidate) if rows_with_candidate else None
-    )
+    candidate_cost = sum(r.candidate_cost_usd or 0.0 for r in rows_with_candidate) if rows_with_candidate else None
     baseline_latency = _avg([r.latency_ms for r in rows_with_candidate])
     candidate_latency = _avg([r.candidate_latency_ms for r in rows_with_candidate])
 
     sample_pass = len(rows_with_candidate) >= request.min_samples
     quality_pass = candidate_quality is not None and candidate_quality >= request.quality_gate
-    cost_pass = (
-        baseline_cost is not None
-        and candidate_cost is not None
-        and candidate_cost < baseline_cost
-    )
+    cost_pass = baseline_cost is not None and candidate_cost is not None and candidate_cost < baseline_cost
     protected_rows = [r for r in rows_with_candidate if r.protected]
-    protected_pass = all(
-        _canonical(r.candidate_output) == _canonical(r.expected_output) for r in protected_rows
-    )
+    protected_pass = all(_canonical(r.candidate_output) == _canonical(r.expected_output) for r in protected_rows)
     if baseline_latency is None or candidate_latency is None:
         latency_pass = True
         latency_detail = "No complete candidate latency evidence; latency gate is informational for this run."
@@ -118,12 +118,28 @@ def run_experiment(db: Session, product_id: str, request: ExperimentRunRequest) 
         latency_detail = f"Candidate {candidate_latency:.1f} ms; allowed <= {limit:.1f} ms."
 
     gates = [
-        {"name": "sample", "passed": sample_pass, "detail": f"{len(rows_with_candidate)} complete replay rows; minimum {request.min_samples}."},
-        {"name": "quality", "passed": quality_pass, "detail": "Candidate exact/task quality must meet the configured gate."},
-        {"name": "protected_slices", "passed": protected_pass, "detail": f"{len(protected_rows)} protected replay rows checked."},
+        {
+            "name": "sample",
+            "passed": sample_pass,
+            "detail": f"{len(rows_with_candidate)} complete replay rows; minimum {request.min_samples}.",
+        },
+        {
+            "name": "quality",
+            "passed": quality_pass,
+            "detail": "Candidate exact/task quality must meet the configured gate.",
+        },
+        {
+            "name": "protected_slices",
+            "passed": protected_pass,
+            "detail": f"{len(protected_rows)} protected replay rows checked.",
+        },
         {"name": "cost", "passed": cost_pass, "detail": "Measured candidate cost must be lower than baseline cost."},
         {"name": "latency", "passed": latency_pass, "detail": latency_detail},
-        {"name": "fallback", "passed": request.fallback_exists, "detail": "A safe baseline fallback must be explicitly confirmed."},
+        {
+            "name": "fallback",
+            "passed": request.fallback_exists,
+            "detail": "A safe baseline fallback must be explicitly confirmed.",
+        },
     ]
 
     complete_evidence = bool(rows_with_candidate)
@@ -168,10 +184,6 @@ def run_experiment(db: Session, product_id: str, request: ExperimentRunRequest) 
 
 def list_experiments(db: Session, product_id: str) -> list[ExperimentOut]:
     rows = list(
-        db.scalars(
-            select(Experiment)
-            .where(Experiment.product_id == product_id)
-            .order_by(Experiment.created_at.desc())
-        )
+        db.scalars(select(Experiment).where(Experiment.product_id == product_id).order_by(Experiment.created_at.desc()))
     )
     return [_to_out(row) for row in rows]

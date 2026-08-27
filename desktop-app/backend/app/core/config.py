@@ -9,7 +9,7 @@ def _backend_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-@dataclass(frozen=True)
+@dataclass
 class Settings:
     api_host: str = os.getenv("ZEVQORA_API_HOST", "127.0.0.1")
     api_port: int = int(os.getenv("ZEVQORA_API_PORT", "8000"))

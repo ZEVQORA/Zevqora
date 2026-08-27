@@ -3,6 +3,7 @@
 Revision ID: 0002_trace_telemetry_v1
 Revises: 0001_desktop_agent_initial
 """
+
 from typing import Sequence, Union
 
 from alembic import op

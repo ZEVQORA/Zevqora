@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import delete, select
@@ -41,7 +41,10 @@ FORBIDDEN_EXACT_SUFFIXES = {".pem", ".key", ".p12", ".pfx", ".jks"}
 
 PROVIDER_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("openrouter", re.compile(r"openrouter|OPENROUTER_API_KEY", re.I)),
-    ("openai", re.compile(r"\bOpenAI\b|from\s+openai|import\s+openai|\.responses\.create|chat\.completions\.create", re.I)),
+    (
+        "openai",
+        re.compile(r"\bOpenAI\b|from\s+openai|import\s+openai|\.responses\.create|chat\.completions\.create", re.I),
+    ),
     ("anthropic", re.compile(r"\bAnthropic\b|from\s+anthropic|import\s+anthropic|messages\.create", re.I)),
     ("gemini", re.compile(r"google\.genai|google\.generativeai|GenerativeModel|generate_content", re.I)),
     ("vercel-ai-sdk", re.compile(r"from\s+['\"]ai['\"]|generateText\(|streamText\(|generateObject\(", re.I)),
@@ -64,11 +67,12 @@ def contains_secret_like_value(text: str) -> bool:
 def redact_secret_like_values(text: str) -> str:
     redacted = text
     assignment = SECRET_LIKE_PATTERNS[0]
-    redacted = assignment.sub(lambda m: f'{m.group(1)}={m.group(2)}****{m.group(2)}', redacted)
-    redacted = SECRET_LIKE_PATTERNS[1].sub('sk-****', redacted)
-    redacted = SECRET_LIKE_PATTERNS[2].sub('AIza****', redacted)
-    redacted = SECRET_LIKE_PATTERNS[3].sub('gh_****', redacted)
+    redacted = assignment.sub(lambda m: f"{m.group(1)}={m.group(2)}****{m.group(2)}", redacted)
+    redacted = SECRET_LIKE_PATTERNS[1].sub("sk-****", redacted)
+    redacted = SECRET_LIKE_PATTERNS[2].sub("AIza****", redacted)
+    redacted = SECRET_LIKE_PATTERNS[3].sub("gh_****", redacted)
     return redacted
+
 
 CALL_HINT = re.compile(
     r"responses\.create|completions\.create|messages\.create|generate_content|generateText\(|streamText\(|generateObject\(|\bcompletion\(|\.invoke\(|\.ainvoke\(",
@@ -248,7 +252,7 @@ def scan_product(db: Session, product: Product) -> tuple[ScanStats, list[AICall]
             findings.append(finding)
             db.add(finding)
 
-    product.last_scan_at = datetime.now(timezone.utc)
+    product.last_scan_at = datetime.now(UTC)
     db.add(product)
     db.commit()
     return stats, calls, findings, sorted(stack)

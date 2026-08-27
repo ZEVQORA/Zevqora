@@ -213,18 +213,16 @@ class OpenRouterProvider(LLMProvider):
 
             if response.status_code == 429 and attempt <= self.max_retries:
                 retry_reason = "http_429"
-                await asyncio.sleep(min(2 ** attempt, 8))
+                await asyncio.sleep(min(2**attempt, 8))
                 continue
             if response.status_code >= 500 and attempt <= self.max_retries:
                 retry_reason = f"http_{response.status_code}"
                 last_error = ProviderError(f"OpenRouter server error {response.status_code}")
-                await asyncio.sleep(min(2 ** attempt, 8))
+                await asyncio.sleep(min(2**attempt, 8))
                 continue
             if response.status_code >= 400:
                 # Do not include Authorization; response.text is provider error body only.
-                raise ProviderError(
-                    f"OpenRouter request failed ({response.status_code}): {response.text[:600]}"
-                )
+                raise ProviderError(f"OpenRouter request failed ({response.status_code}): {response.text[:600]}")
 
             # Successful HTTP response: never retry from here (paid work may have completed).
             body = response.json()
