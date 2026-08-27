@@ -262,11 +262,12 @@ class RequiredFactsGrader(Grader):
 
     def grade(self, *, actual: str | None, expected: Any, spec: GraderSpec, context: dict[str, Any]) -> GraderResult:
         cfg = spec.config or {}
+        ver = str(spec.version or self.version)
         facts = list(cfg.get("facts") or expected or [])
         forbidden = list(cfg.get("forbidden_phrases") or [])
         if actual is None:
             return GraderResult(
-                grader=self.name, version=self.version, score=0.0, passed=False, details={"error": "actual_missing"}
+                grader=self.name, version=ver, score=0.0, passed=False, details={"error": "actual_missing"}
             )
         case_insensitive = bool(cfg.get("case_insensitive", True))
         hay = actual.casefold() if case_insensitive else actual
@@ -274,7 +275,7 @@ class RequiredFactsGrader(Grader):
         if violations:
             return GraderResult(
                 grader=self.name,
-                version=self.version,
+                version=ver,
                 score=0.0,
                 passed=False,
                 details={"forbidden_found": violations},
@@ -288,13 +289,15 @@ class RequiredFactsGrader(Grader):
                 found.append(needle)
             else:
                 missing.append(needle)
-        score = (len(found) / len(facts)) if facts else 0.0
+        # v1.0.x: empty facts → score 0.0 even when passed (historical quirk, immutable for v1).
+        # v1.1.x: empty facts + no forbidden hits → score 1.0 (consistent pass/score).
+        score = (len(found) / len(facts)) if facts else (1.0 if ver.startswith("1.1") else 0.0)
         return GraderResult(
             grader=self.name,
-            version=self.version,
+            version=ver,
             score=score,
             passed=not missing,
-            details={"found": found, "missing": missing},
+            details={"found": found, "missing": missing, "semantics": ver},
         )
 
 
