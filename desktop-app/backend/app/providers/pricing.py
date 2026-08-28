@@ -40,17 +40,27 @@ class PricingSnapshot:
         entry = self.models.get(model)
         if not entry or entry.get("input_per_million") is None or entry.get("output_per_million") is None:
             raise PricingUnavailableError(f"No verified pricing rates for model {model!r} in snapshot {self.version}.")
+        # Unreported token counts must never be priced as zero. A response with no
+        # usage block is an unmeasured call, not a free one.
+        if usage.input_tokens is None or usage.output_tokens is None:
+            raise PricingUnavailableError(
+                f"Token usage not reported for model {model!r} "
+                f"(input_tokens={usage.input_tokens}, output_tokens={usage.output_tokens}); refusing to estimate cost."
+            )
         input_rate = float(entry["input_per_million"])
         output_rate = float(entry["output_per_million"])
         cached_rate = entry.get("cached_input_per_million")
         cached_rate_f = float(cached_rate) if cached_rate is not None else input_rate * 0.5
 
+        # cached_input_tokens and reasoning_tokens are SUBSETS of input_tokens and
+        # output_tokens respectively, so neither is added on top of its parent total:
+        # cached is re-priced at the cached rate, reasoning is already billed inside
+        # output_tokens and is carried as reporting metadata only.
         billable_input = max(0, usage.input_tokens - usage.cached_input_tokens)
         cost = (
             (billable_input / 1_000_000.0) * input_rate
             + (usage.cached_input_tokens / 1_000_000.0) * cached_rate_f
             + (usage.output_tokens / 1_000_000.0) * output_rate
-            + (usage.reasoning_tokens / 1_000_000.0) * output_rate
         )
         return CostBreakdown(
             cost_usd=round(cost, 10),
@@ -72,7 +82,10 @@ class PricingSnapshot:
         usage: LLMUsage,
         provider_cost_usd: float | None,
     ) -> CostBreakdown:
-        if provider_cost_usd is not None and provider_cost_usd >= 0:
+        # Strictly positive: a reported 0.0 is far more often an accounting
+        # placeholder than a genuinely free call, and falling through to the
+        # snapshot estimate is both more informative and harder to fake.
+        if provider_cost_usd is not None and provider_cost_usd > 0:
             return CostBreakdown(
                 cost_usd=round(float(provider_cost_usd), 10),
                 cost_source=CostSource.PROVIDER_REPORTED,
@@ -91,10 +104,13 @@ class PricingSnapshot:
             return CostBreakdown(
                 cost_usd=None,
                 cost_source=None,
-                pricing_version=self.version,
+                # No arithmetic happened, so no pricing_version may be claimed.
+                # Record the snapshot that was consulted as catalog metadata instead.
+                pricing_version=None,
                 provider=provider,
                 model=model,
                 computed_at=datetime.now(UTC),
+                provider_metadata_version=self.version,
             )
 
 

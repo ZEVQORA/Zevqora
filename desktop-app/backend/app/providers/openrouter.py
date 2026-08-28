@@ -98,25 +98,47 @@ class OpenRouterProvider(LLMProvider):
         return out
 
     @staticmethod
-    def _parse_usage(raw: dict[str, Any] | None) -> LLMUsage:
+    def _first_int(raw: dict[str, Any], *keys: str) -> int | None:
+        """First key that is actually present with an int-like value, else None.
+
+        Uses explicit presence checks rather than `or` chaining so that a
+        genuine 0 is preserved instead of falling through to the next key.
+        """
+        for key in keys:
+            value = raw.get(key)
+            if value is None or isinstance(value, bool):
+                continue
+            if isinstance(value, (int, float)):
+                return int(value)
+        return None
+
+    @classmethod
+    def _parse_usage(cls, raw: dict[str, Any] | None) -> LLMUsage:
+        # An absent usage block means the call was not measured. Returning zeros
+        # here would let the pricing snapshot value it at $0.00.
         if not raw:
             return LLMUsage()
-        input_tokens = int(raw.get("prompt_tokens") or raw.get("input_tokens") or 0)
-        output_tokens = int(raw.get("completion_tokens") or raw.get("output_tokens") or 0)
+        input_tokens = cls._first_int(raw, "prompt_tokens", "input_tokens")
+        output_tokens = cls._first_int(raw, "completion_tokens", "output_tokens")
+
         cached = 0
         details = raw.get("prompt_tokens_details") or raw.get("input_tokens_details") or {}
         if isinstance(details, dict):
-            cached = int(details.get("cached_tokens") or 0)
-        reasoning = int(raw.get("reasoning_tokens") or 0)
+            cached = cls._first_int(details, "cached_tokens") or 0
+
+        reasoning = cls._first_int(raw, "reasoning_tokens")
         completion_details = raw.get("completion_tokens_details") or {}
-        if isinstance(completion_details, dict) and not reasoning:
-            reasoning = int(completion_details.get("reasoning_tokens") or 0)
-        total = int(raw.get("total_tokens") or (input_tokens + output_tokens))
+        if reasoning is None and isinstance(completion_details, dict):
+            reasoning = cls._first_int(completion_details, "reasoning_tokens")
+
+        total = cls._first_int(raw, "total_tokens")
+        if total is None and input_tokens is not None and output_tokens is not None:
+            total = input_tokens + output_tokens
         return LLMUsage(
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             cached_input_tokens=cached,
-            reasoning_tokens=reasoning,
+            reasoning_tokens=reasoning or 0,
             total_tokens=total,
         )
 
@@ -155,15 +177,16 @@ class OpenRouterProvider(LLMProvider):
 
     @staticmethod
     def _provider_cost(body: dict[str, Any]) -> float | None:
+        # bool is a subclass of int: `"cost": true` must not become $1.00.
         for key in ("total_cost", "cost"):
             value = body.get(key)
-            if isinstance(value, (int, float)):
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
                 return float(value)
         usage = body.get("usage") or {}
         if isinstance(usage, dict):
             for key in ("total_cost", "cost"):
                 value = usage.get(key)
-                if isinstance(value, (int, float)):
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
                     return float(value)
         return None
 

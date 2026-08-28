@@ -8,7 +8,6 @@ import time
 from .base import LLMProvider
 from .models import (
     CostBreakdown,
-    CostSource,
     FinishReason,
     LLMRequest,
     LLMResponse,
@@ -31,7 +30,9 @@ class MockProvider(LLMProvider):
         latency_ms: float = 1.0,
         tool_response: list[ToolCall] | None = None,
         usage: LLMUsage | None = None,
-        provider_cost_usd: float | None = 0.0,
+        # No fabricated default cost: a mock must not manufacture a $0.00
+        # "provider_reported" measurement. Tests that need a cost pass one.
+        provider_cost_usd: float | None = None,
         raise_error: Exception | None = None,
         cost_override: CostBreakdown | None = None,
     ) -> None:
@@ -75,16 +76,16 @@ class MockProvider(LLMProvider):
         if self.cost_override is not None:
             cost = self.cost_override
         else:
+            # Price the model that was actually requested. Substituting
+            # "mock/test-model" here and relabelling it back afterwards attributed
+            # the fixture's $1/$2 rates to whatever real model was asked for.
+            # An unpriced model must resolve to cost_usd=None, not to fixture rates.
             cost = self.pricing.resolve_cost(
                 provider=self.name,
-                model=request.model if self.pricing.has_verified_rates(request.model) else "mock/test-model",
+                model=request.model,
                 usage=self.usage,
                 provider_cost_usd=self.provider_cost_usd,
             )
-            # Keep mock provenance explicit even when using snapshot rates.
-            if cost.cost_source == CostSource.PROVIDER_REPORTED:
-                pass
-            cost = cost.model_copy(update={"provider": self.name, "model": request.model})
 
         finish = FinishReason.TOOL_CALLS if tool_calls else FinishReason.STOP
         return LLMResponse(

@@ -45,11 +45,21 @@ class ToolDefinition(BaseModel):
 
 
 class LLMUsage(BaseModel):
-    input_tokens: int = 0
-    output_tokens: int = 0
+    """Token accounting. None means the provider did not report the value.
+
+    input_tokens/output_tokens are deliberately nullable: "not reported" and
+    "zero" are different facts, and conflating them lets an unmeasured call be
+    priced as $0.00. Pricing refuses to estimate when either is None.
+
+    cached_input_tokens/reasoning_tokens are optional *breakdowns* of the two
+    totals above, so an absent key genuinely means zero.
+    """
+
+    input_tokens: int | None = None
+    output_tokens: int | None = None
     cached_input_tokens: int = 0
     reasoning_tokens: int = 0
-    total_tokens: int = 0
+    total_tokens: int | None = None
 
 
 class CostBreakdown(BaseModel):
