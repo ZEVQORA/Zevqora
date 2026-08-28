@@ -5,9 +5,11 @@ import os
 import re
 import subprocess
 import uuid
+from functools import partial
 from pathlib import Path
 from typing import Any
 
+from anyio import to_thread
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -25,7 +27,16 @@ class ImplementationError(ValueError):
     pass
 
 
-def _run_git(args: list[str], cwd: Path, timeout: int = 30) -> subprocess.CompletedProcess[str]:
+async def _run_git(args: list[str], cwd: Path, timeout: int = 30) -> subprocess.CompletedProcess[str]:
+    """Run git off the event loop.
+
+    prepare_implementation is an async handler, so a synchronous `git worktree add`
+    with a 60s timeout blocked every other request while it ran.
+    """
+    return await to_thread.run_sync(partial(_run_git_blocking, args, cwd, timeout))
+
+
+def _run_git_blocking(args: list[str], cwd: Path, timeout: int) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(
             ["git", *args],
@@ -212,7 +223,7 @@ async def prepare_implementation(
     if not target.exists():
         raise ImplementationError("The linked source file no longer exists. Rescan the product first.")
 
-    repo_check = _run_git(["rev-parse", "--show-toplevel"], root)
+    repo_check = await _run_git(["rev-parse", "--show-toplevel"], root)
     if repo_check.returncode != 0:
         raise ImplementationError("Implementation preparation requires the connected product to be a Git repository.")
     repo_root = Path(repo_check.stdout.strip()).resolve()
@@ -220,7 +231,7 @@ async def prepare_implementation(
         root.relative_to(repo_root)
     except ValueError as exc:
         raise ImplementationError("Connected workspace is not inside the resolved Git repository.") from exc
-    head = _run_git(["rev-parse", "HEAD"], repo_root)
+    head = await _run_git(["rev-parse", "HEAD"], repo_root)
     if head.returncode != 0:
         raise ImplementationError("Unable to resolve the current Git HEAD.")
 
@@ -228,7 +239,7 @@ async def prepare_implementation(
     branch = f"zevqora/exp-{experiment.id[:8]}-{impl_id[:6]}"
     worktree = Path(settings.worktree_root).expanduser().resolve() / product.id / impl_id
     worktree.parent.mkdir(parents=True, exist_ok=True)
-    add = _run_git(["worktree", "add", "-b", branch, str(worktree), head.stdout.strip()], repo_root, timeout=60)
+    add = await _run_git(["worktree", "add", "-b", branch, str(worktree), head.stdout.strip()], repo_root, timeout=60)
     if add.returncode != 0:
         raise ImplementationError(f"Could not create isolated Git worktree: {add.stderr.strip()[:500]}")
 
@@ -261,11 +272,16 @@ async def prepare_implementation(
         compile_output = ""
         compile_exit: int | None = None
         if worktree_target.suffix.lower() == ".py":
-            compile_result = run_argv(
-                [os.environ.get("PYTHON", "python"), "-m", "py_compile", str(worktree_target)],
-                cwd=worktree,
-                timeout_seconds=30,
-                max_output_bytes=6000,
+            # Off the event loop: this handler is async, so a blocking
+            # subprocess here froze every other request, /api/health included.
+            compile_result = await to_thread.run_sync(
+                partial(
+                    run_argv,
+                    [os.environ.get("PYTHON", "python"), "-m", "py_compile", str(worktree_target)],
+                    cwd=worktree,
+                    timeout_seconds=30,
+                    max_output_bytes=6000,
+                )
             )
             compile_exit = compile_result.exit_code
             compile_output = (compile_result.stdout + compile_result.stderr)[-6000:]
@@ -278,11 +294,16 @@ async def prepare_implementation(
                 raise ImplementationError("run_tests=true requires an explicit user-approved test_command.")
             test_command = request.test_command.strip()
             try:
-                test_result = run_command_string(
-                    test_command,
-                    cwd=worktree,
-                    timeout_seconds=settings.subprocess_timeout_seconds,
-                    max_output_bytes=settings.subprocess_max_output_bytes,
+                # The user's own test command, up to subprocess_timeout_seconds
+                # (180s by default). Must never occupy the event loop.
+                test_result = await to_thread.run_sync(
+                    partial(
+                        run_command_string,
+                        test_command,
+                        cwd=worktree,
+                        timeout_seconds=settings.subprocess_timeout_seconds,
+                        max_output_bytes=settings.subprocess_max_output_bytes,
+                    )
                 )
             except UnsafeCommandError as exc:
                 raise ImplementationError(str(exc)) from exc
@@ -294,7 +315,7 @@ async def prepare_implementation(
                 test_exit = test_exit if test_exit is not None else 124
                 test_output = (test_output + "\n[timed out]")[-settings.subprocess_max_output_bytes :]
 
-        diff_proc = _run_git(["diff", "--no-ext-diff", "--", str(rel_from_repo).replace("\\", "/")], worktree)
+        diff_proc = await _run_git(["diff", "--no-ext-diff", "--", str(rel_from_repo).replace("\\", "/")], worktree)
         diff_text = diff_proc.stdout
         if not diff_text.strip():
             raise ImplementationError("The generated implementation produced no source diff.")
@@ -330,8 +351,8 @@ async def prepare_implementation(
     finally:
         if not created:
             # Failed candidates should not leave an untracked worktree/branch behind.
-            _run_git(["worktree", "remove", "--force", str(worktree)], repo_root, timeout=60)
-            _run_git(["branch", "-D", branch], repo_root, timeout=30)
+            await _run_git(["worktree", "remove", "--force", str(worktree)], repo_root, timeout=60)
+            await _run_git(["branch", "-D", branch], repo_root, timeout=30)
 
 
 def list_implementations(db: Session, product_id: str) -> list[ImplementationOut]:

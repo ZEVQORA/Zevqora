@@ -79,6 +79,77 @@ def _windows_command_line_to_argv(command: str) -> list[str]:
         ctypes.windll.kernel32.LocalFree(argv_ptr)  # type: ignore[attr-defined]
 
 
+# Programs a user-supplied test command may name. shell=False already prevents
+# shell composition, but the caller still chose the program: `curl ... -o x.py`,
+# `node payload.js` and `powershell -EncodedCommand ...` all contain no denied
+# character. A denylist cannot enumerate every downloader or interpreter.
+ALLOWED_PROGRAMS = frozenset(
+    {
+        "pytest",
+        "python",
+        "python3",
+        "py",
+        "npm",
+        "npx",
+        "pnpm",
+        "yarn",
+        "node",
+        "go",
+        "cargo",
+        "make",
+        "mvn",
+        "gradle",
+        "dotnet",
+        "ruby",
+        "rake",
+        "bundle",
+        "phpunit",
+    }
+)
+
+# Passed through to a child process. Everything else — OPENROUTER_API_KEY above
+# all — is withheld, so a one-line "test command" cannot exfiltrate the user's
+# provider key out of os.environ.
+_ENV_PASSTHROUGH = (
+    "PATH",
+    "HOME",
+    "USERPROFILE",
+    "SYSTEMROOT",
+    "SYSTEMDRIVE",
+    "WINDIR",
+    "TEMP",
+    "TMP",
+    "TMPDIR",
+    "LANG",
+    "LC_ALL",
+    "PATHEXT",
+    "COMSPEC",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "PYTHONIOENCODING",
+)
+
+
+def program_name(argv0: str) -> str:
+    """Bare program name, without directory or extension."""
+    return Path(argv0).name.rsplit(".", 1)[0].lower()
+
+
+def assert_program_allowed(argv: list[str]) -> None:
+    if not argv:
+        raise UnsafeCommandError("Empty argv.")
+    name = program_name(argv[0])
+    if name not in ALLOWED_PROGRAMS:
+        raise UnsafeCommandError(
+            f"{argv[0]!r} is not an allowed test runner. Allowed: {', '.join(sorted(ALLOWED_PROGRAMS))}."
+        )
+
+
+def scrubbed_environment() -> dict[str, str]:
+    """A minimal environment with no provider credentials in it."""
+    return {key: os.environ[key] for key in _ENV_PASSTHROUGH if key in os.environ}
+
+
 def run_argv(
     argv: list[str],
     *,
@@ -142,12 +213,15 @@ def run_command_string(
     env: dict[str, str] | None = None,
 ) -> SubprocessResult:
     argv = parse_command_to_argv(command)
+    # This argv came from a human-typed test command, so the program is checked
+    # and the child gets an environment with no provider secrets in it.
+    assert_program_allowed(argv)
     return run_argv(
         argv,
         cwd=cwd,
         timeout_seconds=timeout_seconds,
         max_output_bytes=max_output_bytes,
-        env=env,
+        env=env if env is not None else scrubbed_environment(),
     )
 
 

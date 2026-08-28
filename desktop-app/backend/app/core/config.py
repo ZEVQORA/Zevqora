@@ -63,6 +63,10 @@ class Settings:
     openrouter_site_url: str = os.getenv("OPENROUTER_SITE_URL", "https://zevqora.vercel.app")
     agent_model: str = os.getenv("ZEVQORA_AGENT_MODEL", "openrouter/auto")
     agent_max_steps: int = int(os.getenv("ZEVQORA_AGENT_MAX_STEPS", "6"))
+    # Verification thresholds the agent runs under. Trusted system facts:
+    # sourced here, never from model-generated tool arguments.
+    agent_verification_quality_gate: float = float(os.getenv("ZEVQORA_AGENT_VERIFICATION_QUALITY_GATE", "0.98"))
+    agent_verification_min_samples: int = int(os.getenv("ZEVQORA_AGENT_VERIFICATION_MIN_SAMPLES", "5"))
 
     scan_interval_seconds: int = int(os.getenv("ZEVQORA_SCAN_INTERVAL_SECONDS", "20"))
     max_source_file_bytes: int = int(os.getenv("ZEVQORA_MAX_SOURCE_FILE_BYTES", "1000000"))
