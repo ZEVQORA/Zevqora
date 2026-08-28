@@ -11,8 +11,12 @@ import json
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..core.logging import get_logger
 from ..db_models import CandidateExecution, Trace
+from ..evidence.protection import pinned_trace_ids
 from .models import EXECUTION_PROVEN, LEGACY_CANDIDATE_EVIDENCE, ExecutionStatus
+
+logger = get_logger(__name__)
 
 
 def is_legacy_candidate_evidence(trace: Trace) -> bool:
@@ -43,12 +47,29 @@ def project_execution_onto_traces(
     if execution.status != ExecutionStatus.SUCCEEDED.value:
         raise ValueError("Only SUCCEEDED executions can be projected.")
     samples = json.loads(execution.sample_results_json or "[]")
+
+    # Traces a finalized evaluation was computed from are frozen. Rewriting one
+    # would leave the verification record asserting a result that no longer
+    # matches the evidence beneath it, with no version row and no audit trail.
+    frozen = pinned_trace_ids(db, execution.product_id)
+
     updated = 0
+    skipped_frozen = 0
     for sample in samples:
         if sample.get("status") != "succeeded":
             continue
-        trace = db.scalar(select(Trace).where(Trace.id == sample["baseline_trace_id"]))
+        trace = db.scalar(
+            select(Trace).where(
+                Trace.id == sample["baseline_trace_id"],
+                # Scope by product: without this a crafted sample_results_json
+                # could reach another product's traces.
+                Trace.product_id == execution.product_id,
+            )
+        )
         if not trace:
+            continue
+        if trace.id in frozen:
+            skipped_frozen += 1
             continue
         if (
             not overwrite
@@ -90,4 +111,9 @@ def project_execution_onto_traces(
         db.add(trace)
         updated += 1
     db.commit()
+    if skipped_frozen:
+        logger.info(
+            "bridge.frozen_traces_skipped",
+            extra={"experiment_id": execution.id, "product_id": execution.product_id},
+        )
     return updated

@@ -392,6 +392,10 @@ def create_and_run_evaluation(
             missing_reasons.append("evidence_incomplete")
 
         fallback_configured = bool(plan and (plan.fallback or "").strip())
+        # Derived from the samples, not asserted. This flag is what the
+        # implementation boundary keys on, so a hardcoded True made it carry
+        # no information at all.
+        execution_proven = all(bool(s.get("execution_proven")) for s in samples) if samples else False
 
         gates = evaluate_gates(
             config=gate_config,
@@ -409,7 +413,7 @@ def create_and_run_evaluation(
             candidate_latency=mean(c_lats) if c_lats else (execution.latency_ms),
             fallback_configured=fallback_configured,
             execution_succeeded=execution.status == ExecutionStatus.SUCCEEDED.value,
-            execution_proven=all(bool(s.get("execution_proven")) for s in samples) if samples else False,
+            execution_proven=execution_proven,
             evidence_complete=evidence_complete,
             missing_reasons=missing_reasons,
             case_errors=case_errors,
@@ -428,6 +432,7 @@ def create_and_run_evaluation(
             quality_delta = candidate_quality - baseline_quality
 
         run.status = status
+        run.execution_proven = execution_proven
         run.sample_count = len(candidate_scores)
         run.protected_sample_count = protected_count
         run.baseline_quality = baseline_quality
@@ -504,7 +509,7 @@ def _project_experiment(db: Session, run: EvaluationRun, plan: CandidatePlan | N
         gates_json=run.gates_json,
         evidence_version=run.evidence_version,
         verification_source=VERIFICATION_SOURCE_EXECUTION,
-        execution_proven=True,
+        execution_proven=bool(run.execution_proven),
         evaluation_run_id=run.id,
         candidate_execution_id=run.candidate_execution_id,
         created_at=utcnow(),

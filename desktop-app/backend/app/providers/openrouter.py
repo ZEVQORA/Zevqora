@@ -264,6 +264,9 @@ class OpenRouterProvider(LLMProvider):
                 model=resolved_model,
                 usage=usage,
                 provider_cost_usd=provider_cost,
+                # _provider_cost returns None unless a numeric cost field was
+                # actually present in the body, so a 0.0 here is a reported zero.
+                provider_cost_explicit=provider_cost is not None,
             )
             finish_raw = choices[0].get("finish_reason") or "unknown"
             try:

@@ -82,7 +82,7 @@ def _trace(db, product_id, *, rid, text, out, cost=0.02, protected=False, expect
 
 
 def test_head_is_phase3(tmp_path):
-    assert HEAD_REVISION == "0005_benchmark_dogfood"
+    assert HEAD_REVISION == "0006_evidence_integrity"
     db = tmp_path / "h.db"
     ensure_schema(f"sqlite:///{db.as_posix()}", backup_dir=tmp_path / "b")
     import sqlite3
@@ -422,7 +422,12 @@ def test_protected_failure_rejected(tmp_path, monkeypatch):
             candidate_execution_id=execution.id,
             cases=cases,
             gate_config=GateConfig(
-                min_samples=5, quality_floor=0.0, non_inferiority_tolerance=1.0, require_fallback=True
+                # Lowest valid floor: this test asserts the protected-slice gate,
+                # not the quality gate. A zero floor is no longer a legal config.
+                min_samples=5,
+                quality_floor=0.01,
+                non_inferiority_tolerance=1.0,
+                require_fallback=True,
             ),
             project_experiment=False,
         )
@@ -462,7 +467,8 @@ def test_min_samples_incomplete(tmp_path, monkeypatch):
             p.id,
             candidate_execution_id=execution.id,
             cases=cases,
-            gate_config=GateConfig(min_samples=5, quality_floor=0.0, require_fallback=True),
+            # Asserts the min_samples gate; floor kept at the lowest legal value.
+            gate_config=GateConfig(min_samples=5, quality_floor=0.01, require_fallback=True),
             project_experiment=False,
         )
         assert run.status == "INCOMPLETE"

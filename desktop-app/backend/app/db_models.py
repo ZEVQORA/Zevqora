@@ -21,6 +21,9 @@ class Product(Base):
     monitoring_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
     last_scan_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Set instead of deleting when the product carries conclusive evaluation
+    # evidence. Detaching must never destroy what a VERIFIED run was built on.
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     ai_calls: Mapped[list[AICall]] = relationship(cascade="all, delete-orphan")
     findings: Mapped[list[Finding]] = relationship(cascade="all, delete-orphan")

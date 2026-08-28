@@ -85,6 +85,8 @@ class MockProvider(LLMProvider):
                 model=request.model,
                 usage=self.usage,
                 provider_cost_usd=self.provider_cost_usd,
+                # Only when a test deliberately supplied one, never the default.
+                provider_cost_explicit=self.provider_cost_usd is not None,
             )
 
         finish = FinishReason.TOOL_CALLS if tool_calls else FinishReason.STOP

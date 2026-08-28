@@ -81,11 +81,20 @@ class PricingSnapshot:
         model: str,
         usage: LLMUsage,
         provider_cost_usd: float | None,
+        provider_cost_explicit: bool = False,
     ) -> CostBreakdown:
-        # Strictly positive: a reported 0.0 is far more often an accounting
-        # placeholder than a genuinely free call, and falling through to the
-        # snapshot estimate is both more informative and harder to fake.
-        if provider_cost_usd is not None and provider_cost_usd > 0:
+        # Three distinct states, deliberately not collapsed:
+        #   None                        -> cost unknown, fall through to estimate
+        #   0.0 with explicit=True      -> the provider really did report $0.00
+        #                                  (free tier, promotional credit); a real
+        #                                  measurement and recorded as such
+        #   0.0 with explicit=False     -> a default or placeholder zero, e.g. a
+        #                                  mock's constructor default. Never allowed
+        #                                  to masquerade as a measured provider cost.
+        # Only a caller that saw a genuine cost field in the provider payload may
+        # set provider_cost_explicit.
+        trustworthy = provider_cost_usd is not None and (provider_cost_usd > 0 or provider_cost_explicit)
+        if trustworthy:
             return CostBreakdown(
                 cost_usd=round(float(provider_cost_usd), 10),
                 cost_source=CostSource.PROVIDER_REPORTED,

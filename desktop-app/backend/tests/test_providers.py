@@ -205,16 +205,64 @@ def test_boolean_cost_field_is_not_one_dollar():
     assert OpenRouterProvider._provider_cost({"usage": {"cost": True}}) is None
 
 
-def test_zero_provider_cost_does_not_become_provider_reported(tmp_path):
-    """A reported 0.0 is an accounting placeholder, not an authoritative measurement."""
+def test_placeholder_zero_does_not_become_provider_reported(tmp_path):
+    """A default/placeholder 0.0 must not masquerade as a measured provider cost."""
     cost = _snap(tmp_path).resolve_cost(
         provider="openrouter",
         model="demo/m",
         usage=LLMUsage(input_tokens=100, output_tokens=50),
         provider_cost_usd=0.0,
+        provider_cost_explicit=False,
     )
     assert cost.cost_source == CostSource.PRICING_SNAPSHOT_ESTIMATE
     assert cost.cost_usd == pytest.approx(100 / 1_000_000.0 * 1.0 + 50 / 1_000_000.0 * 2.0)
+
+
+def test_explicit_provider_zero_is_a_real_measurement(tmp_path):
+    """A free-tier call the provider genuinely priced at $0.00 is measured evidence."""
+    cost = _snap(tmp_path).resolve_cost(
+        provider="openrouter",
+        model="demo/m",
+        usage=LLMUsage(input_tokens=100, output_tokens=50),
+        provider_cost_usd=0.0,
+        provider_cost_explicit=True,
+    )
+    assert cost.cost_source == CostSource.PROVIDER_REPORTED
+    assert cost.cost_usd == 0.0
+    assert cost.pricing_version is None
+
+
+def test_openrouter_marks_a_present_cost_field_as_explicit():
+    """A cost key in the body is explicit; an absent one stays unknown."""
+    assert OpenRouterProvider._provider_cost({"usage": {"cost": 0}}) == 0.0
+    assert OpenRouterProvider._provider_cost({"usage": {}}) is None
+
+
+def test_positive_provider_cost_wins_over_estimate(tmp_path):
+    cost = _snap(tmp_path).resolve_cost(
+        provider="openrouter",
+        model="demo/m",
+        usage=LLMUsage(input_tokens=100, output_tokens=50),
+        provider_cost_usd=0.0042,
+        provider_cost_explicit=True,
+    )
+    assert cost.cost_source == CostSource.PROVIDER_REPORTED
+    assert cost.cost_usd == pytest.approx(0.0042)
+
+
+def test_cached_tokens_are_a_subset_priced_at_the_cached_rate(tmp_path):
+    """cached_input_tokens comes out of input_tokens, not on top of it."""
+    snap = _snap(
+        tmp_path,
+        models='{"demo/m":{"input_per_million":1.0,"output_per_million":2.0,"cached_input_per_million":0.1}}',
+    )
+    cost = snap.estimate_cost(
+        provider="openrouter",
+        model="demo/m",
+        usage=LLMUsage(input_tokens=1000, output_tokens=0, cached_input_tokens=400),
+    )
+    # 600 billable at $1/M + 400 cached at $0.10/M
+    assert cost.cost_usd == pytest.approx(600 / 1e6 * 1.0 + 400 / 1e6 * 0.1)
 
 
 def test_unavailable_pricing_claims_no_pricing_version(tmp_path):

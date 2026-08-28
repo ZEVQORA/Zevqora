@@ -95,7 +95,7 @@ def test_migration_head_has_candidate_tables(tmp_path):
     db = tmp_path / "m.db"
     result = ensure_schema(f"sqlite:///{db.as_posix()}", backup_dir=tmp_path / "b")
     assert result.revision == HEAD_REVISION
-    assert HEAD_REVISION == "0005_benchmark_dogfood"
+    assert HEAD_REVISION == "0006_evidence_integrity"
     import sqlite3
 
     conn = sqlite3.connect(str(db))

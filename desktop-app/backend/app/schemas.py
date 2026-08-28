@@ -115,7 +115,9 @@ class GateOut(BaseModel):
 
 class ExperimentRunRequest(BaseModel):
     finding_id: str | None = None
-    quality_gate: float = Field(default=0.98, ge=0, le=1)
+    # gt=0: a zero quality gate passes every candidate and makes the word
+    # VERIFIED meaningless. The UI sends Number('') === 0 on a cleared field.
+    quality_gate: float = Field(default=0.98, gt=0, le=1)
     min_samples: int = Field(default=5, ge=1, le=100000)
     max_latency_regression_pct: float = Field(default=20.0, ge=0, le=1000)
     fallback_exists: bool = False

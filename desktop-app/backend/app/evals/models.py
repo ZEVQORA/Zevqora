@@ -61,8 +61,12 @@ class EvaluationCaseSpec(BaseModel):
 
 
 class GateConfig(BaseModel):
-    min_samples: int = 5
-    quality_floor: float = 0.95
+    min_samples: int = Field(default=5, ge=1)
+    # A floor of 0 makes VERIFIED meaningless — every candidate clears it.
+    # The configured value is stored in gate_config_json, folded into
+    # gate_config_hash, and surfaced as the gate threshold, so a result is
+    # always "verified against THESE gates" and never a universal claim.
+    quality_floor: float = Field(default=0.95, gt=0.0, le=1.0)
     non_inferiority_tolerance: float = 0.0
     require_cost_improvement: bool = True
     min_cost_improvement_pct: float = 0.0

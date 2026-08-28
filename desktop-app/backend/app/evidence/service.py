@@ -8,14 +8,28 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..db_models import Experiment, Trace
+from ..db_models import Trace
 from ..schemas import EconomicsOut, TraceIn
 from ..telemetry.normalizer import normalize_imported_trace
+from .canonical import canonical_verified_experiments
 
 
 def import_traces(db: Session, product_id: str, traces: list[TraceIn]) -> int:
+    """Import traces, skipping request_ids this product already has.
+
+    Import was non-idempotent: a retried or double-clicked POST duplicated every
+    row, doubling observed_cost_usd and letting a five-sample file satisfy a
+    ten-sample gate on five real observations. (product_id, request_id) is now
+    unique at the schema level; this skips rather than raising so a partial
+    re-import of a longer file still lands the new rows.
+    """
+    existing = {r[0] for r in db.execute(select(Trace.request_id).where(Trace.product_id == product_id)).all()}
+    seen_in_batch: set[str] = set()
     imported = 0
     for item in traces:
+        if item.request_id in existing or item.request_id in seen_in_batch:
+            continue
+        seen_in_batch.add(item.request_id)
         normalized = normalize_imported_trace(item)
         fields = normalized["fields"]
         trace = Trace(
@@ -67,14 +81,7 @@ def economics(db: Session, product_id: str) -> EconomicsOut:
     latencies = [t.latency_ms for t in traces if t.latency_ms is not None]
     timestamps: list[datetime] = [t.timestamp for t in traces if t.timestamp is not None]
     providers = Counter(t.provider or "unknown" for t in traces)
-    verified = list(
-        db.scalars(
-            select(Experiment).where(
-                Experiment.product_id == product_id,
-                Experiment.status == "VERIFIED",
-            )
-        )
-    )
+    verified = canonical_verified_experiments(db, product_id)
     verified_savings = sum(e.verified_savings_usd or 0.0 for e in verified)
 
     return EconomicsOut(

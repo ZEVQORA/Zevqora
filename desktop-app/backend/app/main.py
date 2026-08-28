@@ -20,9 +20,15 @@ from .core.db_migrate import ensure_schema
 from .core.errors import MigrationError
 from .core.logging import configure_logging, get_logger
 from .db import SessionLocal, configure_engine, get_db
-from .db_models import AICall, Finding, Product, Trace
+from .db_models import AICall, Finding, Product, Trace, utcnow
 from .evals.models import EvaluationCaseSpec, GateConfig
 from .evals.runner import create_and_run_evaluation, get_evaluation, list_evaluations
+from .evidence.protection import (
+    has_conclusive_evidence,
+    pinned_trace_ids,
+    pinning_evaluation_ids,
+    product_trace_ids,
+)
 from .evidence.service import economics, import_traces
 from .experiments.service import list_experiments, run_experiment
 from .implementation.service import ImplementationError, list_implementations, prepare_implementation
@@ -285,7 +291,9 @@ def _register_routes(app: FastAPI) -> None:
 
     @app.get("/api/v1/products", response_model=list[ProductOut])
     def list_products(db: Session = Depends(get_db)):
-        rows = list(db.scalars(select(Product).order_by(Product.created_at.desc())))
+        rows = list(
+            db.scalars(select(Product).where(Product.archived_at.is_(None)).order_by(Product.created_at.desc()))
+        )
         return [product_out(row) for row in rows]
 
     @app.post("/api/v1/products/connect-local", response_model=ScanResult)
@@ -328,6 +336,15 @@ def _register_routes(app: FastAPI) -> None:
         product = db.scalar(select(Product).where(Product.id == product_id))
         if not product:
             raise HTTPException(status_code=404, detail="Product not found.")
+        # Product.evaluation_runs cascades all, delete-orphan. Hard-deleting a
+        # product carrying a VERIFIED or REJECTED run would destroy the record and
+        # the baselines it was computed from in one statement. Detach instead.
+        if has_conclusive_evidence(db, product_id):
+            product.archived_at = utcnow()
+            product.monitoring_enabled = False
+            db.add(product)
+            db.commit()
+            return {"status": "archived", "reason": "verification_evidence_retained"}
         db.delete(product)
         db.commit()
         return {"status": "disconnected"}
@@ -398,6 +415,23 @@ def _register_routes(app: FastAPI) -> None:
 
     @app.delete("/api/v1/products/{product_id}/traces")
     def clear_traces(product_id: str, db: Session = Depends(get_db)):
+        # Refuse as a whole rather than deleting the unpinned subset: a partial
+        # clear is harder to reason about than an explicit conflict, and the
+        # caller needs to know which runs depend on what.
+        pinned = pinned_trace_ids(db, product_id) & product_trace_ids(db, product_id)
+        if pinned:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "evidence_referenced",
+                    "message": (
+                        f"{len(pinned)} trace(s) are baseline evidence for finalized evaluations. "
+                        "Deleting them would make those verification records unauditable."
+                    ),
+                    "pinned_trace_count": len(pinned),
+                    "blocking_evaluation_ids": pinning_evaluation_ids(db, product_id, pinned)[:20],
+                },
+            )
         db.execute(delete(Trace).where(Trace.product_id == product_id))
         db.commit()
         return {"status": "cleared"}
@@ -513,7 +547,10 @@ def _register_routes(app: FastAPI) -> None:
                 force_rerun=request.force_rerun,
             )
             if request.project_to_legacy_traces and execution.status == "SUCCEEDED":
-                project_execution_onto_traces(db, execution, overwrite=True)
+                # Never overwrite=True here: that rewrote candidate cost/output on
+                # rows finalized evaluations were computed from, with no version
+                # row and no audit trail. Pinned traces are skipped internally.
+                project_execution_onto_traces(db, execution, overwrite=False)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         return execution_out(execution)
