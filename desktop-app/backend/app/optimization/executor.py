@@ -12,9 +12,15 @@ from ..core.config import settings
 from ..core.hashing import sha256_json, sha256_text
 from ..db_models import CandidateExecution, CandidatePlan, Trace, utcnow
 from ..providers.base import LLMProvider
+from ..providers.models import CostSource
 from .models import ExecutionStatus, PlanStatus, SampleResult, StrategyName
 from .registry import get_strategy
 from .strategies.model_substitution import estimate_sample_cost_usd
+
+# Recorded when samples in one execution disagree about where their dollars came
+# from. Better an explicit "mixed" than silently asserting one sample's provenance
+# for the whole run.
+_MIXED_COST_SOURCE = "mixed"
 
 
 def execution_key_for(plan: CandidatePlan, *, baseline_traces: list[Trace] | None = None) -> str:
@@ -293,19 +299,38 @@ async def execute_plan(
     sample_dicts = [r.model_dump() for r in results]
     succeeded = [r for r in results if r.status == "succeeded"]
     if plan.strategy == StrategyName.EXACT_REUSE.value and succeeded:
-        agg_cost: float | None = 0.0
-        agg_source = succeeded[0].cost_source
-    elif any(r.cost_usd is not None for r in succeeded):
+        # Genuine no-provider path. Assert the invariant rather than inheriting
+        # whatever label sample zero happened to carry: a reuse execution stamped
+        # "provider_reported" would claim the provider billed $0.00 for real work.
+        reuse_sources = {r.cost_source for r in succeeded if r.cost_source}
+        if reuse_sources - {CostSource.DETERMINISTIC_REUSE.value}:
+            agg_cost: float | None = None
+            agg_source = _MIXED_COST_SOURCE
+        else:
+            agg_cost = 0.0
+            agg_source = CostSource.DETERMINISTIC_REUSE.value
+    elif succeeded and all(r.cost_usd is not None for r in succeeded):
+        # All-or-nothing. Summing only the priced samples silently valued the
+        # unpriced ones at $0.00, so a run where two of five candidate calls had
+        # unknown cost reported a ~93% reduction against five full baselines.
         agg_cost = round(sum(r.cost_usd for r in succeeded if r.cost_usd is not None), 10)
-        agg_source = next((r.cost_source for r in succeeded if r.cost_source), None)
+        distinct_sources = {r.cost_source for r in succeeded if r.cost_source}
+        agg_source = (
+            distinct_sources.pop() if len(distinct_sources) == 1 else (_MIXED_COST_SOURCE if distinct_sources else None)
+        )
     else:
         agg_cost = None
         agg_source = None
 
-    baseline_costs = [r.baseline_cost_usd for r in succeeded if r.baseline_cost_usd is not None]
+    # Compare like with like: only samples where BOTH sides are known. Previously
+    # the candidate total and the baseline total were built from different subsets.
+    paired = [r for r in succeeded if r.cost_usd is not None and r.baseline_cost_usd is not None]
     delta = None
-    if agg_cost is not None and baseline_costs:
-        delta = round(agg_cost - sum(baseline_costs), 10)
+    if agg_cost is not None and paired and len(paired) == len(succeeded):
+        delta = round(
+            sum(r.cost_usd for r in paired) - sum(r.baseline_cost_usd for r in paired),
+            10,
+        )
 
     latencies = [r.latency_ms for r in succeeded if r.latency_ms is not None]
     execution.status = final_status.value
@@ -320,7 +345,12 @@ async def execute_plan(
     execution.cached_input_tokens = sum(r.cached_input_tokens or 0 for r in succeeded) or None
     execution.cost_usd = agg_cost
     execution.cost_source = agg_source
-    execution.pricing_version = next((r.pricing_version for r in succeeded if r.pricing_version), None)
+    # Only claim a snapshot version when every contributing sample agrees on it.
+    # `next(...)` skipped provider_reported samples (which set it to None) and
+    # landed on an estimated sample, stamping a local snapshot version onto
+    # dollars the provider reported.
+    distinct_versions = {r.pricing_version for r in succeeded if r.pricing_version}
+    execution.pricing_version = distinct_versions.pop() if len(distinct_versions) == 1 else None
     execution.latency_ms = (sum(latencies) / len(latencies)) if latencies else None
     execution.provider_request_id = next((r.provider_request_id for r in succeeded if r.provider_request_id), None)
     execution.provider_call_count = provider_calls
