@@ -110,15 +110,30 @@ def evaluate_gates(
         )
 
     # E. protected slice
-    if protected_count == 0:
+    if protected_count == 0 and config.require_protected_cases:
         gates.append(
             GateResult(
                 name="protected_slice",
                 required=True,
-                outcome=GateOutcome.PASSED,
+                outcome=GateOutcome.MISSING,
                 observed={"protected_count": 0, "failures": 0},
                 threshold=0,
-                reason="No protected cases in this evaluation.",
+                reason="Protected coverage required but no protected cases were evaluated.",
+            )
+        )
+    elif protected_count == 0:
+        # Absence of protected cases is absence of evidence, not proof of safety.
+        # Reported as informational so the verification report stops showing an
+        # affirmative PASS for a check that examined nothing. Not required, so
+        # the overall status is unchanged from before.
+        gates.append(
+            GateResult(
+                name="protected_slice",
+                required=False,
+                outcome=GateOutcome.INFORMATIONAL,
+                observed={"protected_count": 0, "failures": 0},
+                threshold=0,
+                reason="No protected cases were evaluated; this gate asserted nothing.",
             )
         )
     else:
@@ -178,7 +193,10 @@ def evaluate_gates(
         )
 
     # G. latency regression
-    if config.latency_informational and (baseline_latency is None or candidate_latency is None):
+    # `latency_informational` downgrades the gate only when latency is NOT required.
+    # Testing it against missing values first meant the flag whitelisted exactly the
+    # case it should not: a required gate with no evidence silently became advisory.
+    if config.latency_informational and not config.require_latency:
         gates.append(
             GateResult(
                 name="latency_regression",

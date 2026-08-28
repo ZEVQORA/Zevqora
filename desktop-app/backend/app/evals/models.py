@@ -54,7 +54,9 @@ class EvaluationCaseSpec(BaseModel):
     required_tools: list[str] = Field(default_factory=list)
     allowed_tools: list[str] | None = None
     forbidden_tools: list[str] = Field(default_factory=list)
-    weight: float = 1.0
+    # Must be positive: a negative or zero weight lets a failing case pull the
+    # weighted quality mean above 1.0 or zero out the denominator.
+    weight: float = Field(default=1.0, gt=0.0)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -67,6 +69,10 @@ class GateConfig(BaseModel):
     require_latency: bool = True
     max_latency_regression_pct: float = 20.0
     require_fallback: bool = True
+    # When True, a run with zero protected cases is INCOMPLETE rather than
+    # quietly unverified-but-passing. Off by default so existing flows are
+    # unchanged; production/benchmark configs should turn it on.
+    require_protected_cases: bool = False
     latency_informational: bool = False
     aggregation: Literal["mean"] = "mean"
 

@@ -263,7 +263,11 @@ class RequiredFactsGrader(Grader):
     def grade(self, *, actual: str | None, expected: Any, spec: GraderSpec, context: dict[str, Any]) -> GraderResult:
         cfg = spec.config or {}
         ver = str(spec.version or self.version)
-        facts = list(cfg.get("facts") or expected or [])
+        # list("account") is seven single-character probes, not one fact: any
+        # output containing a, c, o, u, n and t would score 1.0. A scalar
+        # `expected` is a single fact.
+        raw_facts = cfg.get("facts") or expected or []
+        facts = list(raw_facts) if isinstance(raw_facts, (list, tuple, set)) else [raw_facts]
         forbidden = list(cfg.get("forbidden_phrases") or [])
         if actual is None:
             return GraderResult(

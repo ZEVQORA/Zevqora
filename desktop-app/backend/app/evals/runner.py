@@ -113,6 +113,42 @@ def _grade_output(
     return score, [r.model_dump() for r in results], passed
 
 
+def _reject_inflated_case_specs(case_specs: list[EvaluationCaseSpec]) -> None:
+    """Refuse case lists that would overstate how much evidence exists.
+
+    `cases` arrives unvalidated from the HTTP API, and the sample count it
+    produces drives the minimum_samples gate while the per-case baseline costs
+    drive the cost gate. Two shapes inflate both:
+
+    - Duplicate case_ids, or several cases bound to the same candidate sample.
+      N cases pointing at one sample resolve to the same graded output N times,
+      so one real measurement satisfies an N-sample gate and the baseline cost
+      is counted N times against a single candidate cost.
+    - Cases carrying no graders. They produce no score, so they cannot raise or
+      lower quality, yet they still count as samples.
+    """
+    seen_ids: set[str] = set()
+    seen_bindings: set[str] = set()
+    for spec in case_specs:
+        if spec.case_id in seen_ids:
+            raise ValueError(f"Duplicate evaluation case_id {spec.case_id!r}; each case must be distinct.")
+        seen_ids.add(spec.case_id)
+
+        binding = spec.candidate_sample_baseline_trace_id or spec.baseline_trace_id
+        if binding in seen_bindings:
+            raise ValueError(
+                f"Evaluation case {spec.case_id!r} reuses candidate sample {binding!r}; "
+                "one candidate sample cannot count as more than one evaluated case."
+            )
+        seen_bindings.add(binding)
+
+        if not spec.graders:
+            raise ValueError(
+                f"Evaluation case {spec.case_id!r} declares no graders; "
+                "an ungraded case cannot count toward the sample gate."
+            )
+
+
 def create_and_run_evaluation(
     db: Session,
     product_id: str,
@@ -141,6 +177,7 @@ def create_and_run_evaluation(
     case_specs = cases or _default_cases_from_execution(execution, traces)
     if not case_specs:
         raise ValueError("No evaluation cases available for this execution.")
+    _reject_inflated_case_specs(case_specs)
 
     run = EvaluationRun(
         id=str(uuid.uuid4()),
@@ -209,8 +246,12 @@ def create_and_run_evaluation(
 
             context = {
                 "product_id": product_id,
-                "tool_calls": (sample.get("tool_calls") or [])
-                + list((json.loads(baseline.metadata_json or "{}") or {}).get("tool_calls") or []),
+                # Baseline tool calls ONLY. Merging the candidate's calls in here
+                # made a candidate that invokes a forbidden tool fail the baseline
+                # too, collapsing both qualities to 0.0 — which passes
+                # non_inferiority and erases the regression. The candidate pass
+                # below overrides this key with the candidate's own calls.
+                "tool_calls": list((json.loads(baseline.metadata_json or "{}") or {}).get("tool_calls") or []),
                 "required_tools": spec.required_tools,
                 "forbidden_tools": spec.forbidden_tools,
                 "allowed_tools": spec.allowed_tools,
@@ -309,7 +350,11 @@ def create_and_run_evaluation(
                 return None
             if len(scores) != len(w):
                 return mean(scores)
-            total_w = sum(w) or 1.0
+            total_w = sum(w)
+            if total_w <= 0:
+                # `or 1.0` here produced an unnormalised number that could exceed
+                # 1.0 and sail past the quality floor. Unknown, not 1.0.
+                return None
             return sum(s * wt for s, wt in zip(scores, w, strict=False)) / total_w
 
         baseline_quality = mean(baseline_scores) if baseline_scores else None
@@ -350,7 +395,10 @@ def create_and_run_evaluation(
 
         gates = evaluate_gates(
             config=gate_config,
-            sample_count=len(case_rows),
+            # Scored cases, not submitted cases: a case that produced no
+            # score contributes no quality evidence and must not satisfy
+            # the minimum-samples gate.
+            sample_count=len(candidate_scores),
             protected_failures=protected_failures,
             protected_count=protected_count,
             baseline_quality=baseline_quality,
@@ -380,7 +428,7 @@ def create_and_run_evaluation(
             quality_delta = candidate_quality - baseline_quality
 
         run.status = status
-        run.sample_count = len(case_rows)
+        run.sample_count = len(candidate_scores)
         run.protected_sample_count = protected_count
         run.baseline_quality = baseline_quality
         run.candidate_quality = candidate_quality
