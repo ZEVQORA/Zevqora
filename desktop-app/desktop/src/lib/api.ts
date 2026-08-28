@@ -13,14 +13,35 @@ import type {
 export const API_BASE = import.meta.env.VITE_ZEVQORA_API_BASE || 'http://127.0.0.1:8000/api/v1'
 const HEALTH_URL = API_BASE.replace(/\/api\/v1\/?$/, '/api/health')
 
+// Shared secret for the local engine, minted per backend launch. The packaged
+// renderer loads from file:// and so sends `Origin: null` — an origin any web
+// page can also obtain — so this token, not CORS, is what separates us from a
+// drive-by page. Resolved once and cached; re-resolved if the backend restarts
+// with a new token (a 401 clears the cache).
+let apiTokenPromise: Promise<string> | null = null
+
+function resolveApiToken(): Promise<string> {
+  if (!apiTokenPromise) {
+    apiTokenPromise = Promise.resolve(window.zevqoraDesktop?.getApiToken?.() ?? '').catch(() => '')
+  }
+  return apiTokenPromise
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = await resolveApiToken()
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { 'X-Zevqora-Token': token } : {}),
       ...(init?.headers || {}),
     },
   })
+  if (response.status === 401) {
+    // The backend may have restarted with a fresh token; drop the cached one so
+    // the next call re-reads it rather than failing forever.
+    apiTokenPromise = null
+  }
   if (!response.ok) {
     let detail = `${response.status} ${response.statusText}`
     try {

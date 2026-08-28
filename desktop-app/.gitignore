@@ -5,6 +5,10 @@ __pycache__/
 venv/
 *.egg-info/
 .pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
 
 # Local databases / runtime
 *.db
@@ -31,7 +35,9 @@ backend/build/
 backend/dist/
 *.spec
 
-# IDE / OS
+# Build / runtime artifacts
+artifacts/
+backend/artifacts/
 .vscode/
 .idea/
 .DS_Store

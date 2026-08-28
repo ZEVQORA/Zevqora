@@ -3,6 +3,7 @@
 Revision ID: 0001_desktop_agent_initial
 Revises: None
 """
+
 from typing import Sequence, Union
 
 from alembic import op

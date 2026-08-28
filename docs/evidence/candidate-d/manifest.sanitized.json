@@ -1,0 +1,13 @@
+{
+  "classification": "INTERNAL_DOGFOODING",
+  "not_customer_evidence": true,
+  "headline": {
+    "status": "VERIFIED",
+    "measured_raw_cost_reduction_percent": 12.3196,
+    "candidate_quality": 0.97,
+    "statement": "Candidate D (c3969e545315) on zev_dogfood_v2 is VERIFIED with candidate_quality=0.97 and measured cost reduction 12.3196%. Internal dogfooding only."
+  },
+  "benchmark_run_id": "c08c52f4-5f29-439c-8ea9-a15dc42058a5",
+  "evidence_hash": "df38bfa239fa668feef717da26897de79789e16b3b65ef462253256fa22d5f4d",
+  "phase4c_prior_untouched": "d5ff5d0f-99b5-468a-9bd6-3fd14faaf6df"
+}

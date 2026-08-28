@@ -13,6 +13,29 @@ let backendProcess = null
 let pendingAuthState = null
 let memorySession = null
 
+// Shared secret for the local API on 127.0.0.1. The packaged renderer loads from
+// file:// and so sends `Origin: null`, which any web page can also obtain — this
+// token, not CORS, is what stops a drive-by page driving the local engine.
+// Packaged: we mint it and hand it to the backend via the spawn environment.
+// Dev: the backend is started by a script, so it mints one and writes it to a
+// file in the user's home that we read here.
+let apiToken = app.isPackaged ? crypto.randomBytes(32).toString('hex') : null
+
+function apiTokenFilePath() {
+  return path.join(app.getPath('home'), '.zevqora', 'api-token')
+}
+
+function resolveApiToken() {
+  if (apiToken) return apiToken
+  try {
+    const raw = fs.readFileSync(apiTokenFilePath(), 'utf8').trim()
+    if (raw) return raw
+  } catch (_) {
+    // Backend not started yet, or running with ZEVQORA_API_REQUIRE_TOKEN=0.
+  }
+  return ''
+}
+
 function appConfig() {
   const candidates = app.isPackaged
     ? [path.join(process.resourcesPath, 'config', 'app-config.json')]
@@ -278,6 +301,7 @@ function startPackagedBackend() {
       ...process.env,
       ZEVQORA_API_HOST: '127.0.0.1',
       ZEVQORA_API_PORT: '8000',
+      ZEVQORA_API_TOKEN: apiToken,
       DATABASE_URL: `sqlite:///${userData}/zevqora.db`,
       OPENROUTER_API_KEY: openRouterKey(),
     },
@@ -356,6 +380,8 @@ function createTrayIfExactAssetExists() {
   ]))
   tray.on('double-click', () => { if (mainWindow) mainWindow.show() })
 }
+
+ipcMain.handle('zevqora:get-api-token', async () => resolveApiToken())
 
 ipcMain.handle('zevqora:window-action', (_event, action) => {
   if (!mainWindow) return false

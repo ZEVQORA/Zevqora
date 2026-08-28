@@ -115,7 +115,9 @@ class GateOut(BaseModel):
 
 class ExperimentRunRequest(BaseModel):
     finding_id: str | None = None
-    quality_gate: float = Field(default=0.98, ge=0, le=1)
+    # gt=0: a zero quality gate passes every candidate and makes the word
+    # VERIFIED meaningless. The UI sends Number('') === 0 on a cleared field.
+    quality_gate: float = Field(default=0.98, gt=0, le=1)
     min_samples: int = Field(default=5, ge=1, le=100000)
     max_latency_regression_pct: float = Field(default=20.0, ge=0, le=1000)
     fallback_exists: bool = False
@@ -136,8 +138,11 @@ class ExperimentOut(BaseModel):
     candidate_latency_ms: float | None
     gates: list[GateOut]
     evidence_version: str
+    verification_source: str = "LEGACY_CANDIDATE_EVIDENCE"
+    execution_proven: bool = False
+    evaluation_run_id: str | None = None
+    candidate_execution_id: str | None = None
     created_at: datetime
-
 
 
 class ImplementationPrepareRequest(BaseModel):
@@ -189,3 +194,111 @@ class AgentChatResponse(BaseModel):
     provider: str
     tool_events: list[ToolEvent]
     openrouter_configured: bool
+
+
+class OptimizationPlanCreateRequest(BaseModel):
+    finding_id: str | None = None
+    strategy: Literal["exact_reuse", "model_substitution", "bounded_routing"] | None = None
+    candidate_model: str | None = Field(default=None, max_length=160)
+    max_budget_usd: float | None = Field(default=None, ge=0, le=1000)
+
+
+class OptimizationPlanOut(BaseModel):
+    id: str
+    product_id: str
+    finding_id: str | None
+    strategy: str
+    status: str
+    reason: str
+    expected_mechanism: str
+    risk: str
+    fallback: str
+    max_budget_usd: float
+    sample_scope: list[str]
+    baseline_config: dict[str, Any]
+    candidate_config: dict[str, Any]
+    required_evidence: list[str]
+    plan_version: str
+    config_hash: str
+    blocked_reason: str | None
+    created_at: datetime
+
+
+class OptimizationExecuteRequest(BaseModel):
+    force_rerun: bool = False
+    project_to_legacy_traces: bool = False
+
+
+class OptimizationExecutionOut(BaseModel):
+    id: str
+    candidate_plan_id: str
+    product_id: str
+    status: str
+    execution_key: str
+    attempt: int
+    parent_execution_id: str | None
+    provider: str | None
+    requested_model: str | None
+    resolved_model: str | None
+    started_at: datetime | None
+    completed_at: datetime | None
+    baseline_trace_ids: list[str]
+    sample_results: list[dict[str, Any]]
+    input_tokens: int | None
+    output_tokens: int | None
+    cached_input_tokens: int | None
+    cost_usd: float | None
+    cost_source: str | None
+    pricing_version: str | None
+    latency_ms: float | None
+    provider_request_id: str | None
+    provider_call_count: int
+    candidate_cost_delta_usd: float | None
+    error_category: str | None
+    error_detail: str | None
+    fallback_used: bool
+    provenance_hash: str
+    created_at: datetime
+    note: str = "candidate measured cost / cost delta only — not VERIFIED SAVINGS. Evaluation gates are Phase 3."
+
+
+class EvaluationCreateRequest(BaseModel):
+    candidate_execution_id: str
+    finding_id: str | None = None
+    cases: list[dict[str, Any]] | None = None
+    gate_config: dict[str, Any] | None = None
+    project_experiment: bool = True
+
+
+class EvaluationOut(BaseModel):
+    id: str
+    product_id: str
+    candidate_plan_id: str | None
+    candidate_execution_id: str
+    finding_id: str | None
+    status: str
+    evaluation_version: str
+    sample_count: int
+    protected_sample_count: int
+    baseline_quality: float | None
+    candidate_quality: float | None
+    quality_delta: float | None
+    baseline_cost_usd: float | None
+    candidate_cost_usd: float | None
+    raw_cost_delta_usd: float | None
+    raw_cost_delta_percent: float | None
+    baseline_latency_ms: float | None
+    candidate_latency_ms: float | None
+    evidence_completeness: bool
+    verification_source: str
+    execution_proven: bool
+    evidence_version: str
+    gates: list[dict[str, Any]]
+    rejection_reason: str | None
+    grader_config_hash: str
+    gate_config_hash: str
+    created_at: datetime
+    completed_at: datetime | None
+    note: str = (
+        "Authoritative verification record. VERIFIED requires execution-proven CandidateExecution + all required gates."
+    )

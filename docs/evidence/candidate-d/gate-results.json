@@ -1,0 +1,113 @@
+{
+  "benchmark_run_id": "c08c52f4-5f29-439c-8ea9-a15dc42058a5",
+  "status": "VERIFIED",
+  "rejection_reason": null,
+  "gates": [
+    {
+      "name": "evidence_completeness",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "complete": true,
+        "missing": []
+      },
+      "threshold": "all_required_present",
+      "reason": "All required evaluation evidence present."
+    },
+    {
+      "name": "minimum_samples",
+      "required": true,
+      "outcome": "passed",
+      "observed": 50,
+      "threshold": 50,
+      "reason": "sample_count=50; minimum=50."
+    },
+    {
+      "name": "quality_floor",
+      "required": true,
+      "outcome": "passed",
+      "observed": 0.97,
+      "threshold": 0.95,
+      "reason": "candidate_quality=0.97; floor=0.95."
+    },
+    {
+      "name": "non_inferiority",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "baseline": 0.59,
+        "candidate": 0.97,
+        "delta": 0.38,
+        "tolerance": 0.0
+      },
+      "threshold": 0.59,
+      "reason": "candidate_quality >= baseline_quality - tolerance (0.59)."
+    },
+    {
+      "name": "protected_slice",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "protected_count": 5,
+        "failures": 0
+      },
+      "threshold": 0,
+      "reason": "Every protected case must pass; one failure rejects."
+    },
+    {
+      "name": "cost_improvement",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "baseline": 0.00098055,
+        "candidate": 0.00085975,
+        "pct": 12.319616541736771
+      },
+      "threshold": {
+        "strict_less": true,
+        "min_pct": 0.0
+      },
+      "reason": "Candidate total cost must be lower than baseline."
+    },
+    {
+      "name": "latency_regression",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "baseline": 989.8030820001441,
+        "candidate": 804.728140000152,
+        "limit": 1484.704623000216
+      },
+      "threshold": 1484.704623000216,
+      "reason": "candidate_latency <= baseline * (1 + 50.0/100)."
+    },
+    {
+      "name": "fallback",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "fallback_configured": true,
+        "fallback_exercised": false
+      },
+      "threshold": true,
+      "reason": "Plan must define usable fallback metadata (not runtime-exercised proof)."
+    },
+    {
+      "name": "execution_success",
+      "required": true,
+      "outcome": "passed",
+      "observed": {
+        "execution_succeeded": true,
+        "execution_proven": true,
+        "case_errors": 0
+      },
+      "threshold": {
+        "execution_succeeded": true,
+        "execution_proven": true,
+        "case_errors": 0
+      },
+      "reason": "Required candidate samples must succeed with execution-proven evidence."
+    }
+  ],
+  "failed_gates": []
+}

@@ -1,0 +1,199 @@
+{
+  "benchmark_run_id": "d5ff5d0f-99b5-468a-9bd6-3fd14faaf6df",
+  "status": "REJECTED",
+  "rejection_reason": "Failed gates: quality_floor",
+  "dataset": {
+    "name": "zev_dogfood_v2",
+    "version": "2.0.0",
+    "dataset_hash": "b7db3921b8641a6b65883b4427852b50b2b3baccc95aa757eb440e0fcb1fafa7",
+    "case_count": 50,
+    "cohort_distribution": {
+      "DETERMINISTIC_ELIGIBLE": 15,
+      "BOUNDED_MODEL_REQUIRED": 15,
+      "COMPLEX_MODEL_REQUIRED": 15,
+      "PROTECTED": 5
+    }
+  },
+  "git_commit_sha": "b5b8854262558e226db265594caf3947ab95c890",
+  "git_dirty": false,
+  "benchmark_version": "dogfood_v2",
+  "baseline": {
+    "provider": "openrouter",
+    "model": "openai/gpt-4o-mini",
+    "config": {
+      "model": "openai/gpt-4o-mini",
+      "label": "full",
+      "frozen": true
+    },
+    "execution": "model_first_with_hard_safety"
+  },
+  "candidate": {
+    "provider": "openrouter",
+    "strategy": "bounded_routing",
+    "policy_version": "bounded_routing_v1.1.0",
+    "cheap_model": "google/gemini-2.5-flash-lite",
+    "baseline_model": "openai/gpt-4o-mini",
+    "config": {
+      "model": "google/gemini-2.5-flash-lite",
+      "strategy": "bounded_routing",
+      "policy_version": "bounded_routing_v1.1.0",
+      "cheap_model": "google/gemini-2.5-flash-lite",
+      "baseline_model": "openai/gpt-4o-mini",
+      "frozen": true
+    }
+  },
+  "hashes": {
+    "evidence_hash": "3434d011f27e06d76c13c7e74fdc57f2e887ba12daa44e7fcb6b44641cfa1501",
+    "gate_config_hash": "bfaaf346596a1d1be345181b8d9bfa0591a638e053271ea5abcc7ff9cdb4cf98",
+    "grader_config_hash": "6b689ea082a80bd0cc8db1075e72c52a80076af2328ded8bac8fdac77debee7e",
+    "evaluation_evidence_version": "a8fcef1ce0576140179d119b8c161d1a99018b8a515995391724930ca9c62881"
+  },
+  "evaluation_run_id": "fef58cfc-f6b4-47a0-8031-a727e295eb91",
+  "candidate_execution_id": "710fedc7-aa53-4cd0-b7e6-8d1e761edaf8",
+  "cost": {
+    "baseline_total_usd": 0.00098655,
+    "candidate_total_usd": 0.0005721,
+    "absolute_delta_usd": -0.00041445,
+    "measured_savings_percent": 42.01,
+    "calculation": {
+      "formula": "(baseline_total - candidate_total) / baseline_total * 100",
+      "baseline_total": 0.00098655,
+      "candidate_total": 0.0005721,
+      "absolute_reduction": 0.0004144500000000001,
+      "percent_rounded_4dp": 42.01,
+      "reported_percent": 42.01
+    },
+    "provenance_note": "Paired comparable-case totals from provider_reported / deterministic_no_provider cost sources; MockProvider not used."
+  },
+  "quality": {
+    "baseline": 0.61,
+    "candidate": 0.87,
+    "delta": 0.26,
+    "by_cohort": {
+      "DETERMINISTIC_ELIGIBLE": {
+        "n": 15,
+        "baseline_cost": 0.00028320000000000005,
+        "candidate_cost": 0.0,
+        "quality_n": 15,
+        "baseline_quality": 0.0,
+        "candidate_quality": 0.9333333333333333,
+        "absolute_savings": 0.00028320000000000005,
+        "percent_savings": 100.0
+      },
+      "BOUNDED_MODEL_REQUIRED": {
+        "n": 15,
+        "baseline_cost": 0.00033405,
+        "candidate_cost": 0.0002052,
+        "quality_n": 15,
+        "baseline_quality": 1.0,
+        "candidate_quality": 0.9333333333333333,
+        "absolute_savings": 0.00012885000000000001,
+        "percent_savings": 38.57207004939381
+      },
+      "COMPLEX_MODEL_REQUIRED": {
+        "n": 15,
+        "baseline_cost": 0.0003693,
+        "candidate_cost": 0.00036690000000000003,
+        "quality_n": 15,
+        "baseline_quality": 0.7,
+        "candidate_quality": 0.7,
+        "absolute_savings": 2.39999999999995e-06,
+        "percent_savings": 0.649878147847265
+      },
+      "PROTECTED": {
+        "n": 5,
+        "baseline_cost": 0.0,
+        "candidate_cost": 0.0,
+        "quality_n": 5,
+        "baseline_quality": 1.0,
+        "candidate_quality": 1.0,
+        "absolute_savings": 0.0,
+        "percent_savings": null
+      }
+    }
+  },
+  "protected_pass_rate": 1.0,
+  "latency": {
+    "baseline_mean_ms": 1100.997669999997,
+    "candidate_mean_ms": 781.0635140000522,
+    "gate_limit_ms": 1651.4965049999955,
+    "outcome": "passed"
+  },
+  "execution_success": {
+    "name": "execution_success",
+    "required": true,
+    "outcome": "passed",
+    "observed": {
+      "execution_succeeded": true,
+      "execution_proven": true,
+      "case_errors": 0
+    },
+    "threshold": {
+      "execution_succeeded": true,
+      "execution_proven": true,
+      "case_errors": 0
+    },
+    "reason": "Required candidate samples must succeed with execution-proven evidence."
+  },
+  "routing": {
+    "final_route_counts": {
+      "deterministic": 20,
+      "cheap_bounded": 15,
+      "baseline_strong": 15
+    },
+    "fallback_count": 0,
+    "provider_call_counts_by_model": {
+      "none/deterministic": 20,
+      "google/gemini-2.5-flash-lite": 15,
+      "openai/gpt-4o-mini": 15
+    },
+    "from_run_statistics": {
+      "deterministic": 20,
+      "cheap_bounded": 15,
+      "baseline_strong": 15,
+      "fallback": 0
+    },
+    "benchmark_validity": {
+      "tiers_exercised": 3,
+      "mixed_workload_ok": true
+    }
+  },
+  "bootstrap": {
+    "sufficient": true,
+    "n": 50,
+    "seed": 42,
+    "resamples": 2000,
+    "mean_cost_diff": -8.289e-06,
+    "ci95_cost_diff_low": -1.0603e-05,
+    "ci95_cost_diff_high": -6.066e-06,
+    "ci95_percent_savings_low": 30.9364,
+    "ci95_percent_savings_high": 53.8638
+  },
+  "paired_statistics": {
+    "baseline_total": 0.00098655,
+    "candidate_total": 0.0005721,
+    "absolute_delta": -0.00041445,
+    "percent_savings": 42.01,
+    "mean_baseline_per_case": 1.9731e-05,
+    "mean_candidate_per_case": 1.1442e-05,
+    "median_baseline_per_case": 2.04e-05,
+    "median_candidate_per_case": 1.225e-05
+  },
+  "failed_case_ids": [
+    "bnd-015",
+    "cpx-002",
+    "cpx-004",
+    "cpx-005",
+    "cpx-006",
+    "cpx-008",
+    "det-001"
+  ],
+  "limitations": [
+    "Internal dogfooding only; not customer or external validation.",
+    "Status REJECTED: quality_floor failed; raw cost reduction is not verified savings.",
+    "det-001 deterministic count mismatch (candidate output_hash recorded; expected 3, observed count 5) consistent with additive cross-case fixture seeding in shared product DB.",
+    "Complex cohort quality 0.7; several classification/required_facts misses on both baseline and candidate.",
+    "Model-first baseline fails deterministic exact-match by design.",
+    "Stretch target 45% was not a gate and was not reached; not force-tuned."
+  ]
+}

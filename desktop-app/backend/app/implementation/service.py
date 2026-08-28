@@ -3,18 +3,22 @@ from __future__ import annotations
 import json
 import os
 import re
-import shlex
 import subprocess
 import uuid
+from functools import partial
 from pathlib import Path
 from typing import Any
 
-import httpx
+from anyio import to_thread
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..config import settings
+from ..core.errors import ProviderError, SubprocessError, UnsafeCommandError
+from ..core.subprocesses import run_argv, run_command_string
 from ..db_models import Experiment, Finding, Implementation, Product
+from ..providers.factory import get_provider
+from ..providers.models import LLMMessage, LLMRequest
 from ..schemas import ImplementationOut, ImplementationPrepareRequest
 from ..workspace.scanner import contains_secret_like_value, is_safe_source_path
 
@@ -23,7 +27,16 @@ class ImplementationError(ValueError):
     pass
 
 
-def _run_git(args: list[str], cwd: Path, timeout: int = 30) -> subprocess.CompletedProcess[str]:
+async def _run_git(args: list[str], cwd: Path, timeout: int = 30) -> subprocess.CompletedProcess[str]:
+    """Run git off the event loop.
+
+    prepare_implementation is an async handler, so a synchronous `git worktree add`
+    with a 60s timeout blocked every other request while it ran.
+    """
+    return await to_thread.run_sync(partial(_run_git_blocking, args, cwd, timeout))
+
+
+def _run_git_blocking(args: list[str], cwd: Path, timeout: int) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(
             ["git", *args],
@@ -32,6 +45,7 @@ def _run_git(args: list[str], cwd: Path, timeout: int = 30) -> subprocess.Comple
             capture_output=True,
             timeout=timeout,
             check=False,
+            shell=False,
         )
     except FileNotFoundError as exc:
         raise ImplementationError("Git is required for isolated implementation worktrees.") from exc
@@ -55,19 +69,6 @@ def _extract_json(text: str) -> dict[str, Any]:
         if isinstance(value, dict):
             return value
     raise ImplementationError("The model did not return the required JSON implementation object.")
-
-
-def _message_content(message: dict[str, Any]) -> str:
-    content = message.get("content")
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        chunks = []
-        for part in content:
-            if isinstance(part, dict) and isinstance(part.get("text"), str):
-                chunks.append(part["text"])
-        return "\n".join(chunks)
-    return ""
 
 
 async def _generate_replacement(
@@ -120,31 +121,23 @@ Rules:
         "user_instructions": instructions,
         "current_file": source_text,
     }
-    headers = {
-        "Authorization": f"Bearer {settings.openrouter_api_key}",
-        "Content-Type": "application/json",
-        "X-Title": "ZEVQORA Desktop",
-    }
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        response = await client.post(
-            f"{settings.openrouter_base_url}/chat/completions",
-            headers=headers,
-            json={
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": json.dumps(user, ensure_ascii=False)},
-                ],
-                "temperature": 0.1,
-            },
-        )
-    if response.status_code >= 400:
-        raise ImplementationError(f"OpenRouter implementation request failed ({response.status_code}): {response.text[:500]}")
-    body = response.json()
-    choices = body.get("choices") or []
-    if not choices:
-        raise ImplementationError("OpenRouter returned no implementation choice.")
-    raw = _message_content(choices[0].get("message") or {})
+    provider = get_provider("openrouter")
+    request = LLMRequest(
+        provider="openrouter",
+        model=model,
+        messages=[
+            LLMMessage(role="system", content=system),
+            LLMMessage(role="user", content=json.dumps(user, ensure_ascii=False)),
+        ],
+        temperature=0.1,
+        timeout_seconds=120.0,
+    )
+    try:
+        response = await provider.complete(request)
+    except ProviderError as exc:
+        raise ImplementationError(str(exc)) from exc
+
+    raw = response.content or ""
     parsed = _extract_json(raw)
     content = parsed.get("content")
     summary = parsed.get("summary")
@@ -191,6 +184,27 @@ async def prepare_implementation(
         raise ImplementationError("Experiment not found for this product.")
     if experiment.status != "VERIFIED":
         raise ImplementationError("Only a VERIFIED experiment is eligible for implementation preparation.")
+    # Phase 3 hard rule: legacy manually-populated candidate evidence cannot unlock implementation.
+    if not getattr(experiment, "execution_proven", False) or not getattr(experiment, "evaluation_run_id", None):
+        raise ImplementationError(
+            "Legacy verification is not execution-proven and must be re-run through "
+            "CandidateExecution + Evaluation before implementation preparation."
+        )
+    from ..db_models import EvaluationRun
+    from ..evals.models import VERIFICATION_SOURCE_EXECUTION, EvaluationStatus
+
+    evaluation = db.scalar(
+        select(EvaluationRun).where(
+            EvaluationRun.id == experiment.evaluation_run_id,
+            EvaluationRun.product_id == product_id,
+        )
+    )
+    if not evaluation or evaluation.status != EvaluationStatus.VERIFIED.value:
+        raise ImplementationError("Authoritative EvaluationRun must be VERIFIED for implementation preparation.")
+    if evaluation.verification_source != VERIFICATION_SOURCE_EXECUTION or not evaluation.execution_proven:
+        raise ImplementationError("Evaluation is not execution-proven.")
+    if not experiment.candidate_execution_id or experiment.candidate_execution_id != evaluation.candidate_execution_id:
+        raise ImplementationError("Experiment is not linked to the verified CandidateExecution provenance.")
     if not experiment.finding_id:
         raise ImplementationError("This experiment is not linked to a source finding.")
     finding = db.scalar(select(Finding).where(Finding.id == experiment.finding_id))
@@ -198,7 +212,8 @@ async def prepare_implementation(
         raise ImplementationError("Linked finding not found.")
     if finding.origin != "static_scan" or finding.file_path == "runtime evidence":
         raise ImplementationError(
-            "This verified experiment is runtime-derived and has no safe source target. Ask Zev for an implementation plan instead of writing code automatically."
+            "This verified experiment is runtime-derived and has no safe source target. "
+            "Ask Zev for an implementation plan instead of writing code automatically."
         )
 
     root = Path(product.root_path).resolve()
@@ -208,7 +223,7 @@ async def prepare_implementation(
     if not target.exists():
         raise ImplementationError("The linked source file no longer exists. Rescan the product first.")
 
-    repo_check = _run_git(["rev-parse", "--show-toplevel"], root)
+    repo_check = await _run_git(["rev-parse", "--show-toplevel"], root)
     if repo_check.returncode != 0:
         raise ImplementationError("Implementation preparation requires the connected product to be a Git repository.")
     repo_root = Path(repo_check.stdout.strip()).resolve()
@@ -216,7 +231,7 @@ async def prepare_implementation(
         root.relative_to(repo_root)
     except ValueError as exc:
         raise ImplementationError("Connected workspace is not inside the resolved Git repository.") from exc
-    head = _run_git(["rev-parse", "HEAD"], repo_root)
+    head = await _run_git(["rev-parse", "HEAD"], repo_root)
     if head.returncode != 0:
         raise ImplementationError("Unable to resolve the current Git HEAD.")
 
@@ -224,7 +239,7 @@ async def prepare_implementation(
     branch = f"zevqora/exp-{experiment.id[:8]}-{impl_id[:6]}"
     worktree = Path(settings.worktree_root).expanduser().resolve() / product.id / impl_id
     worktree.parent.mkdir(parents=True, exist_ok=True)
-    add = _run_git(["worktree", "add", "-b", branch, str(worktree), head.stdout.strip()], repo_root, timeout=60)
+    add = await _run_git(["worktree", "add", "-b", branch, str(worktree), head.stdout.strip()], repo_root, timeout=60)
     if add.returncode != 0:
         raise ImplementationError(f"Could not create isolated Git worktree: {add.stderr.strip()[:500]}")
 
@@ -236,7 +251,11 @@ async def prepare_implementation(
             raise ImplementationError("Generated worktree target failed the safe source policy.")
         source_text = target.read_text(encoding="utf-8", errors="replace")
         if contains_secret_like_value(source_text):
-            raise ImplementationError("Hardcoded secret-like material was detected in the target source file. ZEVQORA refuses to send or rewrite this file until the credential is removed/rotated and replaced with safe configuration.")
+            raise ImplementationError(
+                "Hardcoded secret-like material was detected in the target source file. "
+                "ZEVQORA refuses to send or rewrite this file until the credential is removed/rotated "
+                "and replaced with safe configuration."
+            )
         chosen_model = request.model or settings.agent_model
         summary, replacement = await _generate_replacement(
             model=chosen_model,
@@ -253,16 +272,19 @@ async def prepare_implementation(
         compile_output = ""
         compile_exit: int | None = None
         if worktree_target.suffix.lower() == ".py":
-            compile_proc = subprocess.run(
-                [os.environ.get("PYTHON", "python"), "-m", "py_compile", str(worktree_target)],
-                cwd=str(worktree),
-                text=True,
-                capture_output=True,
-                timeout=30,
-                check=False,
+            # Off the event loop: this handler is async, so a blocking
+            # subprocess here froze every other request, /api/health included.
+            compile_result = await to_thread.run_sync(
+                partial(
+                    run_argv,
+                    [os.environ.get("PYTHON", "python"), "-m", "py_compile", str(worktree_target)],
+                    cwd=worktree,
+                    timeout_seconds=30,
+                    max_output_bytes=6000,
+                )
             )
-            compile_exit = compile_proc.returncode
-            compile_output = (compile_proc.stdout + compile_proc.stderr)[-6000:]
+            compile_exit = compile_result.exit_code
+            compile_output = (compile_result.stdout + compile_result.stderr)[-6000:]
 
         test_command = None
         test_exit = compile_exit
@@ -271,19 +293,29 @@ async def prepare_implementation(
             if not request.test_command or not request.test_command.strip():
                 raise ImplementationError("run_tests=true requires an explicit user-approved test_command.")
             test_command = request.test_command.strip()
-            test_proc = subprocess.run(
-                test_command,
-                cwd=str(worktree),
-                text=True,
-                capture_output=True,
-                timeout=180,
-                check=False,
-                shell=True,
-            )
-            test_exit = test_proc.returncode
-            test_output = (test_proc.stdout + test_proc.stderr)[-20000:]
+            try:
+                # The user's own test command, up to subprocess_timeout_seconds
+                # (180s by default). Must never occupy the event loop.
+                test_result = await to_thread.run_sync(
+                    partial(
+                        run_command_string,
+                        test_command,
+                        cwd=worktree,
+                        timeout_seconds=settings.subprocess_timeout_seconds,
+                        max_output_bytes=settings.subprocess_max_output_bytes,
+                    )
+                )
+            except UnsafeCommandError as exc:
+                raise ImplementationError(str(exc)) from exc
+            except SubprocessError as exc:
+                raise ImplementationError(str(exc)) from exc
+            test_exit = test_result.exit_code
+            test_output = (test_result.stdout + test_result.stderr)[-settings.subprocess_max_output_bytes :]
+            if test_result.timed_out:
+                test_exit = test_exit if test_exit is not None else 124
+                test_output = (test_output + "\n[timed out]")[-settings.subprocess_max_output_bytes :]
 
-        diff_proc = _run_git(["diff", "--no-ext-diff", "--", str(rel_from_repo).replace("\\", "/")], worktree)
+        diff_proc = await _run_git(["diff", "--no-ext-diff", "--", str(rel_from_repo).replace("\\", "/")], worktree)
         diff_text = diff_proc.stdout
         if not diff_text.strip():
             raise ImplementationError("The generated implementation produced no source diff.")
@@ -319,8 +351,8 @@ async def prepare_implementation(
     finally:
         if not created:
             # Failed candidates should not leave an untracked worktree/branch behind.
-            _run_git(["worktree", "remove", "--force", str(worktree)], repo_root, timeout=60)
-            _run_git(["branch", "-D", branch], repo_root, timeout=30)
+            await _run_git(["worktree", "remove", "--force", str(worktree)], repo_root, timeout=60)
+            await _run_git(["branch", "-D", branch], repo_root, timeout=30)
 
 
 def list_implementations(db: Session, product_id: str) -> list[ImplementationOut]:
