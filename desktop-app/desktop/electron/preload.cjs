@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('zevqoraDesktop', {
+  getApiToken: () => ipcRenderer.invoke('zevqora:get-api-token'),
   selectFolder: () => ipcRenderer.invoke('zevqora:select-folder'),
   selectTraceFile: () => ipcRenderer.invoke('zevqora:select-trace-file'),
   windowAction: (action) => ipcRenderer.invoke('zevqora:window-action', action),

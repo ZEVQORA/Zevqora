@@ -43,6 +43,21 @@ class Settings:
     api_port: int = int(os.getenv("ZEVQORA_API_PORT", "8000"))
     database_url: str = os.getenv("DATABASE_URL", "sqlite:///./zevqora.db")
 
+    # Shared secret for the local API. Supplied by the Electron main process when
+    # packaged; minted per launch otherwise. See core/api_auth.py.
+    api_auth_token: str = os.getenv("ZEVQORA_API_TOKEN", "")
+    api_token_path: str = os.getenv(
+        "ZEVQORA_API_TOKEN_PATH",
+        str(Path.home() / ".zevqora" / "api-token"),
+    )
+    # Host header allowlist. Blocks DNS-rebinding, where a hostname the attacker
+    # controls resolves to 127.0.0.1 and their page becomes same-origin.
+    api_allowed_hosts: tuple[str, ...] = tuple(
+        h.strip()
+        for h in os.getenv("ZEVQORA_API_ALLOWED_HOSTS", "127.0.0.1,localhost,testserver").split(",")
+        if h.strip()
+    )
+
     openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
     openrouter_base_url: str = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").rstrip("/")
     openrouter_site_url: str = os.getenv("OPENROUTER_SITE_URL", "https://zevqora.vercel.app")

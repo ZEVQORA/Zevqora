@@ -5,6 +5,7 @@ import type { DesktopAuthState } from './lib/auth'
 declare global {
   interface Window {
     zevqoraDesktop?: {
+      getApiToken: () => Promise<string>
       selectFolder: () => Promise<string | null>
       selectTraceFile: () => Promise<{ path: string; content: string } | null>
       windowAction?: (action: 'minimize' | 'maximize' | 'close') => Promise<boolean>

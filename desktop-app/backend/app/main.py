@@ -8,11 +8,14 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .agent.service import chat as agent_chat
 from .config import settings
+from .core.api_auth import API_TOKEN_HEADER, resolve_api_token, token_matches, token_required
 from .core.db_migrate import ensure_schema
 from .core.errors import MigrationError
 from .core.logging import configure_logging, get_logger
@@ -234,11 +237,41 @@ def create_app(
             await aclose_providers()
 
     application = FastAPI(title="ZEVQORA Desktop Local API", version=VERSION, lifespan=lifespan)
+
+    # The packaged renderer loads from file://, so it sends `Origin: null` and
+    # "null" must stay in the CORS allowlist. Any web page can also obtain a null
+    # origin, so CORS cannot be the only control — the shared token below is what
+    # actually separates the renderer from a drive-by page.
+    application.state.api_token = resolve_api_token()
+    enforce_token = token_required()
+    if not enforce_token:
+        logger.warning("api_auth.disabled", extra={"request_id": "ZEVQORA_API_REQUIRE_TOKEN=0"})
+
+    # Registered BEFORE CORSMiddleware so that CORS ends up the outer layer and
+    # still decorates 401 responses; Starlette applies the last-added middleware
+    # outermost.
+    @application.middleware("http")
+    async def _require_api_token(request, call_next):
+        # Path-based rather than per-route so a newly added /api/v1 route cannot
+        # silently ship without auth.
+        if enforce_token and request.method != "OPTIONS" and request.url.path.startswith("/api/v1"):
+            supplied = request.headers.get(API_TOKEN_HEADER)
+            if not token_matches(supplied, request.app.state.api_token):
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "Missing or invalid local API token."},
+                )
+        return await call_next(request)
+
+    # Defence in depth against DNS rebinding: without this, a hostname the
+    # attacker controls that resolves to 127.0.0.1 makes their page same-origin
+    # and CORS never applies.
+    application.add_middleware(TrustedHostMiddleware, allowed_hosts=list(settings.api_allowed_hosts))
     application.add_middleware(
         CORSMiddleware,
         allow_origins=["http://127.0.0.1:5173", "http://localhost:5173", "null"],
         allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type"],
+        allow_headers=["Content-Type", "X-Zevqora-Token"],
         allow_credentials=False,
     )
     _register_routes(application)

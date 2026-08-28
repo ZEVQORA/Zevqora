@@ -4,20 +4,31 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app.config import settings
 from app.main import create_app
 from app.providers.factory import reset_providers_for_tests
 
 
-@pytest.fixture()
-def client(tmp_path: Path):
+def _build_app(tmp_path: Path):
     reset_providers_for_tests()
     db_path = tmp_path / "api.db"
-    application = create_app(
+    return create_app(
         database_url=f"sqlite:///{db_path.as_posix()}",
         run_migrations=True,
         start_monitor=False,
     )
+
+
+@pytest.fixture()
+def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    # Settings is a dataclass whose defaults are bound at import, so patch the
+    # attribute rather than the environment. Keeps the per-launch token out of
+    # the developer's real ~/.zevqora during tests.
+    monkeypatch.setattr(settings, "api_token_path", str(tmp_path / "api-token"))
+    application = _build_app(tmp_path)
     with TestClient(application) as test_client:
+        # The renderer supplies this header via the Electron preload bridge.
+        test_client.headers.update({"X-Zevqora-Token": application.state.api_token})
         yield test_client
 
 
@@ -286,3 +297,61 @@ def test_optimization_api_exact_reuse_flow(client: TestClient, tmp_path: Path, m
     one = client.get(f"/api/v1/products/{product_id}/optimization/executions/{exe['id']}")
     assert one.status_code == 200
     assert one.json()["provenance_hash"]
+
+
+# ---------------------------------------------------------------------------
+# Local API authentication.
+#
+# The packaged renderer loads from file:// and therefore sends `Origin: null`,
+# so "null" must stay in the CORS allowlist. Any web page can also obtain a null
+# origin, which is why the shared per-launch token — not CORS — is the control
+# that separates the renderer from a drive-by page.
+# ---------------------------------------------------------------------------
+
+
+def test_api_requires_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(settings, "api_token_path", str(tmp_path / "api-token"))
+    application = _build_app(tmp_path)
+    with TestClient(application) as raw:
+        # No token: this is the drive-by page's position.
+        assert raw.get("/api/v1/products").status_code == 401
+        # Reading the user's source tree must not be reachable unauthenticated.
+        assert raw.post("/api/v1/products/connect-local", json={"path": str(tmp_path), "name": "x"}).status_code == 401
+        # Spending the user's provider balance must not be reachable either.
+        assert raw.post("/api/v1/agent/chat", json={"messages": []}).status_code == 401
+        # Destroying evidence must not be reachable either.
+        assert raw.delete("/api/v1/products/whatever/traces").status_code == 401
+
+
+def test_api_rejects_wrong_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(settings, "api_token_path", str(tmp_path / "api-token"))
+    application = _build_app(tmp_path)
+    with TestClient(application) as raw:
+        raw.headers.update({"X-Zevqora-Token": "not-the-token"})
+        assert raw.get("/api/v1/products").status_code == 401
+
+
+def test_health_stays_unauthenticated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """The shell polls health to decide whether the engine is up."""
+    monkeypatch.setattr(settings, "api_token_path", str(tmp_path / "api-token"))
+    application = _build_app(tmp_path)
+    with TestClient(application) as raw:
+        assert raw.get("/api/health").status_code == 200
+
+
+def test_token_is_high_entropy_and_per_launch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(settings, "api_token_path", str(tmp_path / "api-token"))
+    monkeypatch.setattr(settings, "api_auth_token", "")
+    first = _build_app(tmp_path).state.api_token
+    second = _build_app(tmp_path).state.api_token
+    assert first != second, "token must not be reused across launches"
+    assert len(first) >= 32
+
+
+def test_unknown_host_header_is_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """DNS rebinding: attacker.example resolving to 127.0.0.1 must not be same-origin."""
+    monkeypatch.setattr(settings, "api_token_path", str(tmp_path / "api-token"))
+    application = _build_app(tmp_path)
+    with TestClient(application) as raw:
+        raw.headers.update({"X-Zevqora-Token": application.state.api_token})
+        assert raw.get("/api/health", headers={"Host": "attacker.example"}).status_code == 400
