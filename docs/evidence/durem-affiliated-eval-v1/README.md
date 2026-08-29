@@ -1,8 +1,11 @@
 # DUREM Affiliated Real-Workload Evaluation — v1
 
 **Evidence identity:** `durem-affiliated-eval-v1`
-**Status:** `CONTRACT_DRAFT — DECISIONS RECORDED, AWAITING HOST DATA` (see below)
-**Stage reached:** Phase A (inspection) + Phase B (preregistration draft) complete. **No optimization performed. No baseline captured.**
+**Status:** `ENGINEERING_READY_FOR_REAL_HOST_EVALUATION`
+**No real benchmark has been executed yet. No real-workload savings percentage has been measured.**
+**Stage reached:** Phase A (inspection), Phase B (preregistration draft), and the full DUREM<->ZEVQORA
+engineering integration. Exercised end-to-end against a deterministic stub runtime on representative
+synthetic fixtures. **No real-host baseline captured. No evidence run performed.**
 **ZEVQORA branch:** `nero/durem-affiliated-eval-v1` (from `c34db54ba846d8182d1212c7819571cf41796640`)
 **Date:** 2026-08-29
 
@@ -48,6 +51,7 @@ metrics are not comparable and must never be pooled, averaged, or presented as o
 | `HOST_VERIFICATION.md` | Record of measurement-host verification attempts. Attempt 1 (2026-08-29) **FAILED** — wrong host |
 | `tools/collect_host_provenance.ps1` | One-command host, runtime and model-file provenance capture, to run on the real host |
 | `tools/measure_audit_distribution.py` | Read-only audit-log frequency measurement with sanitization enforced in code |
+| `SERVER_READY.md` | Runbook: what already runs anywhere, and the five steps to a real-host run |
 | `COST_METHODOLOGY.md` | Local serving-cost model, the compute-cost proxy, and the linearity proviso |
 | `BASELINE_INSTRUMENTATION_PLAN.md` | Exactly what will be measured, where the probes go, and the behaviour-neutrality argument |
 
@@ -78,6 +82,11 @@ row of `PREREGISTRATION.md` §14 needs a value that can only be captured there:
 5. Idle and under-load power draw, if measurable, plus the four economic assumptions in
    `COST_METHODOLOGY.md` §2.1 — or the evaluation reports the compute-cost proxy instead of dollars.
 
-**Nothing has been optimized, no baseline has been captured, and no DUREM branch has been created.**
-No number produced under this identity may be described as a measured saving until the contract is
-frozen and a baseline exists.
+DUREM instrumentation lives on the DUREM branch `nero/eval-instrumentation-v1` (from `7536b80`),
+behaviour-neutral and covered by 336 neutrality assertions. The runnable integration is described in
+`SERVER_READY.md`.
+
+**No real-host baseline has been captured and no evidence run has been performed.** No number produced
+under this identity may be described as a measured saving until the contract is frozen and a real-host
+baseline exists. The candidate result recorded in `artifacts/durem-eval/` is a structural call-count
+change on synthetic fixtures, not a workload saving.
