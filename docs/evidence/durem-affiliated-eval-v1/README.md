@@ -45,6 +45,9 @@ metrics are not comparable and must never be pooled, averaged, or presented as o
 | `PREREGISTRATION.md` | Phase B: frozen identity, frozen configuration, frozen quality contract, frozen acceptance rule |
 | `REPLAY_SET_DESIGN.md` | Replay-set composition, category definitions, labelling rules, sanitization rules |
 | `AUDIT_OBSERVABILITY.md` | Which workload dimensions DUREM's audit logs can actually measure, and which must stay preregistered assumptions |
+| `HOST_VERIFICATION.md` | Record of measurement-host verification attempts. Attempt 1 (2026-08-29) **FAILED** — wrong host |
+| `tools/collect_host_provenance.ps1` | One-command host, runtime and model-file provenance capture, to run on the real host |
+| `tools/measure_audit_distribution.py` | Read-only audit-log frequency measurement with sanitization enforced in code |
 | `COST_METHODOLOGY.md` | Local serving-cost model, the compute-cost proxy, and the linearity proviso |
 | `BASELINE_INSTRUMENTATION_PLAN.md` | Exactly what will be measured, where the probes go, and the behaviour-neutrality argument |
 

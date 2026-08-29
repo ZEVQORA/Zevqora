@@ -159,6 +159,41 @@ The frozen table records, for every category: the count, whether it was `observe
 `preregistered_assumption`, and — for observed rows — the time window and the raw sample count behind
 it. It is written into section 14 **before** the baseline executes.
 
+### 3.2 Category assignment precedence — frozen before any data is seen
+
+The eight observable predicates in `AUDIT_OBSERVABILITY.md` section 2 **overlap by construction**. A
+single audit row can satisfy several at once: a safety-override row is also a policy row; a
+deterministic-rule row may also be a follow-up; a `NOT_FOUND` row may also have had the classifier
+invoked. Counting each predicate independently therefore yields shares that do not sum to 1, and
+leaves the mix tunable by changing the order of evaluation after seeing the data.
+
+The assignment order below is frozen now, before any real audit database has been read. Each row is
+assigned to the **first** matching category and to no other:
+
+```
+1. SAFETY      safety_override = true          -- the safety property defines the case
+2. RULE        method = 'rule_engine'          -- zero-LLM deterministic path
+3. NOTFOUND    answer_type = 'NOT_FOUND'       -- safe-failure outcome
+4. FOLLOWUP    route_method = 'followup'       -- conversational-context path
+5. ROUTE-AMB   classifier_invoked = true       -- the extra-classifier-call band
+6. RAG         policy + llm + sources non-empty
+7. ROUTE-OBV   remaining policy rows
+8. CHAT        remaining chat rows
+```
+
+The ordering runs from most safety-significant to least, so that a row exhibiting a safety-critical
+property is never absorbed into a general bucket. `ROUTE-AMB` sits at position 5, **below** the safety
+and deterministic categories: a safety-override or rule-engine row that also invoked the classifier is
+counted as `SAFETY` or `RULE`, not as `ROUTE-AMB`. This deliberately makes the ambiguous-routing share
+smaller rather than larger, since that is the one category able to inflate a savings figure.
+
+Rows matching no predicate are reported as `unclassified_rows` and are excluded from the shares rather
+than distributed across categories. Both the overlapping predicate counts and the exclusive counts are
+emitted, so a reviewer can see the overlap directly instead of taking the precedence on trust.
+
+This precedence is implemented in `tools/measure_audit_distribution.py` as the module-level constant
+`PRECEDENCE`, and is covered by the tool hash recorded in section 14.
+
 ---
 
 ## 4. Hardware identity (item 4) — **RESOLVED: option (A), real deployment host**
