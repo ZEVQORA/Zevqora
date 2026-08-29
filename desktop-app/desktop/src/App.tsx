@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { WifiOff } from 'lucide-react'
+import { AlertCircle, LoaderCircle, WifiOff } from 'lucide-react'
 import { AddProductDialog } from './components/AddProductDialog'
 import { CommandPalette } from './components/CommandPalette'
 import { DesktopSettings } from './components/DesktopSettings'
@@ -28,6 +28,8 @@ export default function App() {
   const [view, setView] = useState<ViewKey>('zev')
   const [health, setHealth] = useState<Health | null>(null)
   const [backendError, setBackendError] = useState('')
+  const [productDataError, setProductDataError] = useState('')
+  const [productDataLoading, setProductDataLoading] = useState(false)
   const [products, setProducts] = useState<Product[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [scan, setScan] = useState<ScanResult | null>(null)
@@ -111,18 +113,35 @@ export default function App() {
       setImplementations([])
       setAiCallCount(0)
       setDetectedStack([])
+      setProductDataError('')
+      setProductDataLoading(false)
       return
     }
-    const [nextCalls, nextFindings, nextEconomics, nextExperiments, nextImplementations] = await Promise.all([
-      api.aiCalls(selectedId), api.findings(selectedId), api.economics(selectedId), api.experiments(selectedId), api.implementations(selectedId),
-    ])
-    setAiCallCount(nextCalls.length)
-    setDetectedStack(Array.from(new Set(nextCalls.map((item) => item.provider))).sort())
-    setFindings(nextFindings)
-    setEconomics(nextEconomics)
-    setExperiments(nextExperiments)
-    setImplementations(nextImplementations)
-    await refreshProducts()
+
+    setProductDataLoading(true)
+    setProductDataError('')
+
+    try {
+      const [nextCalls, nextFindings, nextEconomics, nextExperiments, nextImplementations] = await Promise.all([
+        api.aiCalls(selectedId),
+        api.findings(selectedId),
+        api.economics(selectedId),
+        api.experiments(selectedId),
+        api.implementations(selectedId),
+      ])
+      setAiCallCount(nextCalls.length)
+      setDetectedStack(Array.from(new Set(nextCalls.map((item) => item.provider))).sort())
+      setFindings(nextFindings)
+      setEconomics(nextEconomics)
+      setExperiments(nextExperiments)
+      setImplementations(nextImplementations)
+      await refreshProducts()
+    } catch (err) {
+      setProductDataError(err instanceof Error ? err.message : String(err))
+      throw err
+    } finally {
+      setProductDataLoading(false)
+    }
   }, [selectedId, refreshProducts])
 
   useEffect(() => {
@@ -298,7 +317,24 @@ export default function App() {
       <div className="app-body">
         <Sidebar view={view} onView={setView} products={products} selectedId={selectedId} onSelectProduct={setSelectedId} onAddProduct={() => setAddOpen(true)} />
         <main className="main-surface">
-          {backendError && <div className="offline-toast"><WifiOff size={13} /> Backend offline. Start the local engine on 127.0.0.1:8000.</div>}
+          {backendError && (
+            <div className="offline-toast">
+              <WifiOff size={13} />
+              Backend offline. Start the local engine on 127.0.0.1:8000.
+            </div>
+          )}
+          {!backendError && productDataLoading && (
+            <div className="offline-toast">
+              <LoaderCircle size={13} className="animate-spin" />
+              Refreshing measured product evidence…
+            </div>
+          )}
+          {!backendError && !productDataLoading && productDataError && (
+            <div className="offline-toast">
+              <AlertCircle size={13} />
+              Product evidence refresh failed: {productDataError}
+            </div>
+          )}
           {content}
           {view !== 'zev' && <WorkspaceControl product={selected} scan={scan} onScan={runScan} onToggle={toggleMonitoring} inspectorOpen={inspectorOpen} />}
         </main>

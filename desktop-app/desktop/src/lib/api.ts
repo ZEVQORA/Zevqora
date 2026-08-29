@@ -2,10 +2,16 @@ import type {
   AgentResponse,
   AICall,
   Economics,
+  Evaluation,
+  EvaluationCreatePayload,
   Experiment,
   Finding,
   Health,
   Implementation,
+  OptimizationExecutePayload,
+  OptimizationExecution,
+  OptimizationPlan,
+  OptimizationPlanCreatePayload,
   Product,
   ScanResult,
 } from './types'
@@ -27,9 +33,12 @@ function resolveApiToken(): Promise<string> {
   return apiTokenPromise
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = await resolveApiToken()
-  const response = await fetch(`${API_BASE}${path}`, {
+async function requestOnce(
+  path: string,
+  init: RequestInit | undefined,
+  token: string,
+): Promise<Response> {
+  return fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -37,11 +46,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       ...(init?.headers || {}),
     },
   })
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  let token = await resolveApiToken()
+  let response = await requestOnce(path, init, token)
+
   if (response.status === 401) {
-    // The backend may have restarted with a fresh token; drop the cached one so
-    // the next call re-reads it rather than failing forever.
+    // Local backend may have restarted and rotated its API token.
+    // Re-read the token and retry this request exactly once.
     apiTokenPromise = null
+    token = await resolveApiToken()
+    response = await requestOnce(path, init, token)
   }
+
   if (!response.ok) {
     let detail = `${response.status} ${response.statusText}`
     try {
@@ -52,6 +70,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw new Error(detail)
   }
+
   return response.json() as Promise<T>
 }
 
@@ -72,6 +91,123 @@ export const api = {
   findings: (productId: string) => request<Finding[]>(`/products/${productId}/findings`),
   economics: (productId: string) => request<Economics>(`/products/${productId}/economics`),
   experiments: (productId: string) => request<Experiment[]>(`/products/${productId}/experiments`),
+  optimizationPlans: (productId: string) =>
+    request<OptimizationPlan[]>(`/products/${productId}/optimization/plans`),
+
+  createOptimizationPlans: (
+    productId: string,
+    payload: OptimizationPlanCreatePayload,
+  ) =>
+    request<OptimizationPlan[]>(`/products/${productId}/optimization/plans`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  optimizationExecutions: (productId: string) =>
+    request<OptimizationExecution[]>(`/products/${productId}/optimization/executions`),
+
+  optimizationExecution: (productId: string, executionId: string) =>
+    request<OptimizationExecution>(
+      `/products/${productId}/optimization/executions/${executionId}`,
+    ),
+
+  executeOptimizationPlan: (
+    productId: string,
+    planId: string,
+    payload: OptimizationExecutePayload = {},
+  ) =>
+    request<OptimizationExecution>(
+      `/products/${productId}/optimization/plans/${planId}/execute`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    ),
+
+  evaluations: (productId: string) =>
+    request<Evaluation[]>(`/products/${productId}/evaluations`),
+
+  evaluation: (productId: string, evaluationId: string) =>
+    request<Evaluation>(`/products/${productId}/evaluations/${evaluationId}`),
+
+  createEvaluation: (
+    productId: string,
+    payload: EvaluationCreatePayload,
+  ) =>
+    request<Evaluation>(`/products/${productId}/evaluations`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  runAuthoritativeVerification: async (
+    productId: string,
+    payload: {
+      finding_id: string
+      quality_floor: number
+      min_samples: number
+      fallback_confirmed: boolean
+    },
+  ): Promise<Evaluation> => {
+    if (!payload.fallback_confirmed) {
+      throw new Error('Confirm the baseline fallback before running verification.')
+    }
+
+    // Start with the safest deterministic discovery path. The backend planner
+    // may return BLOCKED when the evidence cannot support an executable plan.
+    const plans = await request<OptimizationPlan[]>(
+      `/products/${productId}/optimization/plans`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          finding_id: payload.finding_id,
+        }),
+      },
+    )
+
+    const plan = plans.find((item) => item.status === 'READY')
+    if (!plan) {
+      const reason = plans
+        .map((item) => item.blocked_reason || item.reason)
+        .filter(Boolean)
+        .join('; ')
+      throw new Error(reason || 'No evidence-backed optimization plan is ready to execute.')
+    }
+
+    const execution = await request<OptimizationExecution>(
+      `/products/${productId}/optimization/plans/${plan.id}/execute`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          force_rerun: false,
+          project_to_legacy_traces: false,
+        }),
+      },
+    )
+
+    if (execution.status !== 'SUCCEEDED') {
+      throw new Error(
+        execution.error_detail ||
+        `Candidate execution finished with status ${execution.status}.`,
+      )
+    }
+
+    return request<Evaluation>(`/products/${productId}/evaluations`, {
+      method: 'POST',
+      body: JSON.stringify({
+        candidate_execution_id: execution.id,
+        finding_id: payload.finding_id,
+        gate_config: {
+          min_samples: payload.min_samples,
+          quality_floor: payload.quality_floor,
+          require_cost_improvement: true,
+          require_latency: true,
+          max_latency_regression_pct: 20,
+          require_fallback: true,
+        },
+        project_experiment: true,
+      }),
+    })
+  },
+
   implementations: (productId: string) => request<Implementation[]>(`/products/${productId}/implementations`),
   prepareImplementation: (productId: string, payload: { experiment_id: string; instructions?: string; model?: string; run_tests: boolean; test_command?: string }) =>
     request<Implementation>(`/products/${productId}/implementations/prepare`, {
