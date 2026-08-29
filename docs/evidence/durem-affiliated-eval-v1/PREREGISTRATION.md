@@ -1,9 +1,11 @@
 # PREREGISTRATION — DUREM Affiliated Real-Workload Evaluation v1
 
 **Evidence identity:** `durem-affiliated-eval-v1`
-**Status:** `CONTRACT_DRAFT` — **not frozen.** Two items (4 and 5) are unresolved and require a
-reviewer decision. Nothing in this document may be relied on as a preregistration until it is
-frozen, committed, and its hash recorded in section 14.
+**Status:** `CONTRACT_DRAFT — DECISIONS RECORDED, AWAITING HOST DATA.` The three reviewer decisions
+of 2026-08-29 are recorded in sections 4, 5 and 3. What remains before freezing is **data collection
+on the measurement host**, not further judgement: the host identity, the runtime version, the model
+files, the corpus hashes and the observed workload frequencies. Nothing in this document may be
+relied on as a preregistration until every row of section 14 is filled and the freeze commit is made.
 **Prepared:** 2026-08-29
 
 ---
@@ -121,18 +123,65 @@ scaling), and a generic `number` fallback.
 | Case count | **60** (target; see `REPLAY_SET_DESIGN.md`) |
 | Corpus | `durem_corpus_v1` — rules, documents, chunks, responsibilities, departments, roles, users |
 | Content hash | **pending construction** — recorded in section 14 before any baseline run |
-| Provenance | **UNRESOLVED — see section 5** |
+| Provenance | **R1 — sanitized real, retained locally** (section 5) |
 
 Composition, category definitions, labelling rules and sanitization rules are specified in
 `REPLAY_SET_DESIGN.md`. The distribution is frozen **before** any result is seen and is not
 re-weighted afterwards.
 
+### 3.1 Distribution provenance — **RESOLVED: hybrid observed/assumed**
+
+**Reviewer decision, 2026-08-29.** Observed audit-log frequencies are used wherever the existing logs
+can reliably support them; categories that cannot be reconstructed reliably keep a preregistered
+stratified proportion, explicitly labelled as assumed. No missing frequency is inferred or fabricated.
+
+`AUDIT_OBSERVABILITY.md` carries the schema analysis performed at the frozen DUREM SHA. Its result:
+
+- **8 of 11 categories are directly observable** from `('assistant','answer')` rows — `CHAT`,
+  `ROUTE-OBV`, `ROUTE-AMB`, `SAFETY`, `RULE`, `RAG`, `FOLLOWUP`, and `NOTFOUND` in aggregate. Each is a
+  field equality on logged data, not an inference. `ROUTE-AMB` — the only category that always spends
+  an extra classifier call, and therefore the one most able to distort a savings figure — is among
+  them and will be counted exactly.
+- **3 categories are unobservable** — `ACL`, `LIFECYCLE` and `SRCVAL`. All three are enforced by SQL
+  filters at retrieval time or by silent ID intersection in `_normalize()`, so a correctly-blocked
+  request leaves no audit record. This follows from DUREM enforcing them properly; it is not a logging
+  defect. Their real-world frequency cannot be measured from these logs and will not be guessed.
+- **`NOTFOUND` is observable in total but not by cause.** At least five distinct paths produce it and
+  the audit row does not distinguish them.
+
+The construction procedure, the validity conditions the observed window must satisfy, and the
+conservative handling of the `NOTFOUND` decomposition are specified in `AUDIT_OBSERVABILITY.md`
+section 4. Per that section, if the window fails any validity condition the **entire** distribution
+reverts to the preregistered stratified mix and is reported as assumed — a marginal window is not
+blended with assumptions to manufacture a stronger provenance claim.
+
+The frozen table records, for every category: the count, whether it was `observed` or
+`preregistered_assumption`, and — for observed rows — the time window and the raw sample count behind
+it. It is written into section 14 **before** the baseline executes.
+
 ---
 
-## 4. UNRESOLVED — hardware identity (item 4) **[BLOCKER 1]**
+## 4. Hardware identity (item 4) — **RESOLVED: option (A), real deployment host**
 
-Item 4 cannot be frozen, because the host this evaluation was prepared on cannot run the workload
-at a representative operating point.
+**Reviewer decision, 2026-08-29: option (A).** The baseline runs on the real Sutainbuyant deployment
+host, or an equivalent Ryzen AI machine. This is the option that supports a deployment-representative
+serving-cost claim, and no surrogate-host caveat is required in the final report.
+
+The inspection host below is **disqualified as a measurement host** and is recorded only to document
+why the decision was necessary. The measurement host's own identity must be captured on that machine
+and written into section 14 before the baseline runs:
+
+| Must be recorded on the measurement host | Section 14 row |
+|---|---|
+| CPU, NPU, GPU, RAM, OS build | measurement host identity |
+| Lemonade version (item 5) | Lemonade version |
+| Model file name, quantization, and file hash for both models (item 7) | model file / quantization |
+| `/v1/models` response, verbatim | run manifest |
+| Idle and under-load power draw, if measurable | `COST_METHODOLOGY.md` section 2.1 assumptions |
+
+Until those are captured, items 4, 5 and 7 remain empty in section 14 and the contract stays unfrozen.
+
+### 4.1 Why the inspection host was disqualified
 
 **Inspection host, as measured:**
 
@@ -160,23 +209,15 @@ at a representative operating point.
    model. It would be neither reproducible nor transferable to the real deployment, and a candidate
    could appear to "save" simply by changing the paging pattern.
 
-**Decision required.** One of:
-
-- **(A)** Name the real Sutainbuyant deployment host, or an equivalent Ryzen AI machine, as the
-  measurement host. Record its CPU / NPU / GPU / RAM / OS, Lemonade version, and model files. This is
-  the only option that supports a deployment-representative claim.
-- **(B)** Name any other host capable of serving Qwen3-8B at a usable rate, and state explicitly in
-  every report that the measured runtime is from a **surrogate host**, not the production host.
-- **(C)** Do not measure runtime at all. Restrict the evaluation to **runtime-independent counters**
-  only — LLM call count, embedding call count, token counts, and the quality/safety gates. This
-  yields a defensible *work-avoided* result with no timing or energy claim whatsoever.
-
-Option (C) is the only one that can proceed on the current machine, and only if the DUREM stack can
-be stood up against *some* reachable runtime. It cannot produce a serving-cost percentage.
+Options (B) surrogate host and (C) counters-only were considered and **not** taken. Their fallback
+provisions elsewhere in this pack — the surrogate-host caveat in section 11 and the counters-only
+metric in `COST_METHODOLOGY.md` section 3.1 — are retained as contingencies only, and apply only if
+option (A) later proves impossible. Switching to them after a result has been seen is forbidden by
+section 10.
 
 ---
 
-## 5. UNRESOLVED — corpus and question provenance **[BLOCKER 2]**
+## 5. Corpus and question provenance — **RESOLVED: R1, sanitized real**
 
 DUREM's `data/` directory is empty at the frozen SHA (`.gitkeep` only). The only content in the
 repository is a 5-rule demo seed behind `DUREM_DEMO_DATA`, covering vehicle use and sales discounts.
@@ -192,13 +233,23 @@ language:
 | **(R2)** | Synthetic questions written to match the real workload's shape, over a synthetic corpus modelled on the real one | *representative-workload* |
 | **(R3)** | The 5-rule demo seed only | not usable — too small, and it exercises no ACL, lifecycle, or NOT_FOUND surface |
 
-**Decision required: R1 or R2.** Under R2 the phrase *"real-workload"* must be dropped from the final
-report, including from the sentence in section 11.
+**Reviewer decision, 2026-08-29: R1.** The replay set is built from sanitized real historical
+questions over a sanitized real policy corpus, **retained locally only**. The phrase
+*"real-workload"* is therefore permitted in the final report, subject to the affiliation disclosure
+that always accompanies it.
 
-A second, independent question rides on this: the **workload distribution** in
-`REPLAY_SET_DESIGN.md` section 3 is currently an **assumption**, not a measurement. If DUREM audit
-logs from the real deployment can supply observed category frequencies, the distribution should be
-set from them and cited. If not, the report must state that the mix is assumed.
+Binding consequences of choosing R1:
+
+1. The sanitization rules in `REPLAY_SET_DESIGN.md` section 1.1 are mandatory, and the pre-commit
+   fixture allow-list check in rule 6 must be in place before any fixture is written.
+2. `cases.local.jsonl` and `corpus.local.json` are **never committed**. They are still hashed into
+   `checksums.sha256`, so a reviewer with local access can verify that the fixtures used were the
+   fixtures declared.
+3. The public pack carries case IDs, categories, expected labels, protected flags, counts and hashes
+   — never question text or chunk text.
+4. Policy-route audit rows contain `question[:600]` by default and may hold confidential company text
+   (`AUDIT_OBSERVABILITY.md` section 1.1). They are treated as sensitive fixtures under the same rules
+   and never leave the measurement host.
 
 ---
 
@@ -356,13 +407,23 @@ Immediately followed, in the same context, by:
 > "The founder built DUREM and has an existing relationship with Sutainbuyant, so this is affiliated
 > evaluation evidence rather than independent customer validation."
 
-Constraints on X:
+Constraints on X, given the decisions of 2026-08-29:
+
 - X is reported with its exact sample count, workload distribution, and per-category breakdown;
-- X carries an uncertainty interval computed across the 3 repeats where statistically appropriate;
-- if section 5 resolves to **R2**, *"real-workload"* becomes *"representative-workload"*;
-- if section 4 resolves to **(B)**, the sentence must state that the host was a surrogate;
-- if section 4 resolves to **(C)**, X is **not** a serving-cost percentage and must be described as a
-  reduction in the named counter (for example, "in LLM calls per request"), with no timing or energy claim.
+- X carries an uncertainty interval computed across the 3 repeats — reported as the observed
+  min–max range, labelled as such, since `n = 3` does not support a credible confidence interval;
+- *"real-workload"* is **permitted** (section 5 resolved to R1) and no surrogate-host caveat is
+  required (section 4 resolved to option A);
+- every report states which parts of the workload distribution were **observed** and which were
+  **preregistered assumptions**, with the time window and sample count behind the observed portion
+  (section 3.1);
+- the sentence is accompanied by the note that `ACL`, `LIFECYCLE` and `SRCVAL` proportions are
+  assumed and deliberately over-represented, so the set is harder to pass than production, not easier.
+
+Contingency clauses, applicable only if option (A) later proves impossible and **never** as a
+response to an unwelcome result: a surrogate host must be disclosed in the sentence, and a
+counters-only run makes X a reduction in the named counter rather than a serving-cost percentage,
+with no timing or energy claim.
 
 The sentence "ZEVQORA saves X% for AI companies" is forbidden in all cases.
 
@@ -403,19 +464,41 @@ document stays `CONTRACT_DRAFT`.
 | Router lexicon + threshold hash | *(pending)* |
 | Rule-set hash | *(pending)* |
 | Gate config hash | *(pending)* |
-| Measurement host identity | *(pending — blocker 1)* |
-| Lemonade version | *(pending — blocker 1)* |
-| Model file / quantization | *(pending — blocker 1)* |
-| Corpus provenance R1 or R2 | *(pending — blocker 2)* |
+| Measurement host identity | *(pending — capture on host, section 4)* |
+| Lemonade version | *(pending — capture on host)* |
+| Model files + quantization + hashes | *(pending — capture on host)* |
+| Corpus provenance | **R1 — sanitized real, retained locally** ✔ decided 2026-08-29 |
+| Distribution provenance | **hybrid observed/assumed** ✔ decided 2026-08-29 |
+| Observed-window start / end (UTC) | *(pending — capture on host)* |
+| Observed-window total `answer` rows | *(pending — must be ≥ 1000, ≥ 30 days)* |
+| Excluded `user_id` list (admin/test) | *(pending)* |
+| Frozen distribution table | *(pending — written before baseline execution)* |
 | Frozen at (UTC) | *(pending)* |
+
+### 14.1 Frozen distribution table (to be completed before baseline execution)
+
+| Code | n | Provenance | Observed count | Window |
+|---|---|---|---|---|
+| `CHAT` | | observed | | |
+| `ROUTE-OBV` | | observed | | |
+| `ROUTE-AMB` | | observed | | |
+| `SAFETY` | | observed | | |
+| `RULE` | | observed | | |
+| `RAG` | | observed | | |
+| `FOLLOWUP` | | observed | | |
+| `NOTFOUND` | | observed (aggregate only) | | |
+| `ACL` | 4 | preregistered_assumption | n/a | n/a |
+| `LIFECYCLE` | 3 | preregistered_assumption | n/a | n/a |
+| `SRCVAL` | 2 | preregistered_assumption | n/a | n/a |
 
 ## 15. Reviewer signoff
 
 | Role | Name | Decision | Date | Signature / commit |
 |---|---|---|---|---|
 | Preparer | | | | |
+| Reviewer — measurement host | | **(A) real deployment host** | 2026-08-29 | recorded in session |
+| Reviewer — corpus provenance | | **R1 — sanitized real, local** | 2026-08-29 | recorded in session |
+| Reviewer — distribution provenance | | **hybrid observed/assumed** | 2026-08-29 | recorded in session |
 | Reviewer — contract freeze | | approve / reject | | |
-| Reviewer — blocker 1 (host) | | option A / B / C | | |
-| Reviewer — blocker 2 (corpus) | | option R1 / R2 | | |
 | Reviewer — baseline finalization | | | | |
 | Reviewer — candidate verdict | | | | |

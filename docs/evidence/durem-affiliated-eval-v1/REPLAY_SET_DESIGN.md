@@ -81,10 +81,17 @@ measures.
 
 ## 3. Workload distribution (60 cases)
 
-**This distribution is an assumption, not a measurement.** No production traffic statistics were
-available at preparation time. If DUREM audit logs from the real deployment can supply observed
-category frequencies, this table is replaced by those frequencies and cited as measured before
-freezing. Otherwise the final report must state that the mix is assumed.
+**Reviewer decision 2026-08-29: hybrid provenance.** The table below is the **preregistered
+stratified fallback**. Before freezing, the eight categories that DUREM's audit logs can measure are
+replaced by observed frequencies from the deployment; the three that cannot be measured keep the
+counts below and are labelled `preregistered_assumption`.
+
+`AUDIT_OBSERVABILITY.md` establishes which is which, from the audit schema at the frozen DUREM SHA:
+`CHAT`, `ROUTE-OBV`, `ROUTE-AMB`, `SAFETY`, `RULE`, `RAG`, `FOLLOWUP` and `NOTFOUND` (in aggregate)
+are observable; `ACL`, `LIFECYCLE` and `SRCVAL` are not, because a correctly-blocked request leaves no
+audit record. Missing frequencies are not inferred. If the observed window fails any validity
+condition in `AUDIT_OBSERVABILITY.md` §4.1, the **whole** table below is used as-is and the entire
+mix is reported as assumed.
 
 | Code | Category | n | % | Protected | Expected baseline LLM calls |
 |---|---|---|---|---|---|

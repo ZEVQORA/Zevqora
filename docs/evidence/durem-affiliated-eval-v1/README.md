@@ -1,7 +1,7 @@
 # DUREM Affiliated Real-Workload Evaluation — v1
 
 **Evidence identity:** `durem-affiliated-eval-v1`
-**Status:** `CONTRACT_DRAFT — NOT YET FROZEN` (blocked on two reviewer decisions, see below)
+**Status:** `CONTRACT_DRAFT — DECISIONS RECORDED, AWAITING HOST DATA` (see below)
 **Stage reached:** Phase A (inspection) + Phase B (preregistration draft) complete. **No optimization performed. No baseline captured.**
 **ZEVQORA branch:** `nero/durem-affiliated-eval-v1` (from `c34db54ba846d8182d1212c7819571cf41796640`)
 **Date:** 2026-08-29
@@ -44,28 +44,37 @@ metrics are not comparable and must never be pooled, averaged, or presented as o
 | `ARCHITECTURE_INSPECTION.md` | Phase A: observed repo truth for DUREM and ZEVQORA, and the integration gaps between them |
 | `PREREGISTRATION.md` | Phase B: frozen identity, frozen configuration, frozen quality contract, frozen acceptance rule |
 | `REPLAY_SET_DESIGN.md` | Replay-set composition, category definitions, labelling rules, sanitization rules |
+| `AUDIT_OBSERVABILITY.md` | Which workload dimensions DUREM's audit logs can actually measure, and which must stay preregistered assumptions |
 | `COST_METHODOLOGY.md` | Local serving-cost model, the compute-cost proxy, and the linearity proviso |
 | `BASELINE_INSTRUMENTATION_PLAN.md` | Exactly what will be measured, where the probes go, and the behaviour-neutrality argument |
 
 ---
 
-## STOP — two decisions are required before this contract can be frozen
+## Reviewer decisions recorded 2026-08-29
 
-Work halted here deliberately, as instructed. Two findings block a truthful baseline and
-**both change what the evaluation is allowed to claim.** Neither can be resolved by
-assumption without making the eventual result misleading.
+Two findings blocked a truthful baseline, and both changed what the evaluation would be allowed to
+claim. Both are now decided, along with a third question about the workload mix.
 
-### BLOCKER 1 — the current machine cannot host the measurement
+| Question | Decision | Effect on claim language |
+|---|---|---|
+| Measurement host — the preparation machine cannot serve Qwen3-8B representatively (`PREREGISTRATION.md` §4) | **(A)** real Sutainbuyant / Ryzen AI deployment host | serving-cost percentage permitted; no surrogate-host caveat |
+| Corpus provenance — DUREM's `data/` is empty at the frozen SHA (`PREREGISTRATION.md` §5) | **R1** sanitized real, retained locally | *"real-workload"* permitted |
+| Workload distribution — assumed, not measured (`PREREGISTRATION.md` §3.1) | **hybrid** observed where logs support it, preregistered and labelled where they do not | each proportion reported as `observed` or `assumed` |
 
-The host this session is running on cannot execute the DUREM workload at a
-representative operating point. Details and evidence in `PREREGISTRATION.md §4`.
-A measurement host must be named before the baseline is frozen.
+## STOP — what remains before the contract can be frozen
 
-### BLOCKER 2 — no real workload corpus exists in the repository
+What is left is **data collection on the measurement host, not further judgement.** Every remaining
+row of `PREREGISTRATION.md` §14 needs a value that can only be captured there:
 
-DUREM ships an empty `data/` directory and a 5-rule demo seed. There is no real traffic
-to replay. The choice of corpus determines whether the final claim may say
-*"real-workload"* or only *"representative-workload"*. Details in `REPLAY_SET_DESIGN.md §1`.
+1. Host identity — CPU, NPU, GPU, RAM, OS build.
+2. Lemonade version, model file names, quantization, and file hashes; the verbatim `/v1/models` response.
+3. Observed audit-log frequencies for the 8 measurable categories, over a window meeting the validity
+   conditions in `AUDIT_OBSERVABILITY.md` §4.1 (≥ 1,000 answer rows, ≥ 30 consecutive days, no routing
+   settings change inside it).
+4. The sanitized corpus and 60 cases, built under the R1 rules, with their hashes.
+5. Idle and under-load power draw, if measurable, plus the four economic assumptions in
+   `COST_METHODOLOGY.md` §2.1 — or the evaluation reports the compute-cost proxy instead of dollars.
 
-Until both are resolved, no number produced under this identity may be described as a
-measured saving.
+**Nothing has been optimized, no baseline has been captured, and no DUREM branch has been created.**
+No number produced under this identity may be described as a measured saving until the contract is
+frozen and a baseline exists.
