@@ -1,10 +1,18 @@
 import { useEffect, useState } from 'react'
 import { AlertCircle, Check, FileJson, FolderSearch, GitBranch, Play, ScanSearch, ShieldCheck, Upload } from 'lucide-react'
 import { api, API_BASE } from '../lib/api'
-import type { Economics, Experiment, Finding, Health, Implementation, Product, ScanResult, ViewKey } from '../lib/types'
+import type { Economics, Evaluation, Experiment, Finding, Health, Implementation, Product, ScanResult, ViewKey } from '../lib/types'
 
 function Money({ value }: { value: number | null | undefined }) {
   return <>{value == null ? '—' : `$${value.toFixed(value < 1 ? 4 : 2)}`}</>
+}
+
+function isExecutionProvenExperiment(item: Experiment) {
+  return (
+    item.verification_source === 'EXECUTION_EVALUATION' &&
+    item.execution_proven === true &&
+    Boolean(item.evaluation_run_id)
+  )
 }
 
 function Page({ eyebrow, title, subtitle, children }: { eyebrow: string; title: string; subtitle: string; children: React.ReactNode }) {
@@ -83,11 +91,12 @@ export function WasteView({ product, findings, onTest }: { product: Product | nu
 }
 
 export function ExperimentsView({ experiments }: { experiments: Experiment[] }) {
+  const authoritative = experiments.filter(isExecutionProvenExperiment)
   return (
     <Page eyebrow="Experiments" title="Cheaper is not enough." subtitle="Every candidate must pass sample, quality, protected-slice, cost, latency and fallback gates before the word Verified appears.">
-      {!experiments.length ? <Empty>No experiments yet. Choose a Waste finding and run verification.</Empty> : (
+      {!authoritative.length ? <Empty>No execution-proven evaluations yet. Choose a Waste finding and run verification.</Empty> : (
         <div className="grid gap-4">
-          {experiments.map((exp) => (
+          {authoritative.map((exp) => (
             <div key={exp.id} className="rounded-[22px] border border-stone bg-white p-5">
               <div className="flex items-start justify-between"><div><div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink/35">Experiment · {exp.evidence_version}</div><div className="mt-2 text-xl font-semibold">{exp.status}</div></div><span className={`rounded-lg px-2.5 py-1.5 text-[10px] font-semibold ${exp.status === 'VERIFIED' ? 'bg-softblue/10 text-softblue' : 'bg-stone/55 text-ink/50'}`}>{exp.sample_size} replay rows</span></div>
               <div className="mt-5 grid grid-cols-4 gap-3 text-sm"><div><div className="text-[10px] text-ink/35">BASELINE COST</div><div className="mt-1 font-semibold"><Money value={exp.baseline_cost_usd} /></div></div><div><div className="text-[10px] text-ink/35">CANDIDATE COST</div><div className="mt-1 font-semibold"><Money value={exp.candidate_cost_usd} /></div></div><div><div className="text-[10px] text-ink/35">CANDIDATE QUALITY</div><div className="mt-1 font-semibold">{exp.candidate_quality == null ? '—' : `${(exp.candidate_quality * 100).toFixed(1)}%`}</div></div><div><div className="text-[10px] text-ink/35">VERIFIED SAMPLE SAVING</div><div className="mt-1 font-semibold"><Money value={exp.verified_savings_usd} /></div></div></div>
@@ -101,7 +110,9 @@ export function ExperimentsView({ experiments }: { experiments: Experiment[] }) 
 }
 
 export function SavingsView({ experiments }: { experiments: Experiment[] }) {
-  const verified = experiments.filter((item) => item.status === 'VERIFIED')
+  const verified = experiments.filter(
+    (item) => isExecutionProvenExperiment(item) && item.status === 'VERIFIED',
+  )
   const total = verified.reduce((sum, item) => sum + (item.verified_savings_usd || 0), 0)
   return (
     <Page eyebrow="Verified Savings" title="Savings that passed the evidence gate." subtitle="This page intentionally excludes potential findings and rejected candidates. Realized production savings are a separate measurement stage.">
@@ -120,7 +131,9 @@ export function ImplementationsView({
   implementations: Implementation[]
   onPrepare: (experiment: Experiment) => void
 }) {
-  const verified = experiments.filter((item) => item.status === 'VERIFIED')
+  const verified = experiments.filter(
+    (item) => isExecutionProvenExperiment(item) && item.status === 'VERIFIED',
+  )
   return (
     <Page eyebrow="Implementations" title="Proof first. Change second." subtitle="Only a VERIFIED experiment can prepare a code candidate. ZEVQORA writes the candidate into an isolated Git worktree and never merges or deploys it automatically.">
       {!verified.length ? <Empty>No implementation should be prepared until an experiment is verified.</Empty> : (
@@ -233,7 +246,7 @@ export function SettingsView({ health, model, onModel }: { health: Health | null
     </Page>
   )
 }
-export function ExperimentDialog({ finding, product, onClose, onComplete }: { finding: Finding | null; product: Product | null; onClose: () => void; onComplete: (experiment: Experiment) => Promise<void> }) {
+export function ExperimentDialog({ finding, product, onClose, onComplete }: { finding: Finding | null; product: Product | null; onClose: () => void; onComplete: (evaluation: Evaluation) => Promise<void> }) {
   const [quality, setQuality] = useState('0.98')
   const [samples, setSamples] = useState('5')
   const [fallback, setFallback] = useState(false)
@@ -241,14 +254,38 @@ export function ExperimentDialog({ finding, product, onClose, onComplete }: { fi
   const [error, setError] = useState('')
   if (!finding || !product) return null
   const run = async () => {
-    setBusy(true); setError('')
+    setBusy(true)
+    setError('')
     try {
-      const result = await api.runExperiment(product.id, { finding_id: finding.id, quality_gate: Number(quality), min_samples: Number(samples), fallback_exists: fallback })
+      const qualityFloor = Number(quality)
+      const minSamples = Number(samples)
+
+      if (!Number.isFinite(qualityFloor) || qualityFloor <= 0 || qualityFloor > 1) {
+        throw new Error('Quality gate must be greater than 0 and at most 1.')
+      }
+      if (!Number.isInteger(minSamples) || minSamples < 1) {
+        throw new Error('Minimum replay samples must be a positive whole number.')
+      }
+      if (!fallback) {
+        throw new Error('Confirm that the baseline fallback exists before verification.')
+      }
+
+      const result = await api.runAuthoritativeVerification(product.id, {
+        finding_id: finding.id,
+        quality_floor: qualityFloor,
+        min_samples: minSamples,
+        fallback_confirmed: fallback,
+      })
+
       await onComplete(result)
       onClose()
-    } catch (err) { setError(err instanceof Error ? err.message : String(err)) } finally { setBusy(false) }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
   }
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/20 p-6 backdrop-blur-[2px]"><div className="w-full max-w-[560px] rounded-[26px] border border-stone bg-white p-6 shadow-soft"><div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-softblue">Controlled experiment</div><h2 className="mt-2 text-xl font-semibold">Let Zev test this finding</h2><p className="mt-2 text-sm leading-6 text-ink/50">{finding.title}</p><div className="mt-5 grid grid-cols-2 gap-3"><label className="grid gap-1.5 text-xs text-ink/55">Quality gate<input value={quality} onChange={(e) => setQuality(e.target.value)} type="number" min="0" max="1" step="0.01" className="rounded-xl border border-stone px-3 py-2.5 text-sm outline-none focus:border-softblue" /></label><label className="grid gap-1.5 text-xs text-ink/55">Minimum replay samples<input value={samples} onChange={(e) => setSamples(e.target.value)} type="number" min="1" className="rounded-xl border border-stone px-3 py-2.5 text-sm outline-none focus:border-softblue" /></label></div><label className="mt-4 flex items-start gap-3 rounded-xl border border-stone bg-cloud p-3 text-xs leading-5 text-ink/55"><input type="checkbox" checked={fallback} onChange={(e) => setFallback(e.target.checked)} className="mt-1" /><span><strong className="text-ink/75">Baseline fallback exists.</strong><br />Confirm only if the candidate can safely fall back to the current execution path.</span></label><div className="mt-4 rounded-xl border border-stone p-3 text-[11px] leading-5 text-ink/45"><FileJson size={14} className="mb-1 text-softblue" /> Verification uses imported replay rows containing baseline output/cost, expected output, and candidate output/cost. Missing evidence returns NEEDS_EVIDENCE rather than a made-up saving.</div>{error && <div className="mt-3 text-xs text-red-600">{error}</div>}<div className="mt-6 flex justify-end gap-2"><button onClick={onClose} className="rounded-xl px-4 py-2.5 text-sm text-ink/50">Cancel</button><button onClick={() => void run()} disabled={busy} className="flex items-center gap-2 rounded-xl bg-softblue px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><Play size={14} /> {busy ? 'Evaluating…' : 'Run verification'}</button></div></div></div>
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/20 p-6 backdrop-blur-[2px]"><div className="w-full max-w-[560px] rounded-[26px] border border-stone bg-white p-6 shadow-soft"><div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-softblue">Controlled experiment</div><h2 className="mt-2 text-xl font-semibold">Let Zev test this finding</h2><p className="mt-2 text-sm leading-6 text-ink/50">{finding.title}</p><div className="mt-5 grid grid-cols-2 gap-3"><label className="grid gap-1.5 text-xs text-ink/55">Quality gate<input value={quality} onChange={(e) => setQuality(e.target.value)} type="number" min="0" max="1" step="0.01" className="rounded-xl border border-stone px-3 py-2.5 text-sm outline-none focus:border-softblue" /></label><label className="grid gap-1.5 text-xs text-ink/55">Minimum replay samples<input value={samples} onChange={(e) => setSamples(e.target.value)} type="number" min="1" className="rounded-xl border border-stone px-3 py-2.5 text-sm outline-none focus:border-softblue" /></label></div><label className="mt-4 flex items-start gap-3 rounded-xl border border-stone bg-cloud p-3 text-xs leading-5 text-ink/55"><input type="checkbox" checked={fallback} onChange={(e) => setFallback(e.target.checked)} className="mt-1" /><span><strong className="text-ink/75">Baseline fallback exists.</strong><br />Confirm only if the candidate can safely fall back to the current execution path.</span></label><div className="mt-4 rounded-xl border border-stone p-3 text-[11px] leading-5 text-ink/45"><FileJson size={14} className="mb-1 text-softblue" /> Verification now uses the execution-proven path: candidate plan → isolated execution → EvaluationRun. Missing or insufficient evidence stops the run instead of creating a made-up saving.</div>{error && <div className="mt-3 text-xs text-red-600">{error}</div>}<div className="mt-6 flex justify-end gap-2"><button onClick={onClose} className="rounded-xl px-4 py-2.5 text-sm text-ink/50">Cancel</button><button onClick={() => void run()} disabled={busy} className="flex items-center gap-2 rounded-xl bg-softblue px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><Play size={14} /> {busy ? 'Evaluating…' : 'Run verification'}</button></div></div></div>
 }
 
 

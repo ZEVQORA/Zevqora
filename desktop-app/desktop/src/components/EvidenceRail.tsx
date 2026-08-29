@@ -27,8 +27,14 @@ export function EvidenceRail({
   experiments?: Experiment[]
 }) {
   const finding = findings[0] || null
-  const verified = [...experiments].filter((item) => item.status === 'VERIFIED').sort((a, b) => b.created_at.localeCompare(a.created_at))[0] || null
-  const latest = [...experiments].sort((a, b) => b.created_at.localeCompare(a.created_at))[0] || null
+  const authoritative = experiments.filter(
+    (item) =>
+      item.verification_source === 'EXECUTION_EVALUATION' &&
+      item.execution_proven === true &&
+      Boolean(item.evaluation_run_id),
+  )
+  const verified = [...authoritative].filter((item) => item.status === 'VERIFIED').sort((a, b) => b.created_at.localeCompare(a.created_at))[0] || null
+  const latest = [...authoritative].sort((a, b) => b.created_at.localeCompare(a.created_at))[0] || null
   const baseline = verified?.baseline_cost_usd ?? latest?.baseline_cost_usd ?? economics?.observed_cost_usd ?? null
   const candidate = verified?.candidate_cost_usd ?? latest?.candidate_cost_usd ?? null
   const saving = baseline != null && candidate != null ? Math.max(0, baseline - candidate) : economics?.verified_savings_usd ?? null
@@ -79,7 +85,7 @@ export function EvidenceRail({
         <div className="flex items-center justify-between"><div className="evidence-label">Evidence</div><span className="text-[9px] opacity-45">{health?.status === 'ok' ? 'Local engine connected' : 'Offline'}</span></div>
         <div><span><FileSearch2 size={13} /> Source analysis</span><b>{scan?.files_scanned ?? '—'} files</b></div>
         <div><span><Gauge size={13} /> Runtime evidence</span><b>{economics?.trace_count ?? 0} traces</b></div>
-        <div><span><ShieldCheck size={13} /> Verification</span><b>{experiments.length} runs</b></div>
+        <div><span><ShieldCheck size={13} /> Verification</span><b>{authoritative.length} execution-proven runs</b></div>
       </section>
 
       <section className="evidence-footer-note">
