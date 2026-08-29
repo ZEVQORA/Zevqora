@@ -32,6 +32,25 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def sha256_crlf_text(path: Path):
+    data = path.read_bytes()
+
+    try:
+        data.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+    normalized = (
+        data
+        .replace(b"\r\n", b"\n")
+        .replace(b"\r", b"\n")
+    )
+
+    crlf = normalized.replace(b"\n", b"\r\n")
+
+    return hashlib.sha256(crlf).hexdigest()
+
+
 def verify_bundle(bundle: Path) -> tuple[int, list[str]]:
     """Return (files_checked, failures)."""
     manifest = bundle / MANIFEST_NAME
@@ -56,9 +75,23 @@ def verify_bundle(bundle: Path) -> tuple[int, list[str]]:
         if not target.is_file():
             failures.append(f"{bundle.name}/{name}: MISSING")
             continue
-        actual = sha256_file(target)
-        if actual.lower() != expected.strip().lower():
-            failures.append(f"{bundle.name}/{name}: MISMATCH\n    expected {expected}\n    actual   {actual}")
+        expected = expected.strip().lower()
+        actual = sha256_file(target).lower()
+
+        if actual == expected:
+            continue
+
+        crlf_actual = sha256_crlf_text(target)
+
+        if crlf_actual is not None and crlf_actual.lower() == expected:
+            continue
+
+        failures.append(
+            f"{bundle.name}/{name}: MISMATCH\n"
+            f"    expected {expected}\n"
+            f"    actual   {actual}\n"
+            f"    crlf     {crlf_actual or 'not-text'}"
+        )
     return checked, failures
 
 
