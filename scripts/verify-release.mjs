@@ -1,66 +1,67 @@
-import fs from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const here = path.dirname(fileURLToPath(import.meta.url))
-const root = path.resolve(here, '..')
-const failures = []
-const exists = (rel) => fs.existsSync(path.join(root, rel))
-const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8')
+const here = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(here, '..');
+const failures = [];
+const exists = (rel) => fs.existsSync(path.join(root, rel));
+const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
 
 const required = [
   'index.html',
-  'styles.css',
-  'super-refresh.css',
-  'super-motion.js',
-  'assets/zevqora-mark.png',
-  'assets/zevqora-wordmark.png',
-  'assets/zev-mascot.png',
+  'vite.config.ts',
+  'vercel.json',
+  'api/[...path].js',
+  'api/_lib/router.js',
+  'api/_lib/handlers/telemetry.js',
+  'api/_lib/handlers/experiments.js',
+  'api/_lib/handlers/admin.js',
+  'src/main.tsx',
+  'src/brand/marks.ts',
+  'src/brand/HeroMark3D.tsx',
+  'public/fonts/Satoshi-Variable.woff2',
+  'public/assets/zev/zev-three-quarter-front.webp',
+  'public/favicon.png',
+  'supabase/migrations/004_platform.sql',
+  'supabase/migrations/006_rollups.sql',
   'desktop-app/desktop/build/icon.ico',
-  'desktop-app/desktop/public/brand/zevqora-mark.png',
-  'desktop-app/desktop/public/brand/zevqora-wordmark.png',
-  'desktop-app/desktop/public/brand/zev-mascot.png',
-  'desktop-app/desktop/src/App.tsx',
-  'desktop-app/desktop/src/components/LivingWorkspace.tsx',
-  'desktop-app/desktop/src/components/ZevChat.tsx',
-  'desktop-app/desktop/src/brand-unification.css',
-  'desktop-app/backend/app/agent/openrouter.py',
   'desktop-app/backend/run_backend.py',
   '.github/workflows/windows-release.yml',
-]
-for (const rel of required) if (!exists(rel)) failures.push(`${rel}: missing`)
+];
+for (const rel of required) if (!exists(rel)) failures.push(`${rel}: missing`);
 
-if (exists('index.html')) {
-  const index = read('index.html')
-  if (!index.includes('/super-refresh.css')) failures.push('index.html: super-refresh.css not loaded')
-  if (!index.includes('/super-motion.js')) failures.push('index.html: super-motion.js not loaded')
-  if (!index.includes('ZEVQORA-Setup.exe')) failures.push('index.html: stable Windows download URL missing')
+// The Z mark must be the locked geometry, never a typed letter.
+if (exists('src/brand/marks.ts')) {
+  const marks = read('src/brand/marks.ts');
+  if (!marks.includes("MARK_VIEWBOX = '0 0 87.05 100'")) failures.push('marks.ts: mark viewBox changed');
+  if (!marks.includes('M 25.3 0.06')) failures.push('marks.ts: mark path changed');
 }
 
-if (exists('desktop-app/desktop/package.json')) {
-  const pkg = JSON.parse(read('desktop-app/desktop/package.json'))
-  if (pkg.version !== '1.0.7') failures.push('desktop package version must be 1.0.7')
-  if (pkg.build?.win?.icon !== 'build/icon.ico') failures.push('Windows icon must be build/icon.ico')
-  if (pkg.build?.artifactName !== 'ZEVQORA-Setup-${version}.${ext}') failures.push('installer artifactName contract changed')
+// No secrets may be inlined for the browser.
+for (const rel of ['vite.config.ts', 'src/lib/config.ts']) {
+  if (!exists(rel)) continue;
+  const src = read(rel);
+  if (/OPENROUTER_API_KEY|SERVICE_ROLE|STRIPE_SECRET/.test(src)) failures.push(`${rel}: server secret referenced in browser code`);
 }
 
-const cssFiles = [
-  'desktop-app/desktop/src/styles.css',
-  'desktop-app/desktop/src/premium-overrides.css',
-  'desktop-app/desktop/src/brand-unification.css',
-].filter(exists)
-for (const rel of cssFiles) {
-  const css = read(rel)
-  if (/font-family\s*:[^;]*(Times New Roman|Times|Georgia)/i.test(css)) failures.push(`${rel}: Roman/Times/Georgia font found`)
-  if (/font-style\s*:\s*italic/i.test(css)) failures.push(`${rel}: italic UI style found`)
+// Retired claims must never reappear.
+const retired = /(45%\s+(internal|measured)|independent third-party validation)/i;
+for (const dir of ['src']) {
+  const stack = [path.join(root, dir)];
+  while (stack.length) {
+    const current = stack.pop();
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const full = path.join(current, entry.name);
+      if (entry.isDirectory()) stack.push(full);
+      else if (/\.(tsx?|css)$/.test(entry.name) && retired.test(fs.readFileSync(full, 'utf8'))) failures.push(`${path.relative(root, full)}: retired claim present`);
+    }
+  }
 }
 
 if (failures.length) {
-  console.error('\nZEVQORA v1.0.7 release preflight FAILED:\n')
-  for (const f of failures) console.error(` - ${f}`)
-  process.exit(1)
+  console.error('\nZEVQORA release preflight FAILED:\n');
+  for (const f of failures) console.error(` - ${f}`);
+  process.exit(1);
 }
-console.log('ZEVQORA v1.0.7 release preflight passed.')
-console.log(' - Huslen v8 web design + premium motion layer present')
-console.log(' - desktop brand assets and unified sans typography present')
-console.log(' - Windows release workflow and installer contract present')
+console.log('ZEVQORA release preflight passed.');
