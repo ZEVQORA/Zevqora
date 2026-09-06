@@ -14,7 +14,7 @@ connect evidence → map spend → diagnose waste → generate candidate
 | Path | What it is |
 | --- | --- |
 | `src/` | Web application (Vite + React + TypeScript + Tailwind v4): public website, auth, logged-in app, internal admin |
-| `api/` | One Vercel serverless function (`api/[...path].js`) routing every API endpoint; libraries and handlers in `api/_lib/` |
+| `api/` | One Vercel serverless function (`api/index.js`) routing every API endpoint; libraries and handlers in `api/_lib/` |
 | `supabase/migrations/` | Postgres schema, RLS policies, seed data and SQL functions (applied in order) |
 | `tests/` | Vitest unit tests for the API engines (router, tokens, sanitization, pricing, graders, gates, analysis) |
 | `desktop-app/` | ZEVQORA Desktop (Electron) and the local FastAPI engine for repository scanning and offline replay |

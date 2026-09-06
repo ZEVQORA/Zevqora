@@ -6,10 +6,11 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "functions": {
-    "api/[...path].js": { "maxDuration": 120, "memory": 1024 }
+    "api/index.js": { "maxDuration": 120 }
   },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/api/(.*)", "destination": "/api?__path=$1" },
+    { "source": "/((?!api(?:/|$)).*)", "destination": "/" }
   ],
   "headers": [
     { "source": "/assets/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },

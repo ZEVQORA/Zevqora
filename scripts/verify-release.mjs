@@ -12,7 +12,7 @@ const required = [
   'index.html',
   'vite.config.ts',
   'vercel.json',
-  'api/[...path].js',
+  'api/index.js',
   'api/_lib/router.js',
   'api/_lib/handlers/telemetry.js',
   'api/_lib/handlers/experiments.js',

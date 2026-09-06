@@ -1,10 +1,11 @@
 /**
  * Single Vercel function for the whole ZEVQORA API.
  *
- * Every route is registered by the handler modules below and dispatched by
- * path. Consolidating into one function keeps the deployment within the
- * serverless function budget and gives every route the same auth, error and
- * logging behaviour.
+ * vercel.json rewrites every /api/* request here with the original path in
+ * the `__path` query parameter; the router restores it before matching.
+ * Consolidating into one function keeps the deployment within the serverless
+ * function budget and gives every route the same auth, error and logging
+ * behaviour.
  */
 import { dispatch } from './_lib/router.js';
 import './_lib/handlers/public.js';

@@ -45,7 +45,7 @@ jobs:
         run: npm run build
 
       - name: API modules load
-        run: node --input-type=module -e "await import('./api/[...path].js'); console.log('api ok')"
+        run: node --input-type=module -e "await import('./api/index.js'); console.log('api ok')"
 
       - name: Secret scan
         run: |

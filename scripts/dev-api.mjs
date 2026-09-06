@@ -10,7 +10,7 @@ import http from 'node:http';
 import { Readable } from 'node:stream';
 
 const port = Number(process.env.PORT || 3000);
-const mod = await import('../api/[...path].js');
+const mod = await import('../api/index.js');
 
 const server = http.createServer(async (req, res) => {
   try {

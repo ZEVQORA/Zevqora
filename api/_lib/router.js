@@ -36,6 +36,14 @@ export function match(method, pathname) {
 
 export async function dispatch(request) {
   const url = new URL(request.url);
+  // Vercel routes every /api/* request to this single function through a
+  // rewrite that carries the original path in `__path`. Restore it so handlers
+  // see the public route, and strip it from the query string.
+  const forwarded = url.searchParams.get('__path');
+  if (forwarded !== null) {
+    url.pathname = '/api/' + forwarded.replace(/^\/+/, '');
+    url.searchParams.delete('__path');
+  }
   const method = request.method.toUpperCase();
   const found = match(method, url.pathname);
   try {
