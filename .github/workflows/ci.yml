@@ -132,9 +132,10 @@ jobs:
 
       - name: Evidence bytes are unmodified on this branch
         run: |
-          if ! git diff --quiet origin/main -- docs/evidence/; then
-            echo "::error::docs/evidence/ differs from main. Historical evidence is immutable."
-            git diff --stat origin/main -- docs/evidence/
+          # New evidence packs may be added; existing evidence may never change or disappear.
+          if ! git diff --quiet --diff-filter=MDR origin/main -- docs/evidence/; then
+            echo "::error::Existing files under docs/evidence/ were modified or removed. Historical evidence is immutable."
+            git diff --stat --diff-filter=MDR origin/main -- docs/evidence/
             exit 1
           fi
-          echo "docs/evidence/ matches main."
+          echo "docs/evidence/: no existing evidence modified."

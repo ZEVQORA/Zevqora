@@ -4,6 +4,10 @@ import { getConfigSync, loadConfig } from './config';
 let client: SupabaseClient | null = null;
 let ready: Promise<SupabaseClient | null> | null = null;
 
+function usable(url: string, key: string) {
+  return /^https?:\/\/[^\s"']+$/.test(url) && key.length > 20 && !key.includes('[');
+}
+
 function build(url: string, key: string) {
   return createClient(url, key, {
     auth: {
@@ -21,13 +25,13 @@ export function getSupabase(): Promise<SupabaseClient | null> {
   if (client) return Promise.resolve(client);
   if (ready) return ready;
   const sync = getConfigSync();
-  if (sync.supabaseUrl && sync.supabaseAnonKey) {
+  if (usable(sync.supabaseUrl, sync.supabaseAnonKey)) {
     client = build(sync.supabaseUrl, sync.supabaseAnonKey);
     ready = Promise.resolve(client);
     return ready;
   }
   ready = loadConfig().then((cfg) => {
-    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) return null;
+    if (!usable(cfg.supabaseUrl, cfg.supabaseAnonKey)) return null;
     client = build(cfg.supabaseUrl, cfg.supabaseAnonKey);
     return client;
   });
