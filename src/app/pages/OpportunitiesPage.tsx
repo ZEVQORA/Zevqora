@@ -23,7 +23,7 @@ type Filter = 'active' | 'verified' | 'rejected' | 'dismissed' | 'all';
 
 export default function OpportunitiesPage() {
   const { activeWorkspace, activeProjectId, me } = useSession();
-  const { projects, activeProject } = useProjects();
+  const { projects, activeProject, loading: projectsLoading } = useProjects();
   const inspector = useInspector();
   const toast = useToast();
   const navigate = useNavigate();
@@ -66,14 +66,17 @@ export default function OpportunitiesPage() {
     }
   };
 
+  // `?analyze=1` (command palette, overview, onboarding) runs once the project
+  // list has loaded, so the auto-run never fires against an empty project set.
+  const [autoAnalyze, setAutoAnalyze] = useState(params.get('analyze') === '1');
   useEffect(() => {
-    if (params.get('analyze') === '1') {
-      params.delete('analyze');
-      setParams(params, { replace: true });
-      void runAnalysis();
-    }
+    if (!autoAnalyze || projectsLoading) return;
+    setAutoAnalyze(false);
+    params.delete('analyze');
+    setParams(params, { replace: true });
+    void runAnalysis();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [autoAnalyze, projectsLoading]);
 
   const startTest = async (sampleSize?: number, qualityGate?: number) => {
     if (!testing) return;

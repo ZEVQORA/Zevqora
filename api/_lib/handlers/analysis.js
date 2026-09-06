@@ -51,10 +51,11 @@ on('POST', '/api/projects/:id/analyze', async ({ request, params }) => {
 
     const { data: existing } = await admin.from('opportunities').select('id,fingerprint,status').eq('project_id', projectId);
     const existingByFp = new Map((existing || []).map((o) => [o.fingerprint, o]));
+    // Every row carries the same key set: PostgREST bulk upserts reject mixed
+    // shapes, and the (project_id, fingerprint) constraint resolves updates.
     const upserts = result.opportunities.map((o) => {
       const prev = existingByFp.get(o.fingerprint);
       return {
-        ...(prev ? { id: prev.id } : {}),
         workspace_id: project.workspace_id,
         project_id: projectId,
         analysis_run_id: run.id,
