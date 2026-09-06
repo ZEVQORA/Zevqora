@@ -214,7 +214,7 @@ on('GET', '/api/admin/workspaces/:id', async ({ request, params }) => {
   const [{ data: planId }, { data: owner }, { data: members }, { data: projects }, { data: connections }, { data: usage }, { data: runs }, { data: experiments }, { data: sub }, { data: credit }] = await Promise.all([
     admin.rpc('workspace_plan', { ws: workspaceId }),
     admin.from('profiles').select('id,email,display_name').eq('id', ws.owner_id).maybeSingle(),
-    admin.from('workspace_members').select('user_id,role,created_at,profile:profiles!workspace_members_user_id_fkey(email,display_name)').eq('workspace_id', workspaceId),
+    admin.from('workspace_members').select('user_id,role,created_at').eq('workspace_id', workspaceId),
     admin.from('projects').select('id,name,slug,source_kind,created_at,archived_at').eq('workspace_id', workspaceId),
     admin.from('connections').select('id,project_id,kind,name,status,token_prefix,created_at,last_seen_at,revoked_at').eq('workspace_id', workspaceId),
     admin.rpc('usage_rollup', { p_workspace: workspaceId, p_since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() }),
@@ -223,11 +223,14 @@ on('GET', '/api/admin/workspaces/:id', async ({ request, params }) => {
     admin.from('subscriptions').select('plan,status,stripe_subscription_id,current_period_end').eq('user_id', ws.owner_id).maybeSingle(),
     admin.from('credit_balances').select('included_usd,used_usd,period_end').eq('user_id', ws.owner_id).maybeSingle(),
   ]);
+  const memberIds = (members || []).map((m) => m.user_id);
+  const { data: memberProfiles } = memberIds.length ? await admin.from('profiles').select('id,email,display_name').in('id', memberIds) : { data: [] };
+  const profileBy = Object.fromEntries((memberProfiles || []).map((p) => [p.id, p]));
   return {
     workspace: ws,
     plan: planId || 'free',
     owner,
-    members: (members || []).map((m) => ({ user_id: m.user_id, role: m.role, joined_at: m.created_at, email: m.profile?.email, display_name: m.profile?.display_name })),
+    members: (members || []).map((m) => ({ user_id: m.user_id, role: m.role, joined_at: m.created_at, email: profileBy[m.user_id]?.email || null, display_name: profileBy[m.user_id]?.display_name || null })),
     projects: projects || [],
     connections: connections || [],
     usage_30d: usage || [],
@@ -447,8 +450,11 @@ on('GET', '/api/admin/audit-log', async ({ request, query }) => {
 
 on('GET', '/api/admin/admins', async ({ request }) => {
   const { admin } = await adminContext(request);
-  const { data } = await admin.from('admin_roles').select('user_id,role,created_at,granted_by,profile:profiles!admin_roles_user_id_fkey(email,display_name)');
-  return { admins: (data || []).map((a) => ({ user_id: a.user_id, role: a.role, created_at: a.created_at, email: a.profile?.email, display_name: a.profile?.display_name })) };
+  const { data } = await admin.from('admin_roles').select('user_id,role,created_at,granted_by');
+  const ids = (data || []).map((a) => a.user_id);
+  const { data: profiles } = ids.length ? await admin.from('profiles').select('id,email,display_name').in('id', ids) : { data: [] };
+  const by = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
+  return { admins: (data || []).map((a) => ({ user_id: a.user_id, role: a.role, created_at: a.created_at, email: by[a.user_id]?.email || null, display_name: by[a.user_id]?.display_name || null })) };
 });
 
 on('POST', '/api/admin/admins', async ({ request }) => {

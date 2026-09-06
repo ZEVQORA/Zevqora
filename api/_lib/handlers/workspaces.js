@@ -176,10 +176,11 @@ on('GET', '/api/workspaces/:id/members', async ({ request, params }) => {
   const { user, admin } = await requireUser(request);
   const workspaceId = uuid(params.id, 'workspace');
   const role = await requireWorkspaceRole(admin, workspaceId, user.id, 'viewer');
-  const { data: members } = await admin
-    .from('workspace_members')
-    .select('user_id,role,created_at,last_active_at,invited_by,profile:profiles!workspace_members_user_id_fkey(email,display_name,username,avatar_url,last_active_at)')
-    .eq('workspace_id', workspaceId);
+  const { data: memberRows } = await admin.from('workspace_members').select('user_id,role,created_at,last_active_at,invited_by').eq('workspace_id', workspaceId);
+  const memberIds = (memberRows || []).map((m) => m.user_id);
+  const { data: profiles } = memberIds.length ? await admin.from('profiles').select('id,email,display_name,username,avatar_url,last_active_at').in('id', memberIds) : { data: [] };
+  const profileBy = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
+  const members = (memberRows || []).map((m) => ({ ...m, profile: profileBy[m.user_id] || null }));
   let invites = [];
   if (roleRank(role) >= roleRank('admin')) {
     const { data } = await admin.from('workspace_invites').select('id,email,role,expires_at,created_at,invited_by').eq('workspace_id', workspaceId).is('accepted_at', null).gt('expires_at', new Date().toISOString());

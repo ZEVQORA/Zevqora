@@ -57,7 +57,7 @@ export default function AdminOverviewPage() {
               <li key={e.id} className="py-2.5"><div className="flex items-center justify-between gap-2"><span className="font-mono text-technical text-ink">experiment {shortId(e.id)}</span><StatusChip status={e.status} /></div><p className="text-technical mt-0.5 truncate text-subtle">{e.error || e.strategy} · {relativeTime(e.created_at)}</p></li>
             ))}
             {(o?.recent_runs || []).slice(0, 5).map((r) => (
-              <li key={r.id} className="py-2.5"><div className="flex items-center justify-between gap-2"><span className="font-mono text-technical text-ink">analysis {shortId(r.id)}</span><StatusChip status={r.status} /></div><p className="text-technical mt-0.5 text-subtle">{r.events_analyzed} events · {r.opportunities_found} found · {relativeTime(r.created_at)}</p></li>
+              <li key={r.id} className="py-2.5"><div className="flex items-center justify-between gap-2"><span className="font-mono text-technical text-ink">analysis {shortId(r.id)}</span><StatusChip status={r.status} label={r.status === 'failed' ? 'FAILED' : undefined} /></div><p className="text-technical mt-0.5 text-subtle">{r.events_analyzed} events · {r.opportunities_found} found · {relativeTime(r.created_at)}</p></li>
             ))}
             {o && !o.recent_errors.length && !o.recent_runs.length && <li className="py-3 text-technical text-subtle">Nothing yet.</li>}
           </ul>

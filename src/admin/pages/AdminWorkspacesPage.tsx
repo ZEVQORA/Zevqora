@@ -80,7 +80,7 @@ function WorkspaceDetail({ id }: { id: string }) {
           <PanelHeader title="Recent analysis & experiments" className="px-3" />
           <Table minWidth={520}><thead><tr><Th>Item</Th><Th>Status</Th><Th align="right">Result</Th><Th>When</Th></tr></thead><tbody>
             {d.recent_experiments.map((e) => <tr key={e.id}><Td mono>experiment {shortId(e.id)} · {e.strategy}</Td><Td><StatusChip status={e.status} /></Td><Td align="right" mono>{e.verified_savings_pct !== null ? `−${e.verified_savings_pct}%` : '—'} · {money(e.credits_usd, { digits: 4 })}</Td><Td mono>{dateTime(e.created_at)}</Td></tr>)}
-            {d.recent_runs.map((r) => <tr key={r.id}><Td mono>analysis {shortId(r.id)}</Td><Td><StatusChip status={r.status} /></Td><Td align="right" mono>{r.events_analyzed} ev · {r.opportunities_found} opp</Td><Td mono>{dateTime(r.created_at)}</Td></tr>)}
+            {d.recent_runs.map((r) => <tr key={r.id}><Td mono>analysis {shortId(r.id)}</Td><Td><StatusChip status={r.status} label={r.status === 'failed' ? 'FAILED' : undefined} /></Td><Td align="right" mono>{r.events_analyzed} ev · {r.opportunities_found} opp</Td><Td mono>{dateTime(r.created_at)}</Td></tr>)}
             {!d.recent_runs.length && !d.recent_experiments.length && <tr><Td colSpan={4} className="text-subtle">Nothing yet.</Td></tr>}
           </tbody></Table>
         </Panel>

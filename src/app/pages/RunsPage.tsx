@@ -35,7 +35,7 @@ export default function RunsPage() {
                     <Td>{name(r.project_id)}</Td>
                     <Td align="right" mono>{r.events_analyzed}</Td>
                     <Td align="right" mono>{r.opportunities_found}</Td>
-                    <Td><StatusChip status={r.status} />{r.error && <div className="text-technical mt-1 text-rejected">{r.error}</div>}</Td>
+                    <Td><StatusChip status={r.status} label={r.status === 'failed' ? 'FAILED' : undefined} />{r.error && <div className="text-technical mt-1 text-rejected">{r.error}</div>}</Td>
                   </tr>
                 ))}
               </tbody>
