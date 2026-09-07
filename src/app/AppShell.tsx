@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router';
 import { AnimatePresence, motion } from 'motion/react';
-import { Activity, BarChart3, BookOpen, ChevronsUpDown, FileText, FlaskConical, FolderKanban, Home, Lightbulb, LogOut, Menu, Monitor, Plug, Radio, Search, Settings, Shield, Users, X, PanelLeftClose, PanelLeftOpen, ChevronRight, Check, Plus } from 'lucide-react';
+import { Activity, BarChart3, BookOpen, ChevronsUpDown, FileText, FlaskConical, FolderGit2, FolderKanban, GitPullRequest, Home, Lightbulb, LogOut, Menu, MessageSquare, Monitor, Plug, Radio, Search, Settings, Shield, Users, X, PanelLeftClose, PanelLeftOpen, ChevronRight, Check, Plus } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useSession } from '@/lib/session';
 import { ZevqoraMark } from '@/brand/ZevqoraMark';
@@ -14,15 +14,18 @@ import { useAsync } from '@/lib/useAsync';
 import { listProjects } from './data';
 import type { Project } from '@/lib/types';
 
-export const NAV = [
+export const NAV: Array<{ to: string; label: string; Icon: typeof Home; end?: boolean; section?: string }> = [
   { to: '/app', label: 'Overview', Icon: Home, end: true },
-  { to: '/app/projects', label: 'Projects', Icon: FolderKanban },
-  { to: '/app/opportunities', label: 'Opportunities', Icon: Lightbulb },
-  { to: '/app/experiments', label: 'Experiments', Icon: FlaskConical },
+  { to: '/app/project', label: 'Project', Icon: FolderGit2 },
+  { to: '/app/opportunities', label: 'Opportunities', Icon: Lightbulb, end: true },
+  { to: '/app/experiments', label: 'Experiments', Icon: FlaskConical, end: true },
+  { to: '/app/changes', label: 'Changes', Icon: GitPullRequest },
+  { to: '/app/zev', label: 'Zev', Icon: MessageSquare },
+  { to: '/app/runtime', label: 'Live Runtime', Icon: Radio, section: 'Workspace' },
+  { to: '/app/connections', label: 'Connections', Icon: Plug },
+  { to: '/app/projects', label: 'Cloud projects', Icon: FolderKanban },
   { to: '/app/runs', label: 'Runs / Replay', Icon: Activity },
   { to: '/app/evidence', label: 'Evidence', Icon: Shield },
-  { to: '/app/runtime', label: 'Live Runtime', Icon: Radio },
-  { to: '/app/connections', label: 'Connections', Icon: Plug },
   { to: '/app/reports', label: 'Reports', Icon: FileText },
   { to: '/app/usage', label: 'Usage', Icon: BarChart3 },
   { to: '/app/team', label: 'Team', Icon: Users },
@@ -30,6 +33,12 @@ export const NAV = [
   { to: '/app/docs', label: 'Docs', Icon: BookOpen },
   { to: '/download', label: 'Desktop app', Icon: Monitor },
 ];
+
+/** Product routes render edge-to-edge (they carry their own toolbar and Evidence Inspector). */
+const PRODUCT_PATHS = new Set(['/app', '/app/project', '/app/opportunities', '/app/experiments', '/app/changes', '/app/zev']);
+export function isProductPath(pathname: string) {
+  return PRODUCT_PATHS.has(pathname.replace(/\/+$/, '') || '/app');
+}
 
 interface ProjectsCtx {
   projects: Project[];
@@ -198,6 +207,7 @@ export function AppShell() {
 
   const crumbs = location.pathname.split('/').filter(Boolean).slice(1);
   const title = TITLES[location.pathname.split('/').slice(0, 3).join('/')] || 'Overview';
+  const productRoute = isProductPath(location.pathname);
 
   const sidebar = (
     <aside className={cn('glass-sidebar flex h-full flex-col', collapsed ? 'w-[68px]' : 'w-[248px]')}>
@@ -215,7 +225,8 @@ export function AppShell() {
       <nav aria-label="Application" className="scrollbar-thin mt-3 flex-1 overflow-y-auto px-2.5">
         <ul className="flex flex-col gap-0.5">
           {NAV.map((item) => (
-            <li key={item.to}>
+            <li key={item.to} className={item.section ? 'mt-2 border-t border-line/60 pt-2' : undefined}>
+              {item.section && !collapsed && <div className="text-technical px-2.5 pb-1 pt-1 font-medium uppercase tracking-[0.08em] text-subtle">{item.section}</div>}
               <NavLink to={item.to} end={item.end} title={collapsed ? item.label : undefined} className={({ isActive }) => cn('text-caption group flex items-center gap-2.5 rounded-md px-2.5 py-2 transition-control', isActive ? 'bg-surface text-ink shadow-[0_1px_2px_rgb(15_17_21/0.06),inset_0_0_0_1px_rgb(15_17_21/0.04)]' : 'text-muted hover:bg-surface/60 hover:text-ink', collapsed && 'justify-center px-0')}>
                 {({ isActive }) => (
                   <>
@@ -287,12 +298,16 @@ export function AppShell() {
                 <UserMenu />
               </div>
             </header>
-            <main className="min-w-0 flex-1 px-4 py-6 lg:px-8 lg:py-8">
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div key={location.pathname.split('/').slice(0, 4).join('/')} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }} className="mx-auto w-full max-w-[1320px]">
-                  <Outlet />
-                </motion.div>
-              </AnimatePresence>
+            <main className={cn('min-w-0 flex-1', !productRoute && 'px-4 py-6 lg:px-8 lg:py-8')}>
+              {productRoute ? (
+                <Outlet />
+              ) : (
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div key={location.pathname.split('/').slice(0, 4).join('/')} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }} className="mx-auto w-full max-w-[1320px]">
+                    <Outlet />
+                  </motion.div>
+                </AnimatePresence>
+              )}
             </main>
           </div>
           <InspectorPanel />

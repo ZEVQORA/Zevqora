@@ -118,6 +118,14 @@
   --color-warning: var(--zq-warning);
   --color-warning-bg: var(--zq-warning-bg);
   --color-brand: #468bff;
+  --color-blue: #468bff;
+  --color-blue-50: #eef4ff;
+  --color-blue-100: #dce8ff;
+  --color-blue-700: #2f6fdc;
+  --color-blue-800: #2a61c4;
+  --color-cloud: #f7f8fa;
+  --color-stone: #e6e9ee;
+  --color-stone-300: #d5dae2;
   --color-brand-ink: #0f1115;
 
   --font-sans: "Satoshi", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;

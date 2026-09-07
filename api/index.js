@@ -11,6 +11,7 @@ import { dispatch } from './_lib/router.js';
 import './_lib/handlers/public.js';
 import './_lib/handlers/desktop.js';
 import './_lib/handlers/platform.js';
+import './_lib/handlers/engine.js';
 import './_lib/handlers/stripe.js';
 import './_lib/handlers/cron.js';
 import './_lib/handlers/me.js';
