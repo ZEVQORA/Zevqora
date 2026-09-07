@@ -124,3 +124,32 @@ def test_health_stays_responsive_while_blocking_work_runs():
     ticks = asyncio.run(scenario())
     # If the sleep had run on the loop, nothing else would have been scheduled.
     assert ticks > 5, "event loop was blocked while background work ran"
+
+
+def test_private_network_preflight_is_granted_only_to_allowlisted_origins(monkeypatch):
+    """The desktop shell renders the hosted product, so its calls to 127.0.0.1
+    are public -> private requests. Chrome fails those at preflight unless the
+    local server opts in; every other origin must still be refused."""
+    from fastapi.testclient import TestClient
+
+    from app.core.config import settings
+    from app.main import create_app
+
+    monkeypatch.setattr(settings, "api_allowed_origins", ("https://zevqora.vercel.app", "null"))
+
+    with TestClient(create_app()) as client:
+        headers = {
+            "Origin": "https://zevqora.vercel.app",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Private-Network": "true",
+        }
+        granted = client.options("/api/v1/products", headers=headers)
+        assert granted.headers.get("Access-Control-Allow-Private-Network") == "true"
+        assert granted.headers.get("Access-Control-Allow-Origin") == "https://zevqora.vercel.app"
+
+        refused = client.options(
+            "/api/v1/products",
+            headers={**headers, "Origin": "https://evil.example"},
+        )
+        assert "Access-Control-Allow-Private-Network" not in refused.headers
+        assert "Access-Control-Allow-Origin" not in refused.headers

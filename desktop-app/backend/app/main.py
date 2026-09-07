@@ -295,6 +295,26 @@ def create_app(
         allow_headers=["Content-Type", "X-Zevqora-Token"],
         allow_credentials=False,
     )
+
+    # Added last, so it wraps CORSMiddleware and can decorate the preflight
+    # response that middleware short-circuits.
+    #
+    # The desktop shell renders the hosted product, so its page lives on a
+    # public origin and every call to 127.0.0.1 is a public -> private request.
+    # Chrome's Private Network Access rules fail those at preflight unless the
+    # local server opts in. Granted only to origins already on the CORS
+    # allowlist; the per-launch token still decides what may actually be done.
+    @application.middleware("http")
+    async def _allow_private_network(request, call_next):
+        response = await call_next(request)
+        if (
+            request.method == "OPTIONS"
+            and request.headers.get("access-control-request-private-network") == "true"
+            and request.headers.get("origin") in set(settings.api_allowed_origins)
+        ):
+            response.headers["Access-Control-Allow-Private-Network"] = "true"
+        return response
+
     _register_routes(application)
     return application
 
