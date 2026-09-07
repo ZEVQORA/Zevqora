@@ -5,6 +5,7 @@ import json
 from sqlalchemy.orm import Session
 
 from ..config import settings
+from ..core.platform import provider_available, provider_mode
 from ..schemas import AgentChatResponse, ToolEvent
 from .openrouter import run_openrouter_agent
 from .tools import execute_tool
@@ -17,17 +18,17 @@ async def chat(
     history: list[dict[str, str]],
     model: str | None,
 ) -> AgentChatResponse:
-    if settings.openrouter_api_key:
+    if provider_available():
         message, chosen_model, events = await run_openrouter_agent(
             db,
             product_id=product_id,
             history=history,
-            model=model,
+            model=model or settings.agent_model,
         )
         return AgentChatResponse(
             message=message,
             model=chosen_model,
-            provider="openrouter",
+            provider="openrouter" if provider_mode() == "local_key" else "zevqora-platform",
             tool_events=events,
             openrouter_configured=True,
         )
@@ -63,8 +64,9 @@ async def chat(
         )
     else:
         text = (
-            "Zev is ready, but OpenRouter is not configured. Set OPENROUTER_API_KEY in the backend process to enable full conversational reasoning. "
-            "Without a key I can still run explicit local actions: ask me to 'scan this product', 'show findings', or 'show spend'."
+            "Zev is ready, but no model provider is connected. Sign in to your ZEVQORA account to use platform compute, "
+            "or add a device-local OpenRouter key in Settings. "
+            "Without a provider I can still run explicit local actions: ask me to 'scan this product', 'show findings', or 'show spend'."
         )
 
     return AgentChatResponse(

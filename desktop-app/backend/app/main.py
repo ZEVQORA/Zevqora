@@ -15,6 +15,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .agent.service import chat as agent_chat
 from .config import settings
+from .core import platform
 from .core.api_auth import API_TOKEN_HEADER, resolve_api_token, token_matches, token_required
 from .core.db_migrate import ensure_schema
 from .core.errors import MigrationError
@@ -31,11 +32,20 @@ from .evidence.protection import (
 )
 from .evidence.service import economics, import_traces
 from .experiments.service import list_experiments, run_experiment
-from .implementation.service import ImplementationError, list_implementations, prepare_implementation
+from .implementation.service import (
+    ImplementationError,
+    decide_implementation,
+    implementation_git_context,
+    list_implementations,
+    prepare_implementation,
+    push_implementation,
+    record_pr_url,
+)
 from .optimization.bridge import project_execution_onto_traces
 from .optimization.executor import execute_plan, get_execution, list_executions
 from .optimization.planner import create_plans, get_plan, list_plans
-from .providers.factory import aclose_providers, get_provider
+from .providers.factory import aclose_providers, get_provider, reset_platform_provider
+from .providers.pricing import get_pricing_snapshot
 from .schemas import (
     AgentChatRequest,
     AgentChatResponse,
@@ -48,13 +58,18 @@ from .schemas import (
     ExperimentRunRequest,
     FindingOut,
     HealthResponse,
+    ImplementationDecisionRequest,
+    ImplementationGitContextOut,
     ImplementationOut,
     ImplementationPrepareRequest,
+    ImplementationPushOut,
     MonitoringRequest,
     OptimizationExecuteRequest,
     OptimizationExecutionOut,
     OptimizationPlanCreateRequest,
     OptimizationPlanOut,
+    PlatformSessionRequest,
+    PlatformStatusOut,
     ProductOut,
     ScanResult,
     TraceImportRequest,
@@ -287,7 +302,87 @@ def create_app(
 def _register_routes(app: FastAPI) -> None:
     @app.get("/api/health", response_model=HealthResponse)
     def health() -> HealthResponse:
-        return HealthResponse(status="ok", version=VERSION, openrouter_configured=bool(settings.openrouter_api_key))
+        return HealthResponse(
+            status="ok",
+            version=VERSION,
+            openrouter_configured=platform.provider_available(),
+            provider_mode=platform.provider_mode(),
+            platform_connected=platform.session_active(),
+        )
+
+    # ---- Platform session (ZEVQORA account service) --------------------------
+    def _platform_status() -> PlatformStatusOut:
+        from .optimization.strategies.model_substitution import allowed_candidate_models
+
+        session = platform.get_session()
+        pricing = get_pricing_snapshot()
+        info = session.redacted() if session else {}
+        return PlatformStatusOut(
+            mode=platform.provider_mode(),
+            connected=session is not None,
+            base_url=info.get("base_url"),
+            user_id=info.get("user_id"),
+            email=info.get("email"),
+            workspace_id=info.get("workspace_id"),
+            project_id=info.get("project_id"),
+            plan=info.get("plan"),
+            token_fingerprint=info.get("token_fingerprint"),
+            candidate_models=sorted(allowed_candidate_models()),
+            pricing_version=pricing.version,
+            pricing_synced="+" in pricing.version,
+            pricing_models=len(pricing.models),
+        )
+
+    @app.get("/api/v1/platform/status", response_model=PlatformStatusOut)
+    def platform_status() -> PlatformStatusOut:
+        return _platform_status()
+
+    @app.post("/api/v1/platform/session", response_model=PlatformStatusOut)
+    async def platform_set_session(request: PlatformSessionRequest) -> PlatformStatusOut:
+        try:
+            session = platform.set_session(
+                base_url=request.base_url,
+                access_token=request.access_token,
+                user_id=request.user_id,
+                email=request.email,
+                workspace_id=request.workspace_id,
+                project_id=request.project_id,
+                plan=request.plan,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        reset_platform_provider()
+        await _sync_platform_pricing(session)
+        return _platform_status()
+
+    @app.delete("/api/v1/platform/session", response_model=PlatformStatusOut)
+    def platform_clear_session() -> PlatformStatusOut:
+        platform.clear_session()
+        reset_platform_provider()
+        return _platform_status()
+
+    async def _sync_platform_pricing(session) -> None:
+        """Best effort: pull public list prices so replays can be budgeted before spend."""
+        import httpx
+
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                response = await client.get(
+                    f"{session.base_url}/api/platform/pricing",
+                    headers={"Authorization": f"Bearer {session.access_token}"},
+                )
+            if response.status_code != 200:
+                logger.warning("platform.pricing_sync_failed", extra={"request_id": str(response.status_code)})
+                return
+            body = response.json()
+            merged = get_pricing_snapshot().merge_rates(
+                body.get("models") or {},
+                version=str(body.get("version") or "platform"),
+                source=str(body.get("source") or "zevqora_platform"),
+            )
+            logger.info("platform.pricing_synced", extra={"request_id": str(merged)})
+        except Exception as exc:  # network trouble must never block sign-in
+            logger.warning("platform.pricing_sync_error", extra={"request_id": type(exc).__name__})
 
     @app.get("/api/v1/products", response_model=list[ProductOut])
     def list_products(db: Session = Depends(get_db)):
@@ -470,6 +565,59 @@ def _register_routes(app: FastAPI) -> None:
     ):
         try:
             return await prepare_implementation(db, product_id, request)
+        except ImplementationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.get(
+        "/api/v1/products/{product_id}/implementations/{implementation_id}/git-context",
+        response_model=ImplementationGitContextOut,
+    )
+    async def implementation_git(product_id: str, implementation_id: str, db: Session = Depends(get_db)):
+        try:
+            return ImplementationGitContextOut(**(await implementation_git_context(db, product_id, implementation_id)))
+        except ImplementationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post(
+        "/api/v1/products/{product_id}/implementations/{implementation_id}/decision",
+        response_model=ImplementationOut,
+    )
+    def implementation_decision(
+        product_id: str,
+        implementation_id: str,
+        request: ImplementationDecisionRequest,
+        db: Session = Depends(get_db),
+    ):
+        try:
+            return decide_implementation(
+                db, product_id, implementation_id, decision=request.decision, note=request.note
+            )
+        except ImplementationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post(
+        "/api/v1/products/{product_id}/implementations/{implementation_id}/push",
+        response_model=ImplementationPushOut,
+    )
+    async def implementation_push(product_id: str, implementation_id: str, db: Session = Depends(get_db)):
+        try:
+            return ImplementationPushOut(**(await push_implementation(db, product_id, implementation_id)))
+        except ImplementationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post(
+        "/api/v1/products/{product_id}/implementations/{implementation_id}/pr-link",
+        response_model=ImplementationOut,
+    )
+    def implementation_pr_link(
+        product_id: str,
+        implementation_id: str,
+        request: dict,
+        db: Session = Depends(get_db),
+    ):
+        url = str((request or {}).get("pr_url") or "")
+        try:
+            return record_pr_url(db, product_id, implementation_id, url)
         except ImplementationError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 

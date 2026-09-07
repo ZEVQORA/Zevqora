@@ -24,6 +24,44 @@ class PricingSnapshot:
     def load(cls, path: str | Path) -> PricingSnapshot:
         return cls(Path(path))
 
+    def merge_rates(self, models: dict[str, dict], *, version: str, source: str | None = None) -> int:
+        """Overlay public list prices fetched from the ZEVQORA platform.
+
+        Only entries carrying both input and output rates are accepted, so an
+        incomplete row can never turn an unknown model into a priced one. The
+        snapshot version records both origins so evidence stays attributable.
+        """
+        merged = 0
+        for model, entry in (models or {}).items():
+            if not isinstance(entry, dict):
+                continue
+            inp = entry.get("input_per_million")
+            out = entry.get("output_per_million")
+            if inp is None or out is None:
+                continue
+            try:
+                clean: dict = {
+                    "provider": str(entry.get("provider") or str(model).split("/")[0]),
+                    "input_per_million": float(inp),
+                    "output_per_million": float(out),
+                }
+            except (TypeError, ValueError):
+                continue
+            cached = entry.get("cached_input_per_million")
+            if cached is not None:
+                try:
+                    clean["cached_input_per_million"] = float(cached)
+                except (TypeError, ValueError):
+                    pass
+            self.models[str(model)] = clean
+            merged += 1
+        if merged:
+            base = self.version.split("+")[0]
+            self.version = f"{base}+{version}"
+            if source:
+                self.source = f"{self.source or 'local'}+{source}"
+        return merged
+
     def has_verified_rates(self, model: str) -> bool:
         entry = self.models.get(model)
         if not entry:

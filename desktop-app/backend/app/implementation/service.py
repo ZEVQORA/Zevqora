@@ -15,8 +15,9 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..core.errors import ProviderError, SubprocessError, UnsafeCommandError
+from ..core.platform import provider_available
 from ..core.subprocesses import run_argv, run_command_string
-from ..db_models import Experiment, Finding, Implementation, Product
+from ..db_models import Experiment, Finding, Implementation, Product, utcnow
 from ..providers.factory import get_provider
 from ..providers.models import LLMMessage, LLMRequest
 from ..schemas import ImplementationOut, ImplementationPrepareRequest
@@ -80,8 +81,11 @@ async def _generate_replacement(
     experiment: Experiment,
     instructions: str | None,
 ) -> tuple[str, str]:
-    if not settings.openrouter_api_key:
-        raise ImplementationError("OPENROUTER_API_KEY is required to prepare a code implementation.")
+    if not provider_available():
+        raise ImplementationError(
+            "A model provider is required to prepare a code implementation. "
+            "Sign in to ZEVQORA for platform compute or add a device-local OpenRouter key."
+        )
 
     system = """You are the controlled implementation worker inside ZEVQORA.
 Return JSON only with exactly this structure:
@@ -163,6 +167,11 @@ def _implementation_out(row: Implementation) -> ImplementationOut:
         test_output=row.test_output,
         model=row.model,
         created_at=row.created_at,
+        review_note=getattr(row, "review_note", None),
+        reviewed_at=getattr(row, "reviewed_at", None),
+        pushed_at=getattr(row, "pushed_at", None),
+        remote_url=getattr(row, "remote_url", None),
+        pr_url=getattr(row, "pr_url", None),
     )
 
 
@@ -353,6 +362,178 @@ async def prepare_implementation(
             # Failed candidates should not leave an untracked worktree/branch behind.
             await _run_git(["worktree", "remove", "--force", str(worktree)], repo_root, timeout=60)
             await _run_git(["branch", "-D", branch], repo_root, timeout=30)
+
+
+def _load_implementation(db: Session, product_id: str, implementation_id: str) -> Implementation:
+    row = db.scalar(
+        select(Implementation).where(
+            Implementation.id == implementation_id,
+            Implementation.product_id == product_id,
+        )
+    )
+    if not row:
+        raise ImplementationError("Implementation candidate not found for this product.")
+    return row
+
+
+_REMOTE_HOSTS = ("github.com", "gitlab.com", "bitbucket.org")
+
+
+def parse_remote(remote: str | None) -> tuple[str | None, str | None]:
+    """(host, owner/repo) for https or ssh remotes on the hosts we can link to."""
+    if not remote:
+        return None, None
+    value = remote.strip()
+    match = re.match(r"^(?:https?://|ssh://)?(?:[\w.-]+@)?([\w.-]+)[:/]+([\w.-]+/[\w.-]+?)(?:\.git)?/?$", value)
+    if not match:
+        return None, None
+    host, path = match.group(1).lower(), match.group(2)
+    if host not in _REMOTE_HOSTS:
+        return host, None
+    return host, path
+
+
+def compare_url_for(remote: str | None, default_branch: str, branch: str) -> str | None:
+    """A browser URL that opens a pull/merge request for the pushed branch."""
+    host, path = parse_remote(remote)
+    if not host or not path:
+        return None
+    from urllib.parse import quote
+
+    b = quote(branch, safe="")
+    base = quote(default_branch, safe="")
+    if host == "github.com":
+        return f"https://github.com/{path}/compare/{base}...{b}?expand=1"
+    if host == "gitlab.com":
+        return f"https://gitlab.com/{path}/-/merge_requests/new?merge_request%5Bsource_branch%5D={b}"
+    if host == "bitbucket.org":
+        return f"https://bitbucket.org/{path}/pull-requests/new?source={b}"
+    return None
+
+
+async def _repo_root_for(product: Product) -> Path:
+    root = Path(product.root_path).resolve()
+    check = await _run_git(["rev-parse", "--show-toplevel"], root)
+    if check.returncode != 0:
+        raise ImplementationError("The connected product is not inside a Git repository.")
+    return Path(check.stdout.strip()).resolve()
+
+
+async def _remote_and_default_branch(repo_root: Path) -> tuple[str | None, str]:
+    remote_proc = await _run_git(["remote", "get-url", "origin"], repo_root)
+    remote = remote_proc.stdout.strip() if remote_proc.returncode == 0 and remote_proc.stdout.strip() else None
+    default = "main"
+    head = await _run_git(["symbolic-ref", "--short", "refs/remotes/origin/HEAD"], repo_root)
+    if head.returncode == 0 and head.stdout.strip():
+        default = head.stdout.strip().split("/", 1)[-1]
+    else:
+        for candidate in ("main", "master"):
+            probe = await _run_git(["rev-parse", "--verify", "--quiet", f"refs/heads/{candidate}"], repo_root)
+            if probe.returncode == 0:
+                default = candidate
+                break
+    return remote, default
+
+
+async def implementation_git_context(db: Session, product_id: str, implementation_id: str) -> dict[str, Any]:
+    row = _load_implementation(db, product_id, implementation_id)
+    product = db.scalar(select(Product).where(Product.id == product_id))
+    if not product:
+        raise ImplementationError("Product not found.")
+    repo_root = await _repo_root_for(product)
+    remote, default_branch = await _remote_and_default_branch(repo_root)
+    host, _ = parse_remote(remote)
+    return {
+        "implementation_id": row.id,
+        "branch_name": row.branch_name,
+        "worktree_path": row.worktree_path,
+        "worktree_exists": Path(row.worktree_path).exists(),
+        "remote_url": remote,
+        "remote_host": host,
+        "default_branch": default_branch,
+        "compare_url": compare_url_for(remote, default_branch, row.branch_name),
+        "pushed_at": row.pushed_at,
+        "pr_url": row.pr_url,
+        "status": row.status,
+    }
+
+
+def decide_implementation(
+    db: Session,
+    product_id: str,
+    implementation_id: str,
+    *,
+    decision: str,
+    note: str | None,
+    pr_url: str | None = None,
+) -> ImplementationOut:
+    """Record the human decision. Approval only marks the candidate for review; nothing is merged."""
+    row = _load_implementation(db, product_id, implementation_id)
+    if decision == "reject":
+        row.status = "REJECTED"
+    elif decision == "approve":
+        if row.status == "TESTS_FAILED":
+            raise ImplementationError("A candidate whose tests failed cannot be approved for review. Fix or reject it.")
+        row.status = "APPROVED_FOR_REVIEW"
+    else:
+        raise ImplementationError("Decision must be approve or reject.")
+    row.review_note = (note or "").strip()[:2000] or None
+    row.reviewed_at = utcnow()
+    if pr_url:
+        row.pr_url = pr_url
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return _implementation_out(row)
+
+
+def record_pr_url(db: Session, product_id: str, implementation_id: str, pr_url: str) -> ImplementationOut:
+    row = _load_implementation(db, product_id, implementation_id)
+    cleaned = pr_url.strip()
+    if not re.match(r"^https://(github\.com|gitlab\.com|bitbucket\.org)/", cleaned):
+        raise ImplementationError("Pull request URL must point at GitHub, GitLab or Bitbucket over HTTPS.")
+    row.pr_url = cleaned[:500]
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return _implementation_out(row)
+
+
+async def push_implementation(db: Session, product_id: str, implementation_id: str) -> dict[str, Any]:
+    """Push the candidate branch to origin from its isolated worktree.
+
+    This is the only network-facing Git action ZEVQORA performs, it runs only on
+    an explicit click, and it never merges. Credentials come from the user's own
+    Git configuration; the engine adds none.
+    """
+    row = _load_implementation(db, product_id, implementation_id)
+    if row.status == "REJECTED":
+        raise ImplementationError("A rejected candidate cannot be pushed.")
+    worktree = Path(row.worktree_path)
+    if not worktree.exists():
+        raise ImplementationError("The isolated worktree no longer exists. Prepare the candidate again.")
+    product = db.scalar(select(Product).where(Product.id == product_id))
+    if not product:
+        raise ImplementationError("Product not found.")
+    repo_root = await _repo_root_for(product)
+    remote, default_branch = await _remote_and_default_branch(repo_root)
+    if not remote:
+        raise ImplementationError("The repository has no 'origin' remote to push to.")
+    result = await _run_git(["push", "-u", "origin", row.branch_name], worktree, timeout=180)
+    output = ((result.stdout or "") + (result.stderr or "")).strip()[-6000:]
+    if result.returncode != 0:
+        raise ImplementationError(f"git push failed: {output[:800] or 'unknown error'}")
+    row.pushed_at = utcnow()
+    row.remote_url = remote
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {
+        "ok": True,
+        "output": output,
+        "compare_url": compare_url_for(remote, default_branch, row.branch_name),
+        "pushed_at": row.pushed_at,
+    }
 
 
 def list_implementations(db: Session, product_id: str) -> list[ImplementationOut]:

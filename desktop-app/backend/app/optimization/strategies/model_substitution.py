@@ -32,7 +32,10 @@ from .base import OptimizationStrategy
 
 
 def allowed_candidate_models() -> set[str]:
-    return set(settings.candidate_models)
+    """Configured allowlist, widened with platform candidates when a real provider path exists."""
+    from ...core.platform import allowed_platform_candidate_models
+
+    return set(settings.candidate_models) | allowed_platform_candidate_models()
 
 
 def classify_provider_error(exc: Exception) -> tuple[ErrorCategory, str]:

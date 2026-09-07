@@ -41,8 +41,32 @@ def _avg(values: list[float | None]) -> float | None:
     return mean(clean) if clean else None
 
 
+def _gate_out(item: dict) -> GateOut:
+    """Accept both the legacy gate shape and the evaluation gate shape.
+
+    Evaluations projected onto Experiment rows store gates as
+    {name, required, outcome, observed, threshold, reason}; the legacy replay
+    path stores {name, passed, detail}. Listing must never 500 on either.
+    """
+    if "passed" in item:
+        return GateOut(
+            name=str(item.get("name", "gate")), passed=bool(item["passed"]), detail=str(item.get("detail") or "")
+        )
+    outcome = str(item.get("outcome") or "")
+    required = bool(item.get("required", True))
+    passed = outcome == "passed" or (not required and outcome == "informational")
+    detail = str(item.get("reason") or "")
+    if item.get("observed") is not None or item.get("threshold") is not None:
+        detail = f"{detail} (observed {item.get('observed')!r}, threshold {item.get('threshold')!r})".strip()
+    return GateOut(name=str(item.get("name", "gate")), passed=passed, detail=detail)
+
+
 def _to_out(exp: Experiment) -> ExperimentOut:
-    gates = [GateOut(**item) for item in json.loads(exp.gates_json)]
+    try:
+        raw_gates = json.loads(exp.gates_json or "[]")
+    except json.JSONDecodeError:
+        raw_gates = []
+    gates = [_gate_out(item) for item in raw_gates if isinstance(item, dict)]
     return ExperimentOut(
         id=exp.id,
         product_id=exp.product_id,

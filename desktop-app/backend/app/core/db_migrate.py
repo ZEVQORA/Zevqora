@@ -16,7 +16,7 @@ from .logging import get_logger
 
 logger = get_logger(__name__)
 
-HEAD_REVISION = "0006_evidence_integrity"
+HEAD_REVISION = "0007_implementation_review"
 BASELINE_REVISION = "0001_desktop_agent_initial"
 
 # Expected MVP / 0001 schema fingerprint for legacy unversioned DBs.
