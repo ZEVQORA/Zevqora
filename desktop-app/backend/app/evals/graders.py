@@ -95,7 +95,9 @@ class ClassificationGrader(Grader):
 
     def grade(self, *, actual: str | None, expected: Any, spec: GraderSpec, context: dict[str, Any]) -> GraderResult:
         cfg = spec.config or {}
-        labels = [str(x) for x in (cfg.get("labels") or [])]
+        # Deduplicate so a label listed twice cannot turn one exact hit into an
+        # "ambiguous" two-hit rejection.
+        labels = list(dict.fromkeys(str(x) for x in (cfg.get("labels") or [])))
         expected_label = str(cfg.get("expected_label") or expected or "")
         strict = bool(cfg.get("strict", True))
         if actual is None:

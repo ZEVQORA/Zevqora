@@ -45,6 +45,31 @@ def _parse_samples(execution: CandidateExecution) -> list[dict[str, Any]]:
     return rows if isinstance(rows, list) else []
 
 
+DEFAULT_CLASSIFICATION_LABELS = ("billing", "technical", "account")
+
+
+def _is_label(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip()) and "\n" not in value.strip() and len(value.strip()) <= 80
+
+
+def _label_pool(samples: list[dict[str, Any]], traces: dict[str, Trace]) -> list[str]:
+    """Distinct single-line expected outputs across the execution, in first-seen order.
+
+    The label set a classification grader scores against comes from the
+    evidence itself, so a workload whose labels are not billing/technical/account
+    is graded against its own vocabulary. Falls back to the generic defaults
+    only when the evidence carries no labels at all.
+    """
+    pool: dict[str, None] = {}
+    for sample in samples:
+        bid = sample.get("baseline_trace_id")
+        trace = traces.get(bid) if bid else None
+        expected = (trace.expected_output if trace else None) or sample.get("expected_output")
+        if _is_label(expected):
+            pool[str(expected).strip()] = None
+    return list(pool) if pool else list(DEFAULT_CLASSIFICATION_LABELS)
+
+
 def _default_cases_from_execution(
     execution: CandidateExecution,
     traces: dict[str, Trace],
@@ -52,9 +77,10 @@ def _default_cases_from_execution(
     default_grader: GraderSpec | None = None,
 ) -> list[EvaluationCaseSpec]:
     samples = _parse_samples(execution)
+    pool = _label_pool(samples, traces)
     grader = default_grader or GraderSpec(
         name="classification",
-        config={"labels": ["billing", "technical", "account"], "strict": True},
+        config={"labels": list(pool), "strict": True},
     )
     cases: list[EvaluationCaseSpec] = []
     for sample in samples:
@@ -65,12 +91,15 @@ def _default_cases_from_execution(
         expected = (trace.expected_output if trace else None) or sample.get("expected_output")
         # Prefer classification when expected is a simple label; else exact match.
         g = grader
-        if expected and isinstance(expected, str) and expected.strip() and "\n" not in expected.strip():
+        if _is_label(expected):
+            label = str(expected).strip()
+            # Deduplicated: a label present twice would make an exact hit "ambiguous".
+            labels = list(dict.fromkeys([*pool, label]))
             g = GraderSpec(
                 name="classification",
                 config={
-                    "labels": ["billing", "technical", "account", expected.strip()],
-                    "expected_label": expected.strip(),
+                    "labels": labels,
+                    "expected_label": label,
                     "strict": True,
                 },
             )

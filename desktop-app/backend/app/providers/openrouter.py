@@ -43,10 +43,16 @@ class OpenRouterProvider(LLMProvider):
         max_retries: int | None = None,
         timeout_seconds: float | None = None,
         client: httpx.AsyncClient | None = None,
+        extra_headers: dict[str, str] | None = None,
+        via: str = "direct",
     ) -> None:
         self.api_key = api_key if api_key is not None else settings.openrouter_api_key
         self.base_url = (base_url or settings.openrouter_base_url).rstrip("/")
         self.site_url = site_url or settings.openrouter_site_url
+        # "direct": device-local OpenRouter key. "platform": the ZEVQORA account
+        # service proxies the call and holds the provider credential.
+        self.via = via
+        self.extra_headers = dict(extra_headers or {})
         self.max_retries = max_retries if max_retries is not None else settings.provider_max_retries
         self.default_timeout = timeout_seconds if timeout_seconds is not None else settings.provider_timeout_seconds
         self.pricing = get_pricing_snapshot()
@@ -66,13 +72,39 @@ class OpenRouterProvider(LLMProvider):
 
     def _headers(self) -> dict[str, str]:
         if not self.api_key:
+            if self.via == "platform":
+                raise ProviderError("Sign in to ZEVQORA to use platform compute.")
             raise ProviderError("OPENROUTER_API_KEY is not configured.")
-        return {
+        headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": self.site_url,
             "X-Title": "ZEVQORA Desktop",
         }
+        headers.update(self.extra_headers)
+        return headers
+
+    def _failure_message(self, status: int, text: str) -> str:
+        """Provider/platform error text without credentials or internals."""
+        body = text[:600]
+        if self.via != "platform":
+            return f"OpenRouter request failed ({status}): {body}"
+        detail = ""
+        code = ""
+        try:
+            parsed = json.loads(text)
+            if isinstance(parsed, dict):
+                detail = str(parsed.get("error") or "")[:300]
+                code = str(parsed.get("code") or "")
+        except (ValueError, TypeError):
+            detail = body
+        if status in (401, 403):
+            return "ZEVQORA platform session expired or was refused. Sign in again from Desktop."
+        if status == 402:
+            return f"ZEVQORA platform refused the request: {detail or 'insufficient Zev credit'} ({code or 'INSUFFICIENT_CREDITS'})."
+        if status == 429:
+            return "ZEVQORA platform rate limit reached. Retry shortly."
+        return f"ZEVQORA platform request failed ({status}): {detail or body}"
 
     @staticmethod
     def _message_payload(messages: list[LLMMessage]) -> list[dict[str, Any]]:
@@ -248,7 +280,7 @@ class OpenRouterProvider(LLMProvider):
                 continue
             if response.status_code >= 400:
                 # Do not include Authorization; response.text is provider error body only.
-                raise ProviderError(f"OpenRouter request failed ({response.status_code}): {response.text[:600]}")
+                raise ProviderError(self._failure_message(response.status_code, response.text))
 
             # Successful HTTP response: never retry from here (paid work may have completed).
             body = response.json()
@@ -287,7 +319,7 @@ class OpenRouterProvider(LLMProvider):
             logger.info(
                 "provider.complete",
                 extra={
-                    "provider": self.name,
+                    "provider": f"{self.name}:{self.via}",
                     "model": resolved_model,
                     "request_id": body.get("id"),
                 },

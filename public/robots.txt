@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /app/
+Disallow: /admin/
+Disallow: /desktop-auth
+Sitemap: https://zevqora.vercel.app/sitemap.xml

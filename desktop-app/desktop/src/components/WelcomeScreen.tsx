@@ -1,29 +1,13 @@
 import { FormEvent, useState } from 'react'
-import { ArrowRight, CheckCircle2, CircleDollarSign, KeyRound, ShieldCheck, UserPlus } from 'lucide-react'
-import { BrandAsset, brandAssets } from './BrandAsset'
+import { ArrowRight, Globe, UserPlus } from 'lucide-react'
+import { ZevqoraLogo } from '../brand/Logo'
+import { Zev } from '../brand/Zev'
 import type { DesktopAuthState } from '../lib/auth'
 
-export function WelcomeScreen({
-  auth,
-  loading,
-  error,
-  onDirectLogin,
-  onCreateAccount,
-}: {
-  auth: DesktopAuthState | null
-  loading: boolean
-  error: string
-  onDirectLogin: (email: string, password: string) => Promise<void>
-  onCreateAccount: () => void
-}) {
+export function WelcomeScreen({ auth, loading, error, onDirectLogin, onBrowserLogin, onCreateAccount }: { auth: DesktopAuthState | null; loading: boolean; error: string; onDirectLogin: (email: string, password: string) => Promise<void>; onBrowserLogin: () => void; onCreateAccount: () => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const signedIn = Boolean(auth?.signedIn)
-  const included = Number(auth?.account?.credit?.includedUsd || 0)
-  const used = Number(auth?.account?.credit?.usedUsd || 0)
-  const remaining = Math.max(included - used, 0)
-  const plan = String(auth?.account?.plan || 'free').toUpperCase()
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -31,116 +15,60 @@ export function WelcomeScreen({
     setSubmitting(true)
     try {
       await onDirectLogin(email, password)
+    } catch {
+      // surfaced through `error`
     } finally {
       setSubmitting(false)
     }
   }
 
+  const message = error || auth?.error || ''
+
   return (
-    <div className="welcome-screen welcome-premium-v2 welcome-direct-auth">
-      <div className="welcome-traffic" aria-hidden="true"><i /><i /><i /></div>
-
-      <div className="welcome-brand welcome-brand-v2">
-        <BrandAsset src={brandAssets.mark} alt="ZEVQORA mark" className="welcome-brand-mark" compact />
-        <BrandAsset src={brandAssets.wordmark} alt="ZEVQORA" className="welcome-brand-word" />
-      </div>
-
-      <div className="welcome-orbit-card orbit-map orbit-map-v2" aria-hidden="true">
-        <div className="orbit-title">AI Spend Map</div>
-        <div className="orbit-sub">Workspace ready <i /></div>
-        <div className="mini-map"><b /><b /><b className="hot" /><span /></div>
-      </div>
-
-      <div className="welcome-orbit-card orbit-savings orbit-savings-v2" aria-hidden="true">
-        <div className="orbit-title">Verified Savings</div>
-        <strong>Proof, not projections.</strong>
-        <div className="mini-bars"><i /><i /><i /><i /><i /></div>
-      </div>
-
-      <div className="welcome-orbit-card orbit-evidence orbit-evidence-v2" aria-hidden="true">
-        <div className="orbit-title">Evidence Inspector</div>
-        <div className="mini-evidence danger"><span>High cost driver</span><strong>Needs evidence</strong></div>
-        <div className="mini-evidence good"><span>Candidate path</span><strong>Replay + eval</strong></div>
-      </div>
-
-      <main className="welcome-panel welcome-panel-v2">
-        <section className="welcome-copy welcome-copy-v2">
-          <div className="welcome-eyebrow">MAKE AI LIGHTER.</div>
-          <h1>{signedIn ? 'Welcome back.' : 'Welcome.'}<br />I’m <span>Zev.</span></h1>
-          <p>
-            {signedIn
-              ? `Signed in as ${auth?.user?.email || 'your ZEVQORA account'}. Opening your workspace…`
-              : 'Sign in with the same ZEVQORA account you use on the website. No browser handoff.'}
-          </p>
-
-          <div className="welcome-browser-auth welcome-browser-auth-v2">
-            {signedIn ? (
-              <div className="welcome-account-summary">
-                <span><b>{plan}</b><small>Current plan</small></span>
-                <span><b>${remaining.toFixed(2)}</b><small>Zev credit left</small></span>
-              </div>
-            ) : (
-              <form className="welcome-direct-form" onSubmit={submit}>
-                <label>
-                  <span>Email</span>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="you@company.com"
-                    autoComplete="email"
-                    required
-                  />
-                </label>
-                <label>
-                  <span>Password</span>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Enter your password"
-                    autoComplete="current-password"
-                    minLength={8}
-                    required
-                  />
-                </label>
-                <button className="welcome-primary welcome-primary-v2" type="submit" disabled={loading || submitting}>
-                  {loading ? 'Checking account…' : submitting ? 'Signing in…' : 'Sign in to ZEVQORA'} <ArrowRight size={14} />
-                </button>
-                <button className="welcome-create-account" type="button" onClick={onCreateAccount}>
-                  <UserPlus size={12} /> Create an account
-                </button>
-              </form>
-            )}
-            <div className="welcome-local-note">ZEVQORA Desktop sends your password only to Supabase Auth over HTTPS. Only the returned session tokens are persisted, using OS encryption when available.</div>
-            {(error || auth?.error) && <div className="welcome-auth-error">{error || auth?.error}</div>}
+    <div className="welcome">
+      <div className="titlebar-drag absolute inset-x-0 top-0 z-10 h-10" aria-hidden />
+      <section className="welcome-panel">
+        <ZevqoraLogo size={26} />
+        <div className="mt-10">
+          <div className="eyebrow">AI Cost Optimization Engineer</div>
+          <h1 className="h1 mt-2">Sign in to ZEVQORA Desktop.</h1>
+          <p className="lede">Same account as the website. Your workspace, plan and Zev credit follow you here. Model calls run through your account; no provider key on this device.</p>
+        </div>
+        <form onSubmit={submit} className="mt-8 grid gap-3">
+          <label className="field"><span>Email</span><input className="welcome-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" placeholder="you@company.com" required /></label>
+          <label className="field"><span>Password</span><input className="welcome-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" minLength={8} placeholder="Your password" required /></label>
+          <button className="btn btn-primary mt-1 h-[42px]" type="submit" disabled={loading || submitting}>
+            {loading ? 'Checking account…' : submitting ? 'Signing in…' : 'Sign in'} <ArrowRight size={15} />
+          </button>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[12.5px]">
+            <button type="button" className="flex items-center gap-1.5 text-muted hover:text-ink" onClick={onBrowserLogin}><Globe size={13} /> Sign in with the browser (Google / GitHub)</button>
+            <button type="button" className="flex items-center gap-1.5 text-blue-700 hover:underline" onClick={onCreateAccount}><UserPlus size={13} /> Create an account</button>
           </div>
-        </section>
+          {message && <div className="note note-error">{message}</div>}
+        </form>
+        <p className="mt-6 text-[11.5px] leading-relaxed text-subtle">Your password goes only to Supabase Auth over HTTPS. Only the returned session is kept, encrypted by the operating system. The app never sees a provider secret.</p>
+      </section>
 
-        <section className="welcome-product-preview" aria-hidden="true">
-          <div className="welcome-preview-chip"><i /> Living AI Spend Map</div>
-          <div className="welcome-workspace-frame">
-            <BrandAsset src={brandAssets.workspace} alt="ZEVQORA Living Workspace" className="welcome-workspace-image" />
-          </div>
-          <div className="welcome-preview-proof">
-            <small>VERIFICATION</small>
-            <b>Proof before change</b>
-            <span>Replay + eval → verified</span>
-          </div>
-          <div className="welcome-zev welcome-zev-v2">
-            <div className="welcome-speech">
-              {signedIn ? 'Connected. Opening your workspace.' : 'Sign in here. I’ll keep the browser out of the way.'}
+      <section className="welcome-stage">
+        <div className="absolute inset-0 dotgrid opacity-60" aria-hidden />
+        <div className="relative flex flex-col items-center gap-8">
+          <Zev view="three-quarter-front" height={260} alt="Zev" />
+          <div className="proof-card glass-strong">
+            <div className="flex items-center justify-between">
+              <span className="eyebrow">Replay result</span>
+              <span className="chip chip-rejected">REJECTED</span>
             </div>
-            <BrandAsset src={brandAssets.mascot} alt="Zev mascot" className="welcome-zev-img welcome-zev-img-v2" />
+            <div className="text-[28px] font-bold leading-none tracking-tight text-ink">42.01% <span className="text-[14px] font-medium text-muted">cheaper</span></div>
+            <div className="grid gap-1.5">
+              <div className="proof-row"><span>Quality</span><b>0.87</b></div>
+              <div className="proof-row"><span>Required</span><b>0.95</b></div>
+              <div className="proof-row"><span>Quality gate</span><b className="text-rejected">FAIL</b></div>
+            </div>
+            <div className="text-[13px] font-semibold text-rejected">Cheaper isn’t verified.</div>
+            <div className="text-[11px] text-subtle">Illustrative example from a replay. Never a production claim.</div>
           </div>
-        </section>
-      </main>
-
-      <footer className="welcome-trust welcome-trust-v2">
-        <div><KeyRound size={19} /><span><b>Direct account login</b><small>No browser handoff</small></span></div>
-        <div><CircleDollarSign size={19} /><span><b>Plan aware</b><small>Subscription + Zev credit</small></span></div>
-        <div><ShieldCheck size={19} /><span><b>OS encrypted</b><small>Session tokens stay local</small></span></div>
-      </footer>
+        </div>
+      </section>
     </div>
   )
 }

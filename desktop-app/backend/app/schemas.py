@@ -9,7 +9,63 @@ from pydantic import BaseModel, Field
 class HealthResponse(BaseModel):
     status: str
     version: str
+    # True when any model-provider path exists (device-local key or platform session).
     openrouter_configured: bool
+    provider_mode: Literal["local_key", "platform", "none"] = "none"
+    platform_connected: bool = False
+
+
+class PlatformSessionRequest(BaseModel):
+    base_url: str = Field(max_length=300)
+    access_token: str = Field(min_length=20, max_length=8000)
+    user_id: str | None = Field(default=None, max_length=80)
+    email: str | None = Field(default=None, max_length=200)
+    workspace_id: str | None = Field(default=None, max_length=80)
+    project_id: str | None = Field(default=None, max_length=80)
+    plan: str | None = Field(default=None, max_length=40)
+
+
+class PlatformStatusOut(BaseModel):
+    mode: Literal["local_key", "platform", "none"]
+    connected: bool
+    base_url: str | None = None
+    user_id: str | None = None
+    email: str | None = None
+    workspace_id: str | None = None
+    project_id: str | None = None
+    plan: str | None = None
+    token_fingerprint: str | None = None
+    candidate_models: list[str] = Field(default_factory=list)
+    pricing_version: str | None = None
+    pricing_synced: bool = False
+    pricing_models: int = 0
+    note: str = "The access token is held in memory only; the provider credential never reaches this device."
+
+
+class ImplementationDecisionRequest(BaseModel):
+    decision: Literal["approve", "reject"]
+    note: str | None = Field(default=None, max_length=2000)
+
+
+class ImplementationGitContextOut(BaseModel):
+    implementation_id: str
+    branch_name: str
+    worktree_path: str
+    worktree_exists: bool
+    remote_url: str | None
+    remote_host: str | None
+    default_branch: str
+    compare_url: str | None
+    pushed_at: datetime | None
+    pr_url: str | None
+    status: str
+
+
+class ImplementationPushOut(BaseModel):
+    ok: bool
+    output: str
+    compare_url: str | None
+    pushed_at: datetime | None
 
 
 class ConnectLocalRequest(BaseModel):
@@ -169,6 +225,11 @@ class ImplementationOut(BaseModel):
     test_output: str | None
     model: str
     created_at: datetime
+    review_note: str | None = None
+    reviewed_at: datetime | None = None
+    pushed_at: datetime | None = None
+    remote_url: str | None = None
+    pr_url: str | None = None
 
 
 class ChatMessage(BaseModel):

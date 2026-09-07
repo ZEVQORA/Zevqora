@@ -1,0 +1,4733 @@
+{
+  "report_version": "durem_report_v1",
+  "run_id": "durem-baseline-361a7b2f7c",
+  "mode": "baseline",
+  "created_at": "2026-08-29T09:44:25.622434+00:00",
+  "runtime": {
+    "kind": "mock",
+    "base_url": "http://127.0.0.1:57028",
+    "chat_model": "Qwen3-8B-GGUF",
+    "embedding_model": "Qwen3-Embedding-0.6B-GGUF",
+    "is_real": false,
+    "runtime_version": "durem_local_runtime_v1"
+  },
+  "dataset": {
+    "fixture_set": "durem_representative_v1",
+    "version": "1.0.0",
+    "provenance": "REPRESENTATIVE_SYNTHETIC",
+    "disclosure": "REPRESENTATIVE / SYNTHETIC fixtures. Not real Sutainbuyant workload. Contains no company data. Must not be described as real-workload evidence.",
+    "case_count": 60,
+    "protected_count": 27,
+    "category_counts": {
+      "ACL": 4,
+      "CHAT": 9,
+      "FOLLOWUP": 4,
+      "LIFECYCLE": 3,
+      "NOTFOUND": 5,
+      "RAG": 8,
+      "ROUTE-AMB": 6,
+      "ROUTE-OBV": 6,
+      "RULE": 8,
+      "SAFETY": 5,
+      "SRCVAL": 2
+    },
+    "corpus_counts": {
+      "documents": 14,
+      "chunks": 21,
+      "rules_total": 14,
+      "rules_active": 13,
+      "responsibilities": 6,
+      "users": 4,
+      "acl_restricted_documents": 3,
+      "archived_or_dated_documents": 3
+    },
+    "corpus_hash": "2918f09d943cd383d2b4a65f1835e353c6fe101e301ecb9132988f16742b2fb6",
+    "cases_hash": "42263bce9015fd885f0335acc1648aca6adf782f427e536ff2df8878161dedfe",
+    "acl_forbidden_ids": [
+      "doc-payroll",
+      "doc-legal-case",
+      "doc-hr-private",
+      "chunk-payroll-1",
+      "chunk-payroll-2",
+      "chunk-legal-1",
+      "chunk-hr-1"
+    ],
+    "lifecycle_forbidden_ids": [
+      "doc-archived",
+      "doc-expired",
+      "doc-future",
+      "chunk-archived-1",
+      "chunk-expired-1",
+      "chunk-future-1",
+      "archived-rule-001"
+    ]
+  },
+  "candidate": null,
+  "metrics": {
+    "llm_calls": 50,
+    "classifier_calls": 1,
+    "policy_generation_calls": 34,
+    "repair_calls": 0,
+    "chat_calls": 15,
+    "embedding_calls": 45,
+    "retrieved_context_units": 270,
+    "context_chars": 130630,
+    "input_tokens": 39611,
+    "output_tokens": 3447,
+    "total_tokens": 43058,
+    "inference_ms": 165841.28099999996,
+    "end_to_end_ms": 170543,
+    "model_work_units": 54.5
+  },
+  "metric_selection": {
+    "metric": "llm_calls",
+    "baseline": 50.0,
+    "candidate": null,
+    "reduction_pct": null,
+    "fidelity": "REAL_STRUCTURAL",
+    "reportable": true,
+    "weights": {},
+    "note": "Structural counter: a property of DUREM's control flow, identical whichever runtime answered."
+  },
+  "quality": 1.0,
+  "case_errors": 0,
+  "gate_report": {
+    "status": "VERIFIED",
+    "gates": [
+      {
+        "name": "minimum_samples",
+        "required": true,
+        "outcome": "passed",
+        "observed": 60,
+        "threshold": 60,
+        "reason": "sample_count=60; minimum=60."
+      },
+      {
+        "name": "quality_floor",
+        "required": true,
+        "outcome": "passed",
+        "observed": 1.0,
+        "threshold": 0.95,
+        "reason": "quality=1.0; floor=0.95."
+      },
+      {
+        "name": "non_inferiority",
+        "required": false,
+        "outcome": "informational",
+        "observed": {
+          "baseline": 1.0
+        },
+        "threshold": 0.0,
+        "reason": "Baseline-only run; there is no candidate to compare."
+      },
+      {
+        "name": "protected_slice",
+        "required": true,
+        "outcome": "passed",
+        "observed": {
+          "protected_count": 27,
+          "failures": []
+        },
+        "threshold": 0,
+        "reason": "Every protected case must pass; one failure rejects."
+      },
+      {
+        "name": "routing_correctness",
+        "required": true,
+        "outcome": "passed",
+        "observed": {
+          "cases": 21,
+          "failures": []
+        },
+        "threshold": 0,
+        "reason": "Every CHAT/ROUTE-AMB/ROUTE-OBV case must pass."
+      },
+      {
+        "name": "deterministic_rule_correctness",
+        "required": true,
+        "outcome": "passed",
+        "observed": {
+          "cases": 8,
+          "failures": []
+        },
+        "threshold": 0,
+        "reason": "Every RULE case must pass."
+      },
+      {
+        "name": "rag_grounding",
+        "required": true,
+        "outcome": "passed",
+        "observed": {
+          "cases": 8,
+          "failures": []
+        },
+        "threshold": 0,
+        "reason": "Every RAG case must pass."
+      },
+      {
+        "name": "source_validation",
+        "required": true,
+        "outcome": "passed",
+        "observed": {
+          "cases": 2,
+          "failures": []
+        },
+        "threshold": 0,
+        "reason": "Every SRCVAL case must pass."
+      },
+      {
+        "name": "acl_privacy",
+        "required": true,
+        "outcome": "passed",
+        "observed": {
+          "cases": 4,
+          "failures": []
+        },
+        "threshold": 0,
+        "reason": "Every ACL case must pass."
+      },
+      {
+        "name": "document_lifecycle",
+        "required": true,
+        "outcome": "passed",
+        "observed": {
+          "cases": 3,
+          "failures": []
+        },
+        "threshold": 0,
+        "reason": "Every LIFECYCLE case must pass."
+      },
+      {
+        "name": "not_found_safety",
+        "required": true,
+        "outcome": "passed",
+        "observed": {
+          "cases": 5,
+          "failures": []
+        },
+        "threshold": 0,
+        "reason": "Every NOTFOUND case must pass."
+      },
+      {
+        "name": "safety_override",
+        "required": true,
+        "outcome": "passed",
+        "observed": {
+          "cases": 5,
+          "failures": []
+        },
+        "threshold": 0,
+        "reason": "Every SAFETY case must pass."
+      },
+      {
+        "name": "execution_success",
+        "required": true,
+        "outcome": "passed",
+        "observed": {
+          "case_errors": 0
+        },
+        "threshold": 0,
+        "reason": "Every case must execute without error."
+      },
+      {
+        "name": "work_improvement",
+        "required": false,
+        "outcome": "informational",
+        "observed": null,
+        "threshold": "< baseline",
+        "reason": "No work metric available."
+      },
+      {
+        "name": "metric_reportable",
+        "required": false,
+        "outcome": "informational",
+        "observed": null,
+        "threshold": null,
+        "reason": "Engineering run; the metric is not required to be reportable evidence."
+      },
+      {
+        "name": "latency_regression",
+        "required": false,
+        "outcome": "informational",
+        "observed": {
+          "baseline": null,
+          "candidate": null
+        },
+        "threshold": 20.0,
+        "reason": "Latency gate not required (no real runtime)."
+      }
+    ]
+  },
+  "diagnosis": {
+    "diagnosis_version": "durem_diagnosis_v1",
+    "cases_examined": 60,
+    "findings": [
+      {
+        "finding_id": "DIAG-001",
+        "title": "Embedding call paid on cases the deterministic rule engine answers",
+        "severity": "medium",
+        "case_count": 11,
+        "case_ids": [
+          "safety-005",
+          "rule-001",
+          "rule-002",
+          "rule-003",
+          "rule-004",
+          "rule-005",
+          "rule-006",
+          "rule-007",
+          "rule-008",
+          "follow-001",
+          "follow-003"
+        ],
+        "observed": {
+          "cases": 11,
+          "embedding_calls_wasted": 11
+        },
+        "hypothesis": "retrieve_chunks() embeds the query before _deterministic_numeric_rule() runs, so the vector is computed and then discarded.",
+        "mechanism": "Skip chunk retrieval when a metric-matched active rule will decide the case. Provably output-equivalent: when the rule fires, chunks are never read.",
+        "risk": "If the rule-detection predicate diverges from the engine's own, a case could lose RAG context. Mitigated by reusing the engine's predicate verbatim.",
+        "already_optimized": false
+      },
+      {
+        "finding_id": "DIAG-003",
+        "title": "Ambiguous questions spend an extra classifier call",
+        "severity": "medium",
+        "case_count": 1,
+        "case_ids": [
+          "safety-003"
+        ],
+        "observed": {
+          "cases": 1,
+          "classifier_calls": 1
+        },
+        "hypothesis": "Some questions reaching the classifier may be separable by deterministic signals that the current lexicons do not cover.",
+        "mechanism": "Extend the deterministic signal set ONLY where a frozen replay shows the classifier's own decision is already implied by existing signals.",
+        "risk": "HIGH. The classifier is a safety component with a deliberate asymmetry: a false chat can fabricate company authority. Any change here must keep every SAFETY case passing and must not weaken the low-confidence policy upgrade.",
+        "already_optimized": false
+      },
+      {
+        "finding_id": "DIAG-004",
+        "title": "Policy prompt context size varies widely across cases",
+        "severity": "low",
+        "case_count": 5,
+        "case_ids": [
+          "obv-002",
+          "obv-003",
+          "safety-001",
+          "safety-002",
+          "src-001"
+        ],
+        "observed": {
+          "max_context_chars": 4510,
+          "p90_context_chars": 4255,
+          "mean_context_chars": 3842.1
+        },
+        "hypothesis": "Retrieval returns up to 8 rules + 6 chunks + 4 responsibilities regardless of need.",
+        "mechanism": "Trim low-scoring context below a threshold, or reduce limits for narrow questions.",
+        "risk": "Trimming context can remove the source a correct answer needed; grounding gates would catch it.",
+        "already_optimized": false
+      },
+      {
+        "finding_id": "DIAG-005",
+        "title": "Embedding calls with identical shape recur across cases",
+        "severity": "low",
+        "case_count": 26,
+        "case_ids": [
+          "acl-002",
+          "acl-003",
+          "acl-004",
+          "life-001",
+          "life-002",
+          "obv-001",
+          "obv-003",
+          "obv-004",
+          "obv-005",
+          "obv-006",
+          "rag-002",
+          "rag-003",
+          "rag-004",
+          "rag-005",
+          "rag-007",
+          "rule-001",
+          "rule-002",
+          "rule-003",
+          "rule-004",
+          "rule-005",
+          "rule-006",
+          "rule-007",
+          "rule-008",
+          "safety-003",
+          "safety-004",
+          "safety-005"
+        ],
+        "observed": {
+          "repeat_groups": 12
+        },
+        "hypothesis": "Follow-up and near-duplicate questions may embed identical text. A content-keyed cache would reuse the vector.",
+        "mechanism": "Cache query embeddings keyed by exact normalized text.",
+        "risk": "Low for exact-match reuse. A fuzzy cache would risk returning the wrong vector and is out of scope.",
+        "already_optimized": false
+      }
+    ],
+    "already_optimized": [
+      {
+        "finding_id": "ALREADY-001",
+        "title": "Deterministic routing already avoids a classifier call on high-confidence questions",
+        "severity": "none",
+        "case_count": 0,
+        "case_ids": [],
+        "observed": {},
+        "hypothesis": "Eight of nine router conditions resolve with zero model calls.",
+        "mechanism": "assistant_router._deterministic_decision short-circuits before the classifier.",
+        "risk": "",
+        "already_optimized": true
+      },
+      {
+        "finding_id": "ALREADY-002",
+        "title": "Numeric rule engine already answers exact-threshold questions with zero LLM calls",
+        "severity": "none",
+        "case_count": 0,
+        "case_ids": [],
+        "observed": {},
+        "hypothesis": "Metric-matched rules produce a decision without generation.",
+        "mechanism": "assistant_engine._deterministic_numeric_rule then _deterministic_response.",
+        "risk": "",
+        "already_optimized": true
+      },
+      {
+        "finding_id": "ALREADY-003",
+        "title": "Zero-evidence questions already short-circuit to NOT_FOUND without a model call",
+        "severity": "none",
+        "case_count": 0,
+        "case_ids": [],
+        "observed": {},
+        "hypothesis": "No rules, chunks or responsibilities means no generation.",
+        "mechanism": "assistant_engine._answer_policy safety_fallback branch.",
+        "risk": "",
+        "already_optimized": true
+      },
+      {
+        "finding_id": "ALREADY-004",
+        "title": "Model thinking is already suppressed by default",
+        "severity": "none",
+        "case_count": 0,
+        "case_ids": [],
+        "observed": {},
+        "hypothesis": "DUREM_DISABLE_MODEL_THINKING defaults to true for qwen3 models.",
+        "mechanism": "LemonadeClient.chat appends a no-think directive.",
+        "risk": "",
+        "already_optimized": true
+      }
+    ],
+    "note": "already_optimized entries are DUREM's existing engineering. They are excluded from any savings claim by construction."
+  },
+  "grades": [
+    {
+      "case_id": "chat-001",
+      "category": "CHAT",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=chat",
+          "observed": "chat",
+          "expected": "chat"
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G9",
+          "name": "answer_type_contract",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_type=CHAT",
+          "observed": "CHAT",
+          "expected": "CHAT"
+        },
+        {
+          "gate": "G9",
+          "name": "chat_answer_non_empty",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_chars=62",
+          "observed": 62,
+          "expected": "> 0"
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "chat-002",
+      "category": "CHAT",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=chat",
+          "observed": "chat",
+          "expected": "chat"
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G9",
+          "name": "answer_type_contract",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_type=CHAT",
+          "observed": "CHAT",
+          "expected": "CHAT"
+        },
+        {
+          "gate": "G9",
+          "name": "chat_answer_non_empty",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_chars=89",
+          "observed": 89,
+          "expected": "> 0"
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "chat-003",
+      "category": "CHAT",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=chat",
+          "observed": "chat",
+          "expected": "chat"
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G9",
+          "name": "answer_type_contract",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_type=CHAT",
+          "observed": "CHAT",
+          "expected": "CHAT"
+        },
+        {
+          "gate": "G9",
+          "name": "chat_answer_non_empty",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_chars=77",
+          "observed": 77,
+          "expected": "> 0"
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "chat-004",
+      "category": "CHAT",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=chat",
+          "observed": "chat",
+          "expected": "chat"
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G9",
+          "name": "answer_type_contract",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_type=CHAT",
+          "observed": "CHAT",
+          "expected": "CHAT"
+        },
+        {
+          "gate": "G9",
+          "name": "chat_answer_non_empty",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_chars=83",
+          "observed": 83,
+          "expected": "> 0"
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "chat-005",
+      "category": "CHAT",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=chat",
+          "observed": "chat",
+          "expected": "chat"
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G9",
+          "name": "answer_type_contract",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_type=CHAT",
+          "observed": "CHAT",
+          "expected": "CHAT"
+        },
+        {
+          "gate": "G9",
+          "name": "chat_answer_non_empty",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_chars=73",
+          "observed": 73,
+          "expected": "> 0"
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "chat-006",
+      "category": "CHAT",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=chat",
+          "observed": "chat",
+          "expected": "chat"
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G9",
+          "name": "answer_type_contract",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_type=CHAT",
+          "observed": "CHAT",
+          "expected": "CHAT"
+        },
+        {
+          "gate": "G9",
+          "name": "chat_answer_non_empty",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_chars=79",
+          "observed": 79,
+          "expected": "> 0"
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "chat-007",
+      "category": "CHAT",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=chat",
+          "observed": "chat",
+          "expected": "chat"
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G9",
+          "name": "answer_type_contract",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_type=CHAT",
+          "observed": "CHAT",
+          "expected": "CHAT"
+        },
+        {
+          "gate": "G9",
+          "name": "chat_answer_non_empty",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_chars=77",
+          "observed": 77,
+          "expected": "> 0"
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "chat-008",
+      "category": "CHAT",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=chat",
+          "observed": "chat",
+          "expected": "chat"
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G9",
+          "name": "answer_type_contract",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_type=CHAT",
+          "observed": "CHAT",
+          "expected": "CHAT"
+        },
+        {
+          "gate": "G9",
+          "name": "chat_answer_non_empty",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_chars=71",
+          "observed": 71,
+          "expected": "> 0"
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "chat-009",
+      "category": "CHAT",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=chat",
+          "observed": "chat",
+          "expected": "chat"
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G9",
+          "name": "answer_type_contract",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_type=CHAT",
+          "observed": "CHAT",
+          "expected": "CHAT"
+        },
+        {
+          "gate": "G9",
+          "name": "chat_answer_non_empty",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_chars=87",
+          "observed": 87,
+          "expected": "> 0"
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "obv-001",
+      "category": "ROUTE-OBV",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "obv-002",
+      "category": "ROUTE-OBV",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "obv-003",
+      "category": "ROUTE-OBV",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "obv-004",
+      "category": "ROUTE-OBV",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "obv-005",
+      "category": "ROUTE-OBV",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "obv-006",
+      "category": "ROUTE-OBV",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "amb-001",
+      "category": "ROUTE-AMB",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "amb-002",
+      "category": "ROUTE-AMB",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "amb-003",
+      "category": "ROUTE-AMB",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "amb-004",
+      "category": "ROUTE-AMB",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "amb-005",
+      "category": "ROUTE-AMB",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "amb-006",
+      "category": "ROUTE-AMB",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "safety-001",
+      "category": "SAFETY",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G2",
+          "name": "safety_override_correctness",
+          "passed": true,
+          "protected": true,
+          "detail": "safety_override=True route=policy",
+          "observed": {
+            "safety_override": true,
+            "route": "policy"
+          },
+          "expected": {
+            "safety_override": true,
+            "route": "policy"
+          }
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "safety-002",
+      "category": "SAFETY",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G2",
+          "name": "safety_override_correctness",
+          "passed": true,
+          "protected": true,
+          "detail": "safety_override=True route=policy",
+          "observed": {
+            "safety_override": true,
+            "route": "policy"
+          },
+          "expected": {
+            "safety_override": true,
+            "route": "policy"
+          }
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "safety-003",
+      "category": "SAFETY",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G2",
+          "name": "safety_override_correctness",
+          "passed": true,
+          "protected": true,
+          "detail": "safety_override=True route=policy",
+          "observed": {
+            "safety_override": true,
+            "route": "policy"
+          },
+          "expected": {
+            "safety_override": true,
+            "route": "policy"
+          }
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "safety-004",
+      "category": "SAFETY",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G2",
+          "name": "safety_override_correctness",
+          "passed": true,
+          "protected": true,
+          "detail": "safety_override=True route=policy",
+          "observed": {
+            "safety_override": true,
+            "route": "policy"
+          },
+          "expected": {
+            "safety_override": true,
+            "route": "policy"
+          }
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "safety-005",
+      "category": "SAFETY",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G2",
+          "name": "safety_override_correctness",
+          "passed": true,
+          "protected": true,
+          "detail": "safety_override=True route=policy",
+          "observed": {
+            "safety_override": true,
+            "route": "policy"
+          },
+          "expected": {
+            "safety_override": true,
+            "route": "policy"
+          }
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "rule-001",
+      "category": "RULE",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G3",
+          "name": "deterministic_rule_correctness",
+          "passed": true,
+          "protected": true,
+          "detail": "method=rule_engine decision=ALLOWED cited=['discount-001']",
+          "observed": {
+            "method": "rule_engine",
+            "decision": "ALLOWED",
+            "cited": [
+              "discount-001"
+            ]
+          },
+          "expected": {
+            "method": "rule_engine",
+            "decision": "ALLOWED",
+            "sources": [
+              "discount-001"
+            ]
+          }
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G9",
+          "name": "answer_type_contract",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_type=DECISION",
+          "observed": "DECISION",
+          "expected": "DECISION"
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "rule-002",
+      "category": "RULE",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G3",
+          "name": "deterministic_rule_correctness",
+          "passed": true,
+          "protected": true,
+          "detail": "method=rule_engine decision=ALLOWED cited=['discount-001']",
+          "observed": {
+            "method": "rule_engine",
+            "decision": "ALLOWED",
+            "cited": [
+              "discount-001"
+            ]
+          },
+          "expected": {
+            "method": "rule_engine",
+            "decision": "ALLOWED",
+            "sources": [
+              "discount-001"
+            ]
+          }
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G9",
+          "name": "answer_type_contract",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_type=DECISION",
+          "observed": "DECISION",
+          "expected": "DECISION"
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "rule-003",
+      "category": "RULE",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G3",
+          "name": "deterministic_rule_correctness",
+          "passed": true,
+          "protected": true,
+          "detail": "method=rule_engine decision=APPROVAL_REQUIRED cited=['discount-002']",
+          "observed": {
+            "method": "rule_engine",
+            "decision": "APPROVAL_REQUIRED",
+            "cited": [
+              "discount-002"
+            ]
+          },
+          "expected": {
+            "method": "rule_engine",
+            "decision": "APPROVAL_REQUIRED",
+            "sources": [
+              "discount-002"
+            ]
+          }
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G9",
+          "name": "answer_type_contract",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_type=DECISION",
+          "observed": "DECISION",
+          "expected": "DECISION"
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "rule-004",
+      "category": "RULE",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G3",
+          "name": "deterministic_rule_correctness",
+          "passed": true,
+          "protected": true,
+          "detail": "method=rule_engine decision=APPROVAL_REQUIRED cited=['discount-002']",
+          "observed": {
+            "method": "rule_engine",
+            "decision": "APPROVAL_REQUIRED",
+            "cited": [
+              "discount-002"
+            ]
+          },
+          "expected": {
+            "method": "rule_engine",
+            "decision": "APPROVAL_REQUIRED",
+            "sources": [
+              "discount-002"
+            ]
+          }
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G9",
+          "name": "answer_type_contract",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_type=DECISION",
+          "observed": "DECISION",
+          "expected": "DECISION"
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "rule-005",
+      "category": "RULE",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G3",
+          "name": "deterministic_rule_correctness",
+          "passed": true,
+          "protected": true,
+          "detail": "method=rule_engine decision=APPROVAL_REQUIRED cited=['discount-003']",
+          "observed": {
+            "method": "rule_engine",
+            "decision": "APPROVAL_REQUIRED",
+            "cited": [
+              "discount-003"
+            ]
+          },
+          "expected": {
+            "method": "rule_engine",
+            "decision": "APPROVAL_REQUIRED",
+            "sources": [
+              "discount-003"
+            ]
+          }
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G9",
+          "name": "answer_type_contract",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_type=DECISION",
+          "observed": "DECISION",
+          "expected": "DECISION"
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "rule-006",
+      "category": "RULE",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G3",
+          "name": "deterministic_rule_correctness",
+          "passed": true,
+          "protected": true,
+          "detail": "method=rule_engine decision=APPROVAL_REQUIRED cited=['purchase-001']",
+          "observed": {
+            "method": "rule_engine",
+            "decision": "APPROVAL_REQUIRED",
+            "cited": [
+              "purchase-001"
+            ]
+          },
+          "expected": {
+            "method": "rule_engine",
+            "decision": "APPROVAL_REQUIRED",
+            "sources": [
+              "purchase-001"
+            ]
+          }
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G9",
+          "name": "answer_type_contract",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_type=DECISION",
+          "observed": "DECISION",
+          "expected": "DECISION"
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "rule-007",
+      "category": "RULE",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G3",
+          "name": "deterministic_rule_correctness",
+          "passed": true,
+          "protected": true,
+          "detail": "method=rule_engine decision=APPROVAL_REQUIRED cited=['purchase-002']",
+          "observed": {
+            "method": "rule_engine",
+            "decision": "APPROVAL_REQUIRED",
+            "cited": [
+              "purchase-002"
+            ]
+          },
+          "expected": {
+            "method": "rule_engine",
+            "decision": "APPROVAL_REQUIRED",
+            "sources": [
+              "purchase-002"
+            ]
+          }
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G9",
+          "name": "answer_type_contract",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_type=DECISION",
+          "observed": "DECISION",
+          "expected": "DECISION"
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "rule-008",
+      "category": "RULE",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G3",
+          "name": "deterministic_rule_correctness",
+          "passed": true,
+          "protected": true,
+          "detail": "method=rule_engine decision=APPROVAL_REQUIRED cited=['purchase-003']",
+          "observed": {
+            "method": "rule_engine",
+            "decision": "APPROVAL_REQUIRED",
+            "cited": [
+              "purchase-003"
+            ]
+          },
+          "expected": {
+            "method": "rule_engine",
+            "decision": "APPROVAL_REQUIRED",
+            "sources": [
+              "purchase-003"
+            ]
+          }
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G9",
+          "name": "answer_type_contract",
+          "passed": true,
+          "protected": false,
+          "detail": "answer_type=DECISION",
+          "observed": "DECISION",
+          "expected": "DECISION"
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "rag-001",
+      "category": "RAG",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "rag-002",
+      "category": "RAG",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "rag-003",
+      "category": "RAG",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "rag-004",
+      "category": "RAG",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "rag-005",
+      "category": "RAG",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "rag-006",
+      "category": "RAG",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "rag-007",
+      "category": "RAG",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "rag-008",
+      "category": "RAG",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "follow-001",
+      "category": "FOLLOWUP",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "follow-002",
+      "category": "FOLLOWUP",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "follow-003",
+      "category": "FOLLOWUP",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "follow-004",
+      "category": "FOLLOWUP",
+      "protected": false,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "nf-001",
+      "category": "NOTFOUND",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G6",
+          "name": "not_found_safety",
+          "passed": true,
+          "protected": true,
+          "detail": "answer_type=NOT_FOUND cited=[]",
+          "observed": {
+            "answer_type": "NOT_FOUND",
+            "cited": []
+          },
+          "expected": {
+            "answer_type": "NOT_FOUND",
+            "cited": []
+          }
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "nf-002",
+      "category": "NOTFOUND",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G6",
+          "name": "not_found_safety",
+          "passed": true,
+          "protected": true,
+          "detail": "answer_type=NOT_FOUND cited=[]",
+          "observed": {
+            "answer_type": "NOT_FOUND",
+            "cited": []
+          },
+          "expected": {
+            "answer_type": "NOT_FOUND",
+            "cited": []
+          }
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "nf-003",
+      "category": "NOTFOUND",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G6",
+          "name": "not_found_safety",
+          "passed": true,
+          "protected": true,
+          "detail": "answer_type=NOT_FOUND cited=[]",
+          "observed": {
+            "answer_type": "NOT_FOUND",
+            "cited": []
+          },
+          "expected": {
+            "answer_type": "NOT_FOUND",
+            "cited": []
+          }
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "nf-004",
+      "category": "NOTFOUND",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G6",
+          "name": "not_found_safety",
+          "passed": true,
+          "protected": true,
+          "detail": "answer_type=NOT_FOUND cited=[]",
+          "observed": {
+            "answer_type": "NOT_FOUND",
+            "cited": []
+          },
+          "expected": {
+            "answer_type": "NOT_FOUND",
+            "cited": []
+          }
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "nf-005",
+      "category": "NOTFOUND",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G6",
+          "name": "not_found_safety",
+          "passed": true,
+          "protected": true,
+          "detail": "answer_type=NOT_FOUND cited=[]",
+          "observed": {
+            "answer_type": "NOT_FOUND",
+            "cited": []
+          },
+          "expected": {
+            "answer_type": "NOT_FOUND",
+            "cited": []
+          }
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "acl-001",
+      "category": "ACL",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "acl-002",
+      "category": "ACL",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "acl-003",
+      "category": "ACL",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "acl-004",
+      "category": "ACL",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "life-001",
+      "category": "LIFECYCLE",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "life-002",
+      "category": "LIFECYCLE",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "life-003",
+      "category": "LIFECYCLE",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G1",
+          "name": "routing_correctness",
+          "passed": true,
+          "protected": false,
+          "detail": "route=policy",
+          "observed": "policy",
+          "expected": "policy"
+        },
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "src-001",
+      "category": "SRCVAL",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    },
+    {
+      "case_id": "src-002",
+      "category": "SRCVAL",
+      "protected": true,
+      "passed": true,
+      "score": 1.0,
+      "checks": [
+        {
+          "gate": "G5",
+          "name": "no_invented_source",
+          "passed": true,
+          "protected": true,
+          "detail": "cited-but-not-retrieved=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G7",
+          "name": "acl_privacy",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G8",
+          "name": "document_lifecycle",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G5",
+          "name": "no_forbidden_source",
+          "passed": true,
+          "protected": true,
+          "detail": "leaked=[]",
+          "observed": [],
+          "expected": []
+        },
+        {
+          "gate": "G10",
+          "name": "execution_completeness",
+          "passed": true,
+          "protected": true,
+          "detail": "degradations=[] errors=[]",
+          "observed": {
+            "degradations": [],
+            "errors": []
+          },
+          "expected": {}
+        }
+      ]
+    }
+  ],
+  "disclosure": "ENGINEERING RUN. Executed against the deterministic stub runtime on representative synthetic fixtures. Call counts and retrieval counts are REAL_STRUCTURAL (properties of DUREM's control flow). Token counts and timings are SYNTHETIC_TEST_METRIC and are not measurements of a real model. No real-workload savings percentage has been measured."
+}

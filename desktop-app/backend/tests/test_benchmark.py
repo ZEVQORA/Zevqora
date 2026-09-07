@@ -18,7 +18,7 @@ from app.providers.models import LLMMessage, LLMUsage
 
 
 def test_head_is_phase4(tmp_path):
-    assert HEAD_REVISION == "0006_evidence_integrity"
+    assert HEAD_REVISION == "0007_implementation_review"
     db = tmp_path / "b.db"
     ensure_schema(f"sqlite:///{db.as_posix()}", backup_dir=tmp_path / "bk")
     import sqlite3
