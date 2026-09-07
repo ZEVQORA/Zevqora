@@ -6,6 +6,16 @@ import { workspacePlan } from './workspaces.js';
 
 const SOURCE_KINDS = ['runtime', 'server', 'repository', 'github', 'manual'];
 
+/** Active projects of a workspace. Desktop reads this through the account bridge. */
+on('GET', '/api/workspaces/:id/projects', async ({ request, params }) => {
+  const { user, admin } = await requireUser(request);
+  const workspaceId = uuid(params.id, 'workspace');
+  await requireWorkspaceRole(admin, workspaceId, user.id, 'viewer');
+  const { data, error } = await admin.from('projects').select('*').eq('workspace_id', workspaceId).is('archived_at', null).order('created_at');
+  if (error) throw error;
+  return { projects: data || [] };
+});
+
 on('POST', '/api/workspaces/:id/projects', async ({ request, params }) => {
   const { user, admin } = await requireUser(request);
   const workspaceId = uuid(params.id, 'workspace');
