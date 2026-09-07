@@ -144,12 +144,15 @@ def test_private_network_preflight_is_granted_only_to_allowlisted_origins(monkey
             "Access-Control-Request-Private-Network": "true",
         }
         granted = client.options("/api/v1/products", headers=headers)
+        assert granted.status_code == 200
         assert granted.headers.get("Access-Control-Allow-Private-Network") == "true"
         assert granted.headers.get("Access-Control-Allow-Origin") == "https://zevqora.vercel.app"
 
+        # Any other origin fails the preflight outright, so the browser never
+        # sends the real request no matter what the private-network header says.
         refused = client.options(
             "/api/v1/products",
             headers={**headers, "Origin": "https://evil.example"},
         )
-        assert "Access-Control-Allow-Private-Network" not in refused.headers
+        assert refused.status_code == 400
         assert "Access-Control-Allow-Origin" not in refused.headers
