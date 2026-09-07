@@ -57,6 +57,18 @@ class Settings:
         for h in os.getenv("ZEVQORA_API_ALLOWED_HOSTS", "127.0.0.1,localhost,testserver").split(",")
         if h.strip()
     )
+    # Browser origins allowed to call the local API. The desktop shell loads the
+    # hosted product, so that origin is added here at launch. CORS is not the
+    # control that matters — X-Zevqora-Token is — but the browser needs the
+    # header before it will hand a cross-origin response to the page.
+    api_allowed_origins: tuple[str, ...] = tuple(
+        o.strip().rstrip("/")
+        for o in os.getenv(
+            "ZEVQORA_API_ALLOWED_ORIGINS",
+            "http://127.0.0.1:5173,http://localhost:5173,null",
+        ).split(",")
+        if o.strip()
+    )
 
     openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
     openrouter_base_url: str = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").rstrip("/")

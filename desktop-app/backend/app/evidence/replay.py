@@ -7,7 +7,6 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from ..core.hashing import sha256_json
-from ..optimization.fingerprints import task_fingerprint_from_request
 from ..providers.models import LLMMessage, LLMRequest, ToolDefinition
 
 CAPTURE_VERSION = "replay_v1"
@@ -36,6 +35,10 @@ class ReplayableRequestSnapshot(BaseModel):
         return sha256_json(self.canonical_payload())
 
     def task_fingerprint(self) -> str:
+        # Imported here: optimization imports this module, so a module-level
+        # import would make whichever package loads first fail.
+        from ..optimization.fingerprints import task_fingerprint_from_request
+
         return task_fingerprint_from_request(self.to_llm_request(provider="replay", model="task-only"))
 
     def canonical_payload(self) -> dict[str, Any]:

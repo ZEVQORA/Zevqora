@@ -125,6 +125,12 @@ class TraceIn(BaseModel):
     workflow: str | None = None
     provider: str | None = None
     model: str | None = None
+    # The request that produced output_text. Without it a replay cannot ask the
+    # candidate the same question, so the comparison would grade a different,
+    # under-specified task. Either form is accepted; `messages` wins when both
+    # are supplied.
+    system_prompt: str | None = None
+    messages: list[dict[str, Any]] | None = None
     input_text: str | None = None
     output_text: str | None = None
     expected_output: str | None = None

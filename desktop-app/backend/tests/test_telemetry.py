@@ -1,3 +1,4 @@
+import json
 import uuid
 
 from sqlalchemy import create_engine, select
@@ -57,3 +58,53 @@ def test_normalize_without_cost_has_no_source():
     normalized = normalize_imported_trace(trace)
     assert normalized["fields"].cost_source is None
     assert normalized["input_text"] == "x"
+
+
+def test_import_preserves_the_prompt_so_a_replay_asks_the_same_question(tmp_path):
+    """A candidate is only comparable if it is asked what the baseline was asked.
+
+    Imported traces used to reach model substitution with `input_text` alone, so
+    the replay dropped the instructions that produced the baseline answer and the
+    candidate was graded down for answering a different, under-specified task.
+    """
+    engine = create_engine(f"sqlite:///{tmp_path / 'prompt.db'}")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        product = Product(id=str(uuid.uuid4()), name="P", root_path=str(tmp_path))
+        db.add(product)
+        db.commit()
+        import_traces(
+            db,
+            product.id,
+            [
+                TraceIn(
+                    request_id="sys-1",
+                    system_prompt="Answer with one word.",
+                    input_text="Which queue?",
+                    output_text="billing",
+                    cost_usd=0.01,
+                ),
+                TraceIn(
+                    request_id="msg-1",
+                    messages=[
+                        {"role": "system", "content": "Answer with one word."},
+                        {"role": "user", "content": "Which queue?"},
+                        {"role": "assistant", "content": "billing"},
+                    ],
+                    output_text="billing",
+                    cost_usd=0.01,
+                ),
+                TraceIn(request_id="bare-1", input_text="Which queue?", output_text="billing", cost_usd=0.01),
+            ],
+        )
+        rows = {r.request_id: r for r in db.scalars(select(Trace).where(Trace.product_id == product.id))}
+
+        for key in ("sys-1", "msg-1"):
+            snapshot = json.loads(rows[key].request_snapshot_json)
+            assert [m["role"] for m in snapshot["messages"]] == ["system", "user"], key
+            assert snapshot["messages"][0]["content"] == "Answer with one word."
+            assert snapshot["messages"][1]["content"] == "Which queue?"
+            assert rows[key].request_snapshot_hash
+
+        # Nothing is invented for a trace that never recorded its prompt.
+        assert rows["bare-1"].request_snapshot_json is None

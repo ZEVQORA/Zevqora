@@ -41,7 +41,6 @@
     "appId": "ai.zevqora.desktop",
     "productName": "ZEVQORA",
     "files": [
-      "dist/**/*",
       "electron/**/*",
       "package.json"
     ],

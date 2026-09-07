@@ -290,7 +290,7 @@ def create_app(
     application.add_middleware(TrustedHostMiddleware, allowed_hosts=list(settings.api_allowed_hosts))
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://127.0.0.1:5173", "http://localhost:5173", "null"],
+        allow_origins=list(settings.api_allowed_origins),
         allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type", "X-Zevqora-Token"],
         allow_credentials=False,

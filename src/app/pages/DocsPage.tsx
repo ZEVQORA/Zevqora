@@ -114,11 +114,31 @@ report({"trace_id": resp.id, "provider": "openai", "model": "gpt-4o",
       </div>
       <div className="mt-4 grid gap-4 xl:grid-cols-2">
         <Panel>
-          <PanelHeader title="ZEVQORA Desktop" description="The core product. This portal is the account, team, billing and monitoring surface." />
+          <PanelHeader title="Execution traces (JSONL)" description="What a replay needs in order to be a fair comparison." />
+          <div className="flex flex-col gap-3 p-5">
+            <Code block>{`{"request_id": "req-1",
+ "model": "gpt-4o", "provider": "openai",
+ "system_prompt": "Classify the ticket as billing, technical or account. Answer with one word.",
+ "input_text": "My card was charged twice.",
+ "output_text": "billing", "expected_output": "billing",
+ "input_tokens": 48, "output_tokens": 1,
+ "cost_usd": 0.0024, "latency_ms": 900}`}</Code>
+            <p className="text-technical text-muted">One JSON object per line. <code>request_id</code> de-duplicates, so re-importing a longer file is safe.</p>
+            <ul className="text-caption space-y-3 text-muted">
+              <li><span className="text-ink">Export the prompt.</span> <code>system_prompt</code>, or the full <code>messages</code> array, records the request that produced <code>output_text</code>. A replay sends it back verbatim so the candidate answers the same question. Without it the candidate is asked a bare input with no instructions and will be graded down for the wrong reason.</li>
+              <li><span className="text-ink">Give it something to grade.</span> <code>expected_output</code> is what the deterministic graders compare against. Without it there is nothing to verify and the run returns INCOMPLETE.</li>
+              <li><span className="text-ink">Mark what must not regress.</span> <code>"protected": true</code> keeps a sample out of reuse and lets the protected-slice gate assert something.</li>
+              <li><span className="text-ink">Costs stay honest.</span> <code>cost_usd</code> is treated as <code>imported_external</code>. Provider-reported cost from a replay is never mixed with it silently.</li>
+            </ul>
+          </div>
+        </Panel>
+        <Panel>
+          <PanelHeader title="One product, two runtimes" description="The same loop, the same screens, on the web and in the desktop app." />
           <ul className="text-caption space-y-3 p-5 text-muted">
-            <li><span className="text-ink">Same account.</span> Desktop signs in with your ZEVQORA account (email/password or the browser handoff). Workspace, plan and Zev credit follow you.</li>
-            <li><span className="text-ink">Local loop.</span> Connect a repository → detect AI usage → import execution traces → let Zev test a candidate → quality gate → evidence → isolated patch → pull request. Source stays on your machine.</li>
-            <li><span className="text-ink">Live runtime inside Desktop.</span> The runtime view reads the same telemetry as this portal, and can create or revoke connection tokens.</li>
+            <li><span className="text-ink">Same loop everywhere.</span> Connect a repository → detect AI usage → import execution traces → let Zev test a candidate → quality gate → evidence → reviewed change. The screens are shared source, so the two runtimes cannot drift apart.</li>
+            <li><span className="text-ink">In the browser.</span> You pick a folder and the scan runs on your machine. Only call sites, findings and counts are uploaded; source text is not. Replays run on ZEVQORA platform compute and are charged to your workspace credit.</li>
+            <li><span className="text-ink">In the desktop app.</span> The same product, plus a local engine that reads the real folder and prepares changes in an isolated Git worktree it can push for you. Pushing from the browser is refused; you get the patch instead.</li>
+            <li><span className="text-ink">Same account.</span> Workspace, plan and Zev credit follow you between the two.</li>
             <li><span className="text-ink">Never.</span> No auto-merge, no auto-deploy, no SSH. Admin stays web-only.</li>
           </ul>
         </Panel>

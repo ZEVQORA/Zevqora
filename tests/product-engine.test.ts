@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { scanText, scanFiles, classifyPath, redactSecretLikeValues } from '../api/_lib/product/scanner.js';
 import { parseTraces, diagnoseRuntimeEvidence, economics } from '../api/_lib/product/traces.js';
-import { planExactReuse, planModelSubstitution, executionKeyFor } from '../api/_lib/product/strategies.js';
+import { planExactReuse, planModelSubstitution, executionKeyFor, candidateMessages, outputCapFor, promptEvidenceMissing } from '../api/_lib/product/strategies.js';
 import { executePlan } from '../api/_lib/product/executor.js';
 import { runEvaluation, gradeClassification, decideStatus } from '../api/_lib/product/evaluator.js';
 import { unifiedDiff } from '../api/_lib/product/diff.js';
@@ -103,6 +103,82 @@ describe('model substitution', () => {
     expect(evaluation.candidate_quality).toBeCloseTo(0.4, 6);
     expect(evaluation.rejection_reason).toContain('quality_floor');
     expect(evaluation.raw_cost_delta_percent).toBeGreaterThan(90);
+  });
+
+  it('replays the recorded prompt, not just the bare input', async () => {
+    // Without the instructions that produced the baseline answer, the candidate
+    // is asked a different question and graded for the wrong reason.
+    const system = 'Classify the ticket as billing, technical or account. Answer with one word.';
+    const rows = [0, 1, 2, 3, 4].map((i) => ({
+      ...traceRow(i, `Ticket ${i}`, ['billing', 'technical', 'account', 'billing', 'account'][i], { system_prompt: system }),
+      id: `t${i}`,
+    }));
+    const parsed = parseTraces({ traces: rows }).rows.map((r, i) => ({ ...r, id: `t${i}` }));
+    expect(parsed[0].system_prompt).toBe(system);
+    expect(parsed[0].system_prompt_hash).toBeTruthy();
+    expect(promptEvidenceMissing(parsed)).toBe(false);
+    expect(candidateMessages(parsed[0])).toEqual([
+      { role: 'system', content: system },
+      { role: 'user', content: 'Ticket 0' },
+    ]);
+
+    const plan = { ...planModelSubstitution(parsed, { id: 'f1', symbol: 'classify' }, { candidateModel: 'openai/gpt-4o-mini', allowedModels: new Set(['openai/gpt-4o-mini']), maxBudgetUsd: 0.5, pricing: pricingMap() }), id: 'p3' };
+    expect(plan.candidate_config.prompt_evidence).toBe('recorded_prompt');
+
+    const seen: Array<Array<{ role: string; content: string }>> = [];
+    // A model that only answers correctly when it is given the instructions.
+    const execution = await executePlan({
+      plan,
+      traces: parsed,
+      complete: async ({ messages }) => {
+        seen.push(messages);
+        const instructed = messages.some((m: { role: string }) => m.role === 'system');
+        const ticket = messages[messages.length - 1].content;
+        const answer = ['billing', 'technical', 'account', 'billing', 'account'][Number(ticket.split(' ')[1])];
+        return { content: instructed ? answer : `Sure! Here is my analysis of "${ticket}".`, model: 'openai/gpt-4o-mini', requestId: 'gen', latencyMs: 280, inputTokens: 40, outputTokens: 1, cachedInputTokens: 0, cost: 0.00001 };
+      },
+      pricing: pricingMap(),
+      allowedModels: new Set(['openai/gpt-4o-mini']),
+    });
+    expect(seen.every((m) => m[0].role === 'system' && m[0].content === system)).toBe(true);
+    const evaluation = runEvaluation({ execution, plan, traces: parsed, gateConfig: { min_samples: 5, quality_floor: 0.95, require_fallback: false } });
+    expect(evaluation.status).toBe('VERIFIED');
+    expect(evaluation.candidate_quality).toBe(1);
+  });
+
+  it('replays a recorded message array and drops the baseline answer', () => {
+    const parsed = parseTraces({
+      traces: [{
+        request_id: 'm1',
+        messages: [
+          { role: 'system', content: 'Answer in one word.' },
+          { role: 'user', content: 'Which queue?' },
+          { role: 'assistant', content: 'billing' },
+        ],
+        output_text: 'billing',
+        expected_output: 'billing',
+        cost_usd: 0.002,
+      }],
+    }).rows;
+    // input_text is derived from the last user turn when the exporter omits it.
+    expect(parsed[0].input_text).toBe('Which queue?');
+    expect(parsed[0].system_prompt).toBe('Answer in one word.');
+    expect(candidateMessages(parsed[0]).map((m) => m.role)).toEqual(['system', 'user']);
+  });
+
+  it('sizes the output cap from the baseline so the candidate is not truncated', () => {
+    const short = [{ ...traceRow(0, 'hi', 'billing'), output_tokens: 2 }];
+    const long = [{ ...traceRow(0, 'hi', 'x'.repeat(2000)), output_tokens: 700 }];
+    expect(outputCapFor(short)).toBe(64);
+    expect(outputCapFor(long)).toBe(1024);
+    const plan = planModelSubstitution(
+      long.map((t, i) => ({ ...t, id: `t${i}`, metadata: {} })),
+      null,
+      { candidateModel: 'openai/gpt-4o-mini', allowedModels: new Set(['openai/gpt-4o-mini']), maxBudgetUsd: 5, pricing: pricingMap() },
+    );
+    expect(plan.candidate_config.max_tokens).toBe(1024);
+    expect(plan.candidate_config.prompt_evidence).toBe('input_only');
+    expect(plan.reason).toContain('record no prompt');
   });
 
   it('refuses unknown models and over-budget plans', () => {

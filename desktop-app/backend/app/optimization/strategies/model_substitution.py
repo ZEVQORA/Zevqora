@@ -318,10 +318,17 @@ class ModelSubstitutionStrategy(OptimizationStrategy):
                         meta = raw
                 except json.JSONDecodeError:
                     meta = {}
+            # No snapshot, but the exporter may still have recorded the
+            # instructions in metadata. Replaying without them would ask the
+            # candidate a different question.
+            system_prompt = meta.get("system_prompt")
+            replay_messages = [LLMMessage(role="user", content=user_content)]
+            if isinstance(system_prompt, str) and system_prompt.strip():
+                replay_messages.insert(0, LLMMessage(role="system", content=system_prompt))
             request = LLMRequest(
                 provider="openrouter",
                 model=model,
-                messages=[LLMMessage(role="user", content=user_content)],
+                messages=replay_messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
                 metadata={
