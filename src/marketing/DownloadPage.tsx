@@ -6,12 +6,12 @@ import { loadConfig, getConfigSync } from '@/lib/config';
 import { Zev } from '@/brand/Zev';
 
 const LOOP: Array<[string, string, string]> = [
-  ['01', 'Connect a repository', 'Read-only scan of the folder you develop in. Secret-like files are skipped.'],
+  ['01', 'Connect a repository', 'Read-only scan of the folder you develop in. Secret-like files are skipped. In the browser the scan runs on your machine too.'],
   ['02', 'Detect AI usage', 'Every model call site, provider and symbol. Nothing leaves your machine.'],
   ['03', 'Import execution traces', 'Your real requests, outputs and costs become the baseline evidence.'],
   ['04', 'Let Zev test it', 'A bounded candidate is replayed on your samples through your ZEVQORA account.'],
   ['05', 'Quality gate', 'Deterministic graders and gates decide PASS or FAIL. Cheaper alone never counts.'],
-  ['06', 'Review the patch', 'An isolated worktree and branch, the diff, your tests, then a pull request you open.'],
+  ['06', 'Review the patch', 'In the app: an isolated worktree and branch, the diff, your tests, then a pull request you open. In the browser: the same diff as a patch to apply yourself.'],
 ];
 
 export default function DownloadPage() {
@@ -26,21 +26,21 @@ export default function DownloadPage() {
         <div className="container-page grid items-center gap-12 lg:grid-cols-[1.3fr_1fr]">
           <Reveal>
             <p className="text-eyebrow uppercase text-muted">ZEVQORA Desktop</p>
-            <h1 className="text-display mt-5 max-w-[14ch] text-ink">The product runs on your machine.</h1>
-            <p className="text-body-lg mt-6 max-w-[52ch] text-muted">ZEVQORA Desktop is the core product: it connects to a local repository, detects where your product calls models, diagnoses spend from your own traces, replays cheaper candidates, and only calls a saving verified when every gate passes. Source code never leaves your computer.</p>
+            <h1 className="text-display mt-5 max-w-[16ch] text-ink">The same product, closer to your code.</h1>
+            <p className="text-body-lg mt-6 max-w-[52ch] text-muted">ZEVQORA runs in your browser and in this app: the same screens, the same loop, the same account. The desktop app adds what a browser cannot reach — it reads the repository you develop in directly, and prepares a reviewed change in an isolated Git worktree it can push for you.</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <ButtonAnchor href={url} size="lg">
                 <Download size={16} aria-hidden /> Download for Windows
               </ButtonAnchor>
-              <ButtonLink to="/signup" size="lg" variant="secondary">
-                Create the account it signs into
+              <ButtonLink to="/app" size="lg" variant="secondary">
+                Or open it in your browser
               </ButtonLink>
             </div>
             <ul className="text-technical mt-8 space-y-1.5 font-mono text-subtle">
               <li>
                 <Monitor size={12} className="mr-1.5 inline" aria-hidden /> Windows 10/11 · NSIS installer · bundles the local engine
               </li>
-              <li>macOS build: not published yet. Runtime telemetry works on every platform.</li>
+              <li>macOS build: not published yet. The browser version works on every platform.</li>
               <li>Signs in with the same ZEVQORA account as this site. Plan and Zev credit follow you.</li>
             </ul>
           </Reveal>
