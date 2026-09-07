@@ -13,6 +13,7 @@ import { Skeleton, EmptyState, ErrorState } from '@/components/ui/States';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { money, compactNum, pct, ms, relativeTime, STRATEGY_LABEL, shortId } from '@/lib/format';
 import { cn } from '@/lib/cn';
+import { DesktopCallout } from '@/components/ui/DesktopCallout';
 
 export default function OverviewPage() {
   const { activeWorkspace, activeProjectId } = useSession();
@@ -53,6 +54,8 @@ export default function OverviewPage() {
         }
       />
       {q.error && !o && <ErrorState message={q.error} onRetry={() => q.reload()} />}
+
+      <div className="mb-4"><DesktopCallout compact /></div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Panel tone="glass-strong" className="p-5 xl:col-span-2">

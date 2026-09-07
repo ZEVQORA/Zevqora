@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router';
 import { AnimatePresence, motion } from 'motion/react';
-import { Activity, BarChart3, BookOpen, ChevronsUpDown, FileText, FlaskConical, FolderKanban, Home, Lightbulb, LogOut, Menu, Plug, Radio, Search, Settings, Shield, Users, X, PanelLeftClose, PanelLeftOpen, ChevronRight, Check, Plus } from 'lucide-react';
+import { Activity, BarChart3, BookOpen, ChevronsUpDown, FileText, FlaskConical, FolderKanban, Home, Lightbulb, LogOut, Menu, Monitor, Plug, Radio, Search, Settings, Shield, Users, X, PanelLeftClose, PanelLeftOpen, ChevronRight, Check, Plus } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useSession } from '@/lib/session';
 import { ZevqoraMark } from '@/brand/ZevqoraMark';
@@ -28,6 +28,7 @@ export const NAV = [
   { to: '/app/team', label: 'Team', Icon: Users },
   { to: '/app/settings', label: 'Settings', Icon: Settings },
   { to: '/app/docs', label: 'Docs', Icon: BookOpen },
+  { to: '/download', label: 'Desktop app', Icon: Monitor },
 ];
 
 interface ProjectsCtx {

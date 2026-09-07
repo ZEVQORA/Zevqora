@@ -112,6 +112,29 @@ report({"trace_id": resp.id, "provider": "openai", "model": "gpt-4o",
           </ul>
         </Panel>
       </div>
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+        <Panel>
+          <PanelHeader title="ZEVQORA Desktop" description="The core product. This portal is the account, team, billing and monitoring surface." />
+          <ul className="text-caption space-y-3 p-5 text-muted">
+            <li><span className="text-ink">Same account.</span> Desktop signs in with your ZEVQORA account (email/password or the browser handoff). Workspace, plan and Zev credit follow you.</li>
+            <li><span className="text-ink">Local loop.</span> Connect a repository → detect AI usage → import execution traces → let Zev test a candidate → quality gate → evidence → isolated patch → pull request. Source stays on your machine.</li>
+            <li><span className="text-ink">Live runtime inside Desktop.</span> The runtime view reads the same telemetry as this portal, and can create or revoke connection tokens.</li>
+            <li><span className="text-ink">Never.</span> No auto-merge, no auto-deploy, no SSH. Admin stays web-only.</li>
+          </ul>
+        </Panel>
+        <Panel>
+          <PanelHeader title="Platform compute" description="How the desktop engine reaches a model provider without a key on your device." />
+          <div className="flex flex-col gap-3 p-5">
+            <Code block>{`POST ${origin}/api/platform/chat/completions
+Authorization: Bearer <your ZEVQORA session>
+X-Zevqora-Workspace: <workspace id>   (optional; bills the workspace owner)
+X-Zevqora-Project:   <project id>     (optional; attributes usage)
+
+OpenAI/OpenRouter-compatible body. stream is refused; usage is always accounted.`}</Code>
+            <p className="text-technical text-muted">Order of checks: session → membership → plan and Zev credit → rate limit (per plan) → provider. The provider-reported cost is charged to the billing owner's credit, idempotently by provider request id, and appears under Usage as <code>platform_completion</code>. Public list prices for budgeting: <code>GET /api/platform/pricing</code>.</p>
+          </div>
+        </Panel>
+      </div>
     </>
   );
 }
