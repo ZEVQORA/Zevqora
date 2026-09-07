@@ -32,24 +32,23 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def sha256_line_ending_variants(path: Path) -> dict[str, str]:
-    """Hashes of the file as checked out, plus its LF-only and CRLF-only forms.
+def sha256_crlf_text(path: Path):
+    data = path.read_bytes()
 
-    The manifests were produced from a Windows working copy (CRLF), while git
-    stores the evidence with LF. A checkout on a POSIX runner therefore hashes
-    differently from the same bytes on Windows although the content is
-    identical. Accepting the matching line-ending form keeps the manifests
-    immutable and the verifier portable; a genuine content change still fails
-    on every variant.
-    """
-    raw = path.read_bytes()
-    lf = raw.replace(b"\r\n", b"\n")
-    crlf = lf.replace(b"\n", b"\r\n")
-    return {
-        "as-is": hashlib.sha256(raw).hexdigest(),
-        "lf": hashlib.sha256(lf).hexdigest(),
-        "crlf": hashlib.sha256(crlf).hexdigest(),
-    }
+    try:
+        data.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+    normalized = (
+        data
+        .replace(b"\r\n", b"\n")
+        .replace(b"\r", b"\n")
+    )
+
+    crlf = normalized.replace(b"\n", b"\r\n")
+
+    return hashlib.sha256(crlf).hexdigest()
 
 
 def verify_bundle(bundle: Path) -> tuple[int, list[str]]:
@@ -76,10 +75,23 @@ def verify_bundle(bundle: Path) -> tuple[int, list[str]]:
         if not target.is_file():
             failures.append(f"{bundle.name}/{name}: MISSING")
             continue
-        variants = sha256_line_ending_variants(target)
-        actual = variants["as-is"]
-        if expected.strip().lower() not in {v.lower() for v in variants.values()}:
-            failures.append(f"{bundle.name}/{name}: MISMATCH\n    expected {expected}\n    actual   {actual}")
+        expected = expected.strip().lower()
+        actual = sha256_file(target).lower()
+
+        if actual == expected:
+            continue
+
+        crlf_actual = sha256_crlf_text(target)
+
+        if crlf_actual is not None and crlf_actual.lower() == expected:
+            continue
+
+        failures.append(
+            f"{bundle.name}/{name}: MISMATCH\n"
+            f"    expected {expected}\n"
+            f"    actual   {actual}\n"
+            f"    crlf     {crlf_actual or 'not-text'}"
+        )
     return checked, failures
 
 

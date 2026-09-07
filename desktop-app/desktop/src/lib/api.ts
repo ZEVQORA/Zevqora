@@ -41,11 +41,9 @@ export class LocalApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = await resolveApiToken()
-  let response: Response
+async function requestOnce(path: string, init: RequestInit | undefined, token: string): Promise<Response> {
   try {
-    response = await fetch(`${API_BASE}${path}`, {
+    return await fetch(`${API_BASE}${path}`, {
       ...init,
       headers: {
         'Content-Type': 'application/json',
@@ -56,10 +54,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   } catch {
     throw new LocalApiError(0, 'The local engine is not reachable on 127.0.0.1:8000.')
   }
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  let token = await resolveApiToken()
+  let response = await requestOnce(path, init, token)
   if (response.status === 401) {
-    // The backend may have restarted with a fresh token; drop the cached one so
-    // the next call re-reads it rather than failing forever.
+    // The local engine may have restarted and rotated its per-launch token.
+    // Re-read it from the bridge and retry this request exactly once.
     apiTokenPromise = null
+    token = await resolveApiToken()
+    response = await requestOnce(path, init, token)
   }
   if (!response.ok) {
     let detail = `${response.status} ${response.statusText}`
