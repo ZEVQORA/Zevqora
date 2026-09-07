@@ -179,7 +179,7 @@ export function ChangesView({ onPrepare }: { onPrepare: (experiment: Experiment)
                 const ev = evaluationFor(current)
                 return ev ? (
                   <Note tone={ev.status === 'VERIFIED' ? 'ok' : 'warn'}>
-                    Backed by evaluation {shortId(ev.id)} · {ev.status} · {ev.sample_count} samples · quality {ev.candidate_quality?.toFixed(2)} · {costDeltaLabel(ev.raw_cost_delta_percent)}.{' '}
+                    Backed by evaluation {shortId(ev.id)} · {ev.status} · {ev.sample_count} samples · quality {ev.candidate_quality?.toFixed(2)} · {costDeltaLabel(ev)}.{' '}
                     <button className="underline underline-offset-4" onClick={() => setInspect({ kind: 'evaluation', id: ev.id })}>Inspect evidence</button>
                   </Note>
                 ) : null

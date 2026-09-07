@@ -2,11 +2,11 @@ import { ArrowRight, FolderGit2, Lightbulb, Radio, ScanSearch, Upload } from 'lu
 import { Zev } from '../../brand/Zev'
 import { useStore } from '../../lib/store'
 import { Button, Card, CardHeader, Empty, Metric, StatusChip } from '../ui'
-import { costDeltaLabel, dateTime, money, pct, relativeTime, score } from '../../lib/format'
+import { costDeltaLabel, dateTime, money, pct, relativeTime, score, zeroCostReason } from '../../lib/format'
 
 export function OverviewView({ onAddProduct }: { onAddProduct: () => void }) {
   const store = useStore()
-  const { selected, scan, aiCalls, findings, economics, evaluations, implementations, experiments, setView, runScan, importTraceFile, setInspect, health, activeWorkspace, auth } = store
+  const { selected, scan, aiCalls, findings, economics, evaluations, executions, implementations, experiments, setView, runScan, importTraceFile, setInspect, health, activeWorkspace, auth } = store
 
   if (!selected) {
     return (
@@ -102,7 +102,7 @@ export function OverviewView({ onAddProduct }: { onAddProduct: () => void }) {
           <Metric label="Potential opportunities" value={String(findings.length)} hint="Signals, not savings, until replayed and graded" tone="accent" />
         </Card>
         <Card className="p-5">
-          <Metric label="Verified savings" value={verifiedSavingPct === null ? '—' : pct(verifiedSavingPct)} hint={verified.length ? `${verified.length} verified · ${rejected.length} rejected · ${money(economics?.verified_savings_usd, { digits: 4 })} on samples` : `${rejected.length ? rejected.length + ' rejected · ' : ''}nothing verified yet`} tone={verified.length ? 'verified' : undefined} />
+          <Metric label="Verified cost reduction" value={verifiedSavingPct === null ? '—' : pct(verifiedSavingPct)} hint={verified.length ? `best verified replay · ${verified.length} verified · ${rejected.length} rejected · ${money(economics?.verified_savings_usd, { digits: 4 })} saved on samples` : `${rejected.length ? rejected.length + ' rejected · ' : ''}nothing verified yet`} tone={verified.length ? 'verified' : undefined} />
         </Card>
       </div>
 
@@ -120,7 +120,7 @@ export function OverviewView({ onAddProduct }: { onAddProduct: () => void }) {
             ) : (
               <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
                 <div className="grid gap-2">
-                  <div className="proof-row"><span>Cost delta</span><b className={latest.raw_cost_delta_percent && latest.raw_cost_delta_percent > 0 ? 'text-verified' : ''}>{costDeltaLabel(latest.raw_cost_delta_percent, 2)}</b></div>
+                  <div className="proof-row"><span>Cost delta</span><b className={latest.raw_cost_delta_percent && latest.raw_cost_delta_percent > 0 ? 'text-verified' : ''}>{costDeltaLabel(latest, { digits: 2, zeroReason: zeroCostReason(executions.find((x) => x.id === latest.candidate_execution_id)?.cost_source) })}</b></div>
                   <div className="proof-row"><span>Quality</span><b>{score(latest.candidate_quality)}</b></div>
                   <div className="proof-row"><span>Required</span><b>{score((latest.gates.find((g) => g.name === 'quality_floor' || g.name === 'quality')?.threshold as number | undefined) ?? null)}</b></div>
                   <div className="proof-row"><span>Samples</span><b>{latest.sample_count}</b></div>

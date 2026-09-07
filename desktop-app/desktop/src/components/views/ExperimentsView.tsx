@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Download, GitBranch, Play } from 'lucide-react'
 import { useStore } from '../../lib/store'
 import { Button, Card, CardHeader, Empty, Note, StatusChip, useToast } from '../ui'
-import { costDeltaLabel, dateTime, money, ms, num, observedLabel, pct, relativeTime, score, shortId, STRATEGY_LABEL, titleCase } from '../../lib/format'
+import { costDeltaLabel, dateTime, money, ms, num, observedLabel, pct, relativeTime, score, shortId, STRATEGY_LABEL, titleCase, zeroCostReason } from '../../lib/format'
 import type { Evaluation, Experiment } from '../../lib/types'
 
 function Verdict({ evaluation }: { evaluation: Evaluation }) {
@@ -93,7 +93,7 @@ export function ExperimentsView({ onPrepare, onTest }: { onPrepare: (experiment:
                     <span className="truncate text-[13px] font-semibold text-ink">{STRATEGY_LABEL[p?.strategy || ''] || titleCase(p?.strategy || 'candidate')}</span>
                     <StatusChip status={e.status} />
                   </div>
-                  <span className="text-[11.5px] text-subtle">{costDeltaLabel(e.raw_cost_delta_percent)} · quality {score(e.candidate_quality)} · {e.sample_count} samples</span>
+                  <span className="text-[11.5px] text-subtle">{costDeltaLabel(e)} · quality {score(e.candidate_quality)} · {e.sample_count} samples</span>
                   <span className="text-[11px] text-subtle">{relativeTime(e.created_at)}</span>
                 </button>
               )
@@ -133,7 +133,7 @@ export function ExperimentsView({ onPrepare, onTest }: { onPrepare: (experiment:
                         <td />
                         <td />
                         <td />
-                        <td className={`right tnum font-semibold ${current.raw_cost_delta_percent !== null && current.raw_cost_delta_percent > 0 ? 'text-verified' : 'text-rejected'}`}>{costDeltaLabel(current.raw_cost_delta_percent, 2)}</td>
+                        <td className={`right tnum font-semibold ${current.raw_cost_delta_percent !== null && current.raw_cost_delta_percent > 0 ? 'text-verified' : 'text-rejected'}`}>{costDeltaLabel(current, { digits: 2, zeroReason: zeroCostReason(execution?.cost_source) })}</td>
                         <td className="right tnum">{current.baseline_latency_ms && current.candidate_latency_ms ? pct(((current.candidate_latency_ms - current.baseline_latency_ms) / current.baseline_latency_ms) * 100) : '—'}</td>
                         <td className={`right tnum font-semibold ${current.quality_delta !== null && current.quality_delta < 0 ? 'text-rejected' : 'text-verified'}`}>{current.quality_delta === null ? '—' : (current.quality_delta >= 0 ? '+' : '') + current.quality_delta.toFixed(3)}</td>
                       </tr>

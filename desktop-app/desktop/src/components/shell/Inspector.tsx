@@ -1,7 +1,7 @@
 import { Activity, ExternalLink, FileSearch2, Gauge, ShieldCheck } from 'lucide-react'
 import { useStore } from '../../lib/store'
 import { Button, KeyValue, StatusChip } from '../ui'
-import { costDeltaLabel, dateTime, money, ms, num, pct, score, shortId, STRATEGY_LABEL, titleCase } from '../../lib/format'
+import { costDeltaLabel, dateTime, money, ms, num, pct, score, shortId, STRATEGY_LABEL, titleCase, zeroCostReason } from '../../lib/format'
 import type { EvalGate, Evaluation, Experiment, Finding, Implementation, OptimizationExecution, OptimizationPlan } from '../../lib/types'
 
 function GateList({ gates }: { gates: EvalGate[] }) {
@@ -92,7 +92,7 @@ function EvaluationBlock({ evaluation }: { evaluation: Evaluation }) {
             ['Samples', `${evaluation.sample_count} (${evaluation.protected_sample_count} protected)`],
             ['Quality', `${score(evaluation.candidate_quality)} vs ${score(evaluation.baseline_quality)}`],
             ['Cost', `${money(evaluation.candidate_cost_usd, { digits: 4 })} vs ${money(evaluation.baseline_cost_usd, { digits: 4 })}`],
-            ['Cost delta', costDeltaLabel(evaluation.raw_cost_delta_percent)],
+            ['Cost delta', costDeltaLabel(evaluation, { zeroReason: zeroCostReason(execution?.cost_source) })],
             ['Latency', `${ms(evaluation.candidate_latency_ms)} vs ${ms(evaluation.baseline_latency_ms)}`],
             ['Evidence', evaluation.evidence_completeness ? 'complete' : 'incomplete'],
           ]}
@@ -288,7 +288,7 @@ export function Inspector() {
               {latestVerified ? (
                 <>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[13px] font-semibold text-verified">VERIFIED · {costDeltaLabel(latestVerified.raw_cost_delta_percent)}</span>
+                    <span className="text-[13px] font-semibold text-verified">VERIFIED · {costDeltaLabel(latestVerified, { zeroReason: zeroCostReason(executions.find((x) => x.id === latestVerified.candidate_execution_id)?.cost_source) })}</span>
                     <StatusChip status="VERIFIED" />
                   </div>
                   <div className="text-[12px] text-muted">quality {score(latestVerified.candidate_quality)} · {latestVerified.sample_count} samples</div>

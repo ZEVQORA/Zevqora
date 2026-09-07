@@ -82,15 +82,41 @@ export const STRATEGY_HINT: Record<string, string> = {
   bounded_routing: 'Easy cases go to a cheaper model behind a guard; hard cases keep the baseline.',
 }
 
+export interface CostComparison {
+  raw_cost_delta_percent: number | null
+  baseline_cost_usd: number | null
+  candidate_cost_usd: number | null
+}
+
 /**
- * The engine reports raw_cost_delta_percent as a reduction: positive means the
- * candidate was cheaper. Render it as prose without letting the sign flip.
+ * Measured cost comparison as prose. The engine reports raw_cost_delta_percent
+ * as a reduction relative to the baseline (positive = candidate cheaper), and
+ * this is the only place that turns it into words:
+ *
+ * - no baseline cost, or a zero baseline → "—" (a percentage is undefined)
+ * - candidate measured at exactly $0 → "100% lower cost", optionally with the
+ *   reason (for example "no provider call" on deterministic reuse)
+ * - otherwise the precise measured reduction or increase, never a bare sign.
  */
-export function costDeltaLabel(reductionPct: number | null | undefined, digits = 1) {
-  if (reductionPct === null || reductionPct === undefined || !Number.isFinite(Number(reductionPct))) return '—'
-  const v = Number(reductionPct)
-  if (v >= 0) return `${pct(v, digits)} cheaper`
-  return `${pct(-v, digits)} more expensive`
+export function costDeltaLabel(cmp: CostComparison | null | undefined, { digits = 1, zeroReason }: { digits?: number; zeroReason?: string } = {}) {
+  if (!cmp) return '—'
+  const base = cmp.baseline_cost_usd
+  const cand = cmp.candidate_cost_usd
+  const reduction = cmp.raw_cost_delta_percent
+  if (base === null || base === undefined || !Number.isFinite(Number(base)) || Number(base) <= 0) return '—'
+  if (reduction === null || reduction === undefined || !Number.isFinite(Number(reduction))) return '—'
+  if (cand !== null && cand !== undefined && Number(cand) === 0) return `100% lower cost${zeroReason ? ` (${zeroReason})` : ''}`
+  const v = Number(reduction)
+  if (Math.abs(v) < 0.005) return 'same cost'
+  if (v > 0) return `${pct(v, digits)} lower cost`
+  return `${pct(-v, digits)} higher cost`
+}
+
+/** Short reason for a $0 candidate, derived from the execution's cost provenance. */
+export function zeroCostReason(costSource: string | null | undefined) {
+  if (costSource === 'deterministic_reuse' || costSource === 'deterministic_no_provider') return 'no provider call'
+  if (costSource === 'provider_reported') return 'provider reported $0'
+  return undefined
 }
 
 export function observedLabel(value: unknown) {

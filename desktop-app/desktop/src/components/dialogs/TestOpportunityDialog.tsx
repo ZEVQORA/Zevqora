@@ -4,7 +4,7 @@ import { api, errorMessage } from '../../lib/api'
 import { useStore } from '../../lib/store'
 import { creditSummary } from '../../lib/auth'
 import { Button, Field, Modal, Note, StatusChip } from '../ui'
-import { costDeltaLabel, money, STRATEGY_HINT, STRATEGY_LABEL } from '../../lib/format'
+import { costDeltaLabel, money, STRATEGY_HINT, STRATEGY_LABEL, zeroCostReason } from '../../lib/format'
 import type { Evaluation, Finding, OptimizationExecution, OptimizationPlan } from '../../lib/types'
 
 type Phase = 'configure' | 'plan' | 'replay' | 'evaluate' | 'done' | 'error'
@@ -204,7 +204,7 @@ export function TestOpportunityDialog({ finding, onClose, onComplete }: { findin
           {phase === 'done' && evaluation && (
             <div className={`rounded-xl border px-4 py-3 ${evaluation.status === 'VERIFIED' ? 'border-verified/30 bg-verified-bg' : 'border-rejected/30 bg-rejected-bg'}`}>
               <div className={`text-[20px] font-bold tracking-tight ${evaluation.status === 'VERIFIED' ? 'text-verified' : 'text-rejected'}`}>{evaluation.status === 'VERIFIED' ? 'QUALITY GATE · PASS' : evaluation.status === 'REJECTED' ? 'QUALITY GATE · FAIL' : evaluation.status}</div>
-              <div className="mt-1 text-[12.5px] text-muted">{evaluation.status === 'VERIFIED' ? `Verified on ${evaluation.sample_count} samples. ${costDeltaLabel(evaluation.raw_cost_delta_percent)}, quality ${evaluation.candidate_quality?.toFixed(2)}.` : evaluation.status === 'REJECTED' ? `Cheaper isn’t verified. ${evaluation.rejection_reason || ''}` : evaluation.rejection_reason || 'Evidence incomplete.'}</div>
+              <div className="mt-1 text-[12.5px] text-muted">{evaluation.status === 'VERIFIED' ? `Verified on ${evaluation.sample_count} samples. ${costDeltaLabel(evaluation, { zeroReason: zeroCostReason(execution?.cost_source) })}, quality ${evaluation.candidate_quality?.toFixed(2)}.` : evaluation.status === 'REJECTED' ? `Cheaper isn’t verified. ${evaluation.rejection_reason || ''}` : evaluation.rejection_reason || 'Evidence incomplete.'}</div>
             </div>
           )}
         </div>
