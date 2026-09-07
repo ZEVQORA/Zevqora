@@ -1,27 +1,48 @@
-# ZEVQORA Desktop — Production v1
+# ZEVQORA Desktop
 
-White-only Electron desktop app + packaged local FastAPI engine.
+The core ZEVQORA product: an Electron shell around a local FastAPI engine.
+
+Flow: connect a local repository → detect AI usage → import execution traces →
+diagnose spend → opportunities → "Let Zev test it" (plan → replay → grade →
+quality gate) → verified savings with an evidence trail → isolated patch on a
+branch → push / pull request → human review. Never auto-merge, never auto-deploy.
 
 ## Auth
 
-The primary desktop path signs in directly with the user's existing ZEVQORA email/password account. The password is sent only to the configured Supabase Auth HTTPS endpoint; ZEVQORA Desktop persists only the resulting access/refresh session tokens using Electron safeStorage when available. Legacy browser handoff code remains for compatibility but is not used by the welcome screen.
+Sign in with the same ZEVQORA account as the website (email/password, or the
+browser handoff for Google/GitHub). Only session tokens are stored, encrypted
+with Electron `safeStorage`. The renderer never sees them.
 
-## Build
+## Compute
 
-On Windows:
+Model calls go through your ZEVQORA account: local engine → `/api/platform/chat/completions`
+with your session → plan/credit check → OpenRouter. The provider credential
+stays on the server. A device-local OpenRouter key (Settings → Bring your own
+key) is optional and bypasses platform credit.
+
+## Develop
+
+```
+# backend (engine)
+cd backend && python -m pip install -r requirements-dev.txt && python run_backend.py
+
+# desktop
+cd desktop && npm install && npm run dev
+```
+
+The engine mints a per-launch API token and writes it to `~/.zevqora/api-token`
+for the dev flow; Electron reads it and hands it to the renderer.
+
+## Build (Windows)
 
 `powershell -ExecutionPolicy Bypass -File .\scripts\package_windows.ps1`
 
-Output:
+Output: `desktop\release\ZEVQORA-Setup.exe`. Edit `desktop/config/app-config.json`
+if the account site is not `https://zevqora.vercel.app`.
 
-`desktop\release\ZEVQORA-Setup.exe`
+## Tests
 
-## Website URL
+- Engine: `cd backend && python -m ruff check . && python -m pytest -q`
+- Desktop: `cd desktop && npm run typecheck && npx vite build`
 
-Edit `desktop/config/app-config.json` before building if the public account/billing site is not `https://zevqora.vercel.app`.
-
-## Local engine
-
-The packaged installer bundles the FastAPI backend as `zevqora-backend.exe` and stores its SQLite database under the Electron user-data directory.
-
-Full conversational OpenRouter reasoning remains optional: the local engine has deterministic scan/finding/spend tools without a provider key. If you later wire hosted Zev compute to billing credits, keep provider secrets server-side rather than baking them into the installer.
+See `docs/PRODUCTION_DESKTOP.md` for the security model.

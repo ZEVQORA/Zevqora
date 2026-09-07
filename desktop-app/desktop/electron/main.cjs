@@ -6,12 +6,15 @@ const { spawn } = require('child_process')
 
 const PROTOCOL = 'zevqora'
 const DEFAULT_WEB_APP_URL = 'https://zevqora.vercel.app'
+const LOCAL_API = 'http://127.0.0.1:8000'
 
 let mainWindow = null
 let tray = null
 let backendProcess = null
 let pendingAuthState = null
 let memorySession = null
+let lastAuthState = null
+let platformSyncTimer = null
 
 // Shared secret for the local API on 127.0.0.1. The packaged renderer loads from
 // file:// and so sends `Origin: null`, which any web page can also obtain — this
@@ -55,6 +58,46 @@ function webAppUrl() {
   return String(configured).replace(/\/$/, '')
 }
 
+// ---------------------------------------------------------------------------
+// Preferences (non-secret): active workspace/project, remembered per device.
+// ---------------------------------------------------------------------------
+function preferencesPath() {
+  return path.join(app.getPath('userData'), 'preferences.json')
+}
+
+function readPreferences() {
+  try {
+    if (fs.existsSync(preferencesPath())) return JSON.parse(fs.readFileSync(preferencesPath(), 'utf8')) || {}
+  } catch (error) {
+    console.error('[ZEVQORA] Could not read preferences:', error)
+  }
+  return {}
+}
+
+function writePreferences(next) {
+  try {
+    fs.writeFileSync(preferencesPath(), JSON.stringify(next, null, 2))
+  } catch (error) {
+    console.error('[ZEVQORA] Could not write preferences:', error)
+  }
+}
+
+function activeContext() {
+  const prefs = readPreferences()
+  return { workspaceId: prefs.activeWorkspaceId || null, projectId: prefs.activeProjectId || null }
+}
+
+function setActiveContext(workspaceId, projectId) {
+  const prefs = readPreferences()
+  prefs.activeWorkspaceId = workspaceId || null
+  prefs.activeProjectId = projectId || null
+  writePreferences(prefs)
+  return activeContext()
+}
+
+// ---------------------------------------------------------------------------
+// Secrets (OS-encrypted): account session, optional device-local provider key.
+// ---------------------------------------------------------------------------
 function sessionPath() {
   return path.join(app.getPath('userData'), 'auth-session.bin')
 }
@@ -94,9 +137,9 @@ function providerConfig() {
     openrouterConfigured: Boolean(openRouterKey()),
     secureStorageAvailable: safeStorage.isEncryptionAvailable(),
     source: readEncryptedSecret('openrouter-api-key') ? 'encrypted-local' : (process.env.OPENROUTER_API_KEY ? 'environment' : 'none'),
+    platformUrl: webAppUrl(),
   }
 }
-
 
 function saveSession(session) {
   memorySession = session || null
@@ -136,10 +179,14 @@ async function requestJson(url, init) {
   const response = await fetch(url, init)
   let body = null
   try { body = await response.json() } catch { /* no-op */ }
-  if (!response.ok) throw new Error(body?.error || `${response.status} ${response.statusText}`)
+  if (!response.ok) {
+    const error = new Error(body?.error || `${response.status} ${response.statusText}`)
+    error.status = response.status
+    error.code = body?.code || null
+    throw error
+  }
   return body
 }
-
 
 async function publicAuthConfig() {
   const config = await requestJson(`${webAppUrl()}/api/public-config`, { cache: 'no-store' })
@@ -190,31 +237,76 @@ async function signInWithPassword(email, password) {
   }
 }
 
+/** Maps /api/me into the renderer-facing auth state. Tokens never cross this boundary. */
+function authStateFromMe(me) {
+  const profile = me?.profile || {}
+  return {
+    signedIn: true,
+    user: {
+      id: me?.user?.id,
+      email: me?.user?.email || null,
+      displayName: profile.display_name || '',
+      username: profile.username || '',
+      createdAt: me?.user?.created_at || null,
+    },
+    account: me?.account || null,
+    workspaces: Array.isArray(me?.workspaces) ? me.workspaces : [],
+    isAdmin: Boolean(me?.isAdmin),
+    flags: me?.flags || {},
+    platformUrl: webAppUrl(),
+    context: activeContext(),
+  }
+}
+
+async function refreshSessionTokens(session) {
+  const refreshed = await requestJson(`${webAppUrl()}/api/desktop/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken: session.refreshToken }),
+  })
+  saveSession(refreshed.session)
+  return refreshed.session
+}
+
 async function publicAuthState() {
   let session = loadSession()
-  if (!session?.accessToken || !session?.refreshToken) return { signedIn: false }
+  if (!session?.accessToken || !session?.refreshToken) {
+    lastAuthState = { signedIn: false }
+    return lastAuthState
+  }
+
+  const load = async (accessToken) => requestJson(`${webAppUrl()}/api/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: 'no-store',
+  })
 
   try {
-    const body = await requestJson(`${webAppUrl()}/api/desktop/session`, {
-      headers: { Authorization: `Bearer ${session.accessToken}` },
-    })
-    return { signedIn: true, user: body.user, account: body.account }
+    const me = await load(session.accessToken)
+    lastAuthState = authStateFromMe(me)
   } catch (error) {
-    try {
-      const refreshed = await requestJson(`${webAppUrl()}/api/desktop/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: session.refreshToken }),
-      })
-      session = refreshed.session
-      saveSession(session)
-      return { signedIn: true, user: refreshed.user, account: refreshed.account }
-    } catch (refreshError) {
-      console.warn('[ZEVQORA] Desktop session expired:', refreshError)
+    if (error?.status && error.status !== 401 && error.status !== 403) {
+      // Network or server trouble: keep the last known good state instead of signing out.
+      if (lastAuthState?.signedIn) return { ...lastAuthState, degraded: true, error: 'ZEVQORA account service is unreachable right now.' }
+      return { signedIn: false, error: 'ZEVQORA account service is unreachable right now.' }
+    }
+    if (error?.code === 'ACCOUNT_SUSPENDED') {
       saveSession(null)
-      return { signedIn: false, error: 'Your session expired. Sign in again.' }
+      lastAuthState = { signedIn: false, error: 'This account is suspended. Contact support.' }
+      return lastAuthState
+    }
+    try {
+      session = await refreshSessionTokens(session)
+      const me = await load(session.accessToken)
+      lastAuthState = authStateFromMe(me)
+    } catch (refreshError) {
+      console.warn('[ZEVQORA] Desktop session expired:', refreshError?.message || refreshError)
+      saveSession(null)
+      lastAuthState = { signedIn: false, error: 'Your session expired. Sign in again.' }
+      return lastAuthState
     }
   }
+  schedulePlatformSync()
+  return lastAuthState
 }
 
 async function updateAccountProfile(displayName, username) {
@@ -222,7 +314,7 @@ async function updateAccountProfile(displayName, username) {
   if (!state.signedIn) throw new Error(state.error || 'Sign in again.')
   const session = loadSession()
   if (!session?.accessToken) throw new Error('Sign in again.')
-  const body = await requestJson(`${webAppUrl()}/api/desktop/update-profile`, {
+  await requestJson(`${webAppUrl()}/api/desktop/update-profile`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -248,7 +340,7 @@ async function exchangeDesktopHandoff(code, state) {
     body: JSON.stringify({ code, state }),
   })
   saveSession(body.session)
-  return { signedIn: true, user: body.user, account: body.account }
+  return publicAuthState()
 }
 
 async function handleDeepLink(rawUrl) {
@@ -286,6 +378,117 @@ function findDeepLink(argv) {
   return argv.find((arg) => typeof arg === 'string' && arg.startsWith(`${PROTOCOL}://`)) || null
 }
 
+// ---------------------------------------------------------------------------
+// Platform requests on behalf of the renderer. The access token stays here.
+// Only account/workspace/project routes on the configured ZEVQORA origin are
+// reachable, so the renderer cannot turn this into a general HTTP client.
+// ---------------------------------------------------------------------------
+const PLATFORM_PATH_RE = /^\/api\/(me|platform|workspaces|projects|connections|opportunities|experiments|invites)(\/[A-Za-z0-9_.\-]+)*(\?[A-Za-z0-9_.\-=&%]*)?$/
+const PLATFORM_METHODS = new Set(['GET', 'POST', 'PATCH', 'DELETE'])
+
+async function platformRequest(method, requestPath, body) {
+  const verb = String(method || 'GET').toUpperCase()
+  const target = String(requestPath || '')
+  if (!PLATFORM_METHODS.has(verb)) return { status: 405, body: { error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' } }
+  if (!PLATFORM_PATH_RE.test(target)) return { status: 400, body: { error: 'That platform route is not available from Desktop.', code: 'ROUTE_NOT_ALLOWED' } }
+  let session = loadSession()
+  if (!session?.accessToken) return { status: 401, body: { error: 'Sign in first.', code: 'AUTH_REQUIRED' } }
+
+  const send = async (accessToken) => {
+    const response = await fetch(`${webAppUrl()}${target}`, {
+      method: verb,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        ...(body !== undefined && body !== null ? { 'Content-Type': 'application/json' } : {}),
+        Accept: 'application/json',
+      },
+      body: body !== undefined && body !== null ? JSON.stringify(body) : undefined,
+      cache: 'no-store',
+    })
+    let parsed = null
+    const text = await response.text()
+    try { parsed = text ? JSON.parse(text) : null } catch { parsed = { raw: text.slice(0, 2000) } }
+    return { status: response.status, body: parsed }
+  }
+
+  try {
+    let result = await send(session.accessToken)
+    if (result.status === 401 && session.refreshToken) {
+      try {
+        session = await refreshSessionTokens(session)
+        result = await send(session.accessToken)
+        schedulePlatformSync()
+      } catch (_) {
+        saveSession(null)
+        emitAuthState({ signedIn: false, error: 'Your session expired. Sign in again.' })
+        return { status: 401, body: { error: 'Your session expired. Sign in again.', code: 'SESSION_EXPIRED' } }
+      }
+    }
+    return result
+  } catch (error) {
+    return { status: 0, body: { error: 'ZEVQORA account service is unreachable.', code: 'NETWORK', detail: error?.message || String(error) } }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Local engine: platform session hand-off. The engine calls OpenRouter only
+// through the platform proxy with this access token; the provider credential
+// never reaches the device.
+// ---------------------------------------------------------------------------
+async function localApi(method, requestPath, body) {
+  const token = resolveApiToken()
+  const response = await fetch(`${LOCAL_API}${requestPath}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'X-Zevqora-Token': token } : {}),
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+  let parsed = null
+  try { parsed = await response.json() } catch { /* no-op */ }
+  if (!response.ok) throw new Error(parsed?.detail || `${response.status} ${response.statusText}`)
+  return parsed
+}
+
+async function syncPlatformSession() {
+  const session = loadSession()
+  const state = lastAuthState
+  try {
+    if (!session?.accessToken || !state?.signedIn) {
+      await localApi('DELETE', '/api/v1/platform/session')
+      return { synced: true, connected: false }
+    }
+    const context = activeContext()
+    const result = await localApi('POST', '/api/v1/platform/session', {
+      base_url: webAppUrl(),
+      access_token: session.accessToken,
+      user_id: state.user?.id || null,
+      email: state.user?.email || null,
+      workspace_id: context.workspaceId,
+      project_id: context.projectId,
+      plan: state.account?.plan || null,
+    })
+    return { synced: true, connected: Boolean(result?.connected), status: result }
+  } catch (error) {
+    // The engine may still be starting; the scheduler retries.
+    return { synced: false, error: error?.message || String(error) }
+  }
+}
+
+function schedulePlatformSync(attempt = 0) {
+  if (platformSyncTimer) clearTimeout(platformSyncTimer)
+  platformSyncTimer = setTimeout(async () => {
+    platformSyncTimer = null
+    const result = await syncPlatformSession()
+    if (!result.synced && attempt < 12) schedulePlatformSync(attempt + 1)
+    else if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('zevqora:platform-synced', result)
+  }, attempt === 0 ? 150 : Math.min(1500 * attempt, 8000))
+}
+
+// ---------------------------------------------------------------------------
+// Backend process
+// ---------------------------------------------------------------------------
 function startPackagedBackend() {
   if (!app.isPackaged || backendProcess) return
   const exe = path.join(process.resourcesPath, 'backend', process.platform === 'win32' ? 'zevqora-backend.exe' : 'zevqora-backend')
@@ -294,6 +497,7 @@ function startPackagedBackend() {
     return
   }
   const userData = app.getPath('userData').replace(/\\/g, '/')
+  const localKey = openRouterKey()
   backendProcess = spawn(exe, [], {
     cwd: app.getPath('userData'),
     windowsHide: true,
@@ -303,10 +507,13 @@ function startPackagedBackend() {
       ZEVQORA_API_PORT: '8000',
       ZEVQORA_API_TOKEN: apiToken,
       DATABASE_URL: `sqlite:///${userData}/zevqora.db`,
-      OPENROUTER_API_KEY: openRouterKey(),
+      // Optional device-local BYOK only. Platform compute needs no key here.
+      ...(localKey ? { OPENROUTER_API_KEY: localKey } : {}),
+      OPENROUTER_SITE_URL: webAppUrl(),
     },
   })
   backendProcess.on('exit', () => { backendProcess = null })
+  schedulePlatformSync()
 }
 
 function stopBackend() {
@@ -323,6 +530,9 @@ async function restartBackend() {
   return true
 }
 
+// ---------------------------------------------------------------------------
+// Window + tray
+// ---------------------------------------------------------------------------
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1580,
@@ -346,6 +556,19 @@ function createWindow() {
 
   mainWindow.setMenuBarVisibility(false)
 
+  // External links never open inside the app shell.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (isAllowedExternal(url)) shell.openExternal(url)
+    return { action: 'deny' }
+  })
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const devUrl = process.env.VITE_DEV_SERVER_URL
+    if (devUrl && url.startsWith(devUrl)) return
+    if (url.startsWith('file://')) return
+    event.preventDefault()
+    if (isAllowedExternal(url)) shell.openExternal(url)
+  })
+
   const devUrl = process.env.VITE_DEV_SERVER_URL
   if (devUrl) mainWindow.loadURL(devUrl)
   else mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
@@ -353,7 +576,8 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => {
     if (mainWindow) mainWindow.show()
   })
-
+  mainWindow.on('maximize', () => mainWindow?.webContents.send('zevqora:window-state', { maximized: true }))
+  mainWindow.on('unmaximize', () => mainWindow?.webContents.send('zevqora:window-state', { maximized: false }))
   mainWindow.on('closed', () => { mainWindow = null })
 }
 
@@ -371,16 +595,35 @@ function createTrayIfExactAssetExists() {
   if (!iconPath) return
   const image = nativeImage.createFromPath(iconPath)
   tray = new Tray(image)
-  tray.setToolTip('ZEVQORA — Make AI lighter.')
+  tray.setToolTip('ZEVQORA — Cut AI COGS without cutting product quality.')
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Open ZEVQORA', click: () => { if (mainWindow) mainWindow.show(); else createWindow() } },
-    { label: 'Account', click: () => shell.openExternal(`${webAppUrl()}/account`) },
+    { label: 'Account', click: () => shell.openExternal(`${webAppUrl()}/app/settings`) },
     { type: 'separator' },
     { label: 'Quit', click: () => app.quit() },
   ]))
   tray.on('double-click', () => { if (mainWindow) mainWindow.show() })
 }
 
+// ---------------------------------------------------------------------------
+// External URL policy: the ZEVQORA site, plus the code forges a pull request
+// can live on. Nothing else opens from the app.
+// ---------------------------------------------------------------------------
+function isAllowedExternal(rawUrl) {
+  try {
+    const url = new URL(String(rawUrl))
+    if (url.protocol !== 'https:') return false
+    const site = new URL(webAppUrl())
+    if (url.host === site.host) return true
+    return ['github.com', 'gitlab.com', 'bitbucket.org', 'www.github.com'].includes(url.host)
+  } catch {
+    return false
+  }
+}
+
+// ---------------------------------------------------------------------------
+// IPC
+// ---------------------------------------------------------------------------
 ipcMain.handle('zevqora:get-api-token', async () => resolveApiToken())
 
 ipcMain.handle('zevqora:window-action', (_event, action) => {
@@ -390,6 +633,8 @@ ipcMain.handle('zevqora:window-action', (_event, action) => {
   else if (action === 'close') mainWindow.close()
   return true
 })
+
+ipcMain.handle('zevqora:window-state', () => ({ maximized: Boolean(mainWindow?.isMaximized()), platform: process.platform, packaged: app.isPackaged, version: app.getVersion() }))
 
 ipcMain.handle('zevqora:select-folder', async () => {
   const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
@@ -408,7 +653,31 @@ ipcMain.handle('zevqora:select-trace-file', async () => {
   if (lowered.includes('.env') || /secret|credential|private|token|key|production|backup|dump/.test(lowered)) {
     throw new Error('Refusing to import a secret-bearing file name. Choose an explicit JSON/JSONL trace export.')
   }
+  const stat = fs.statSync(selected)
+  if (stat.size > 50 * 1024 * 1024) throw new Error('Trace files over 50 MB are not imported through the desktop picker.')
   return { path: selected, content: fs.readFileSync(selected, 'utf8') }
+})
+
+ipcMain.handle('zevqora:save-text-file', async (_event, payload) => {
+  const suggested = String(payload?.suggestedName || 'zevqora-export.json').replace(/[^A-Za-z0-9_.\-]/g, '_')
+  const result = await dialog.showSaveDialog({ defaultPath: suggested, filters: [{ name: 'JSON', extensions: ['json'] }, { name: 'All files', extensions: ['*'] }] })
+  if (result.canceled || !result.filePath) return null
+  fs.writeFileSync(result.filePath, String(payload?.content || ''), 'utf8')
+  return result.filePath
+})
+
+ipcMain.handle('zevqora:open-path', async (_event, target) => {
+  const resolved = path.resolve(String(target || ''))
+  if (!fs.existsSync(resolved)) throw new Error('That folder no longer exists.')
+  const error = await shell.openPath(resolved)
+  if (error) throw new Error(error)
+  return true
+})
+
+ipcMain.handle('zevqora:open-external', async (_event, url) => {
+  if (!isAllowedExternal(url)) throw new Error('Only ZEVQORA and code-hosting links open from Desktop.')
+  await shell.openExternal(String(url))
+  return true
 })
 
 ipcMain.handle('zevqora:start-browser-auth', async () => {
@@ -434,8 +703,10 @@ ipcMain.handle('zevqora:get-auth-state', async () => publicAuthState())
 ipcMain.handle('zevqora:sign-out', async () => {
   pendingAuthState = null
   saveSession(null)
+  lastAuthState = { signedIn: false }
   const state = { signedIn: false }
   emitAuthState(state)
+  schedulePlatformSync()
   return state
 })
 
@@ -444,12 +715,18 @@ ipcMain.handle('zevqora:update-profile', async (_event, profile) => {
 })
 
 ipcMain.handle('zevqora:open-account', async () => {
-  await shell.openExternal(`${webAppUrl()}/account`)
+  await shell.openExternal(`${webAppUrl()}/app/settings`)
   return true
 })
 
 ipcMain.handle('zevqora:open-pricing', async () => {
   await shell.openExternal(`${webAppUrl()}/pricing`)
+  return true
+})
+
+ipcMain.handle('zevqora:open-web', async (_event, route) => {
+  const clean = String(route || '/').startsWith('/') ? String(route) : '/'
+  await shell.openExternal(`${webAppUrl()}${clean}`)
   return true
 })
 
@@ -468,6 +745,18 @@ ipcMain.handle('zevqora:clear-openrouter-key', async () => {
   await restartBackend()
   return providerConfig()
 })
+
+ipcMain.handle('zevqora:platform-request', async (_event, payload) => platformRequest(payload?.method, payload?.path, payload?.body))
+
+ipcMain.handle('zevqora:get-context', async () => activeContext())
+
+ipcMain.handle('zevqora:set-context', async (_event, payload) => {
+  const next = setActiveContext(payload?.workspaceId, payload?.projectId)
+  schedulePlatformSync()
+  return next
+})
+
+ipcMain.handle('zevqora:sync-platform', async () => syncPlatformSession())
 
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
@@ -496,6 +785,8 @@ if (!gotLock) {
     createTrayIfExactAssetExists()
     const initialDeepLink = findDeepLink(process.argv)
     if (initialDeepLink) void handleDeepLink(initialDeepLink)
+    // Restore the account session and hand it to the engine as soon as both are up.
+    void publicAuthState().then(() => schedulePlatformSync())
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
     })

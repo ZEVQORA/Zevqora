@@ -1,147 +1,37 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { WifiOff } from 'lucide-react'
-import { AddProductDialog } from './components/AddProductDialog'
-import { CommandPalette } from './components/CommandPalette'
-import { DesktopSettings } from './components/DesktopSettings'
-import { EvidenceRail } from './components/EvidenceRail'
-import { LivingWorkspace } from './components/LivingWorkspace'
-import { Sidebar } from './components/Sidebar'
-import { TitleBar } from './components/TitleBar'
+import { StoreProvider, useStore } from './lib/store'
+import { errorMessage } from './lib/api'
+import { ToastProvider, useToast } from './components/ui'
+import { TitleBar } from './components/shell/TitleBar'
+import { Sidebar } from './components/shell/Sidebar'
+import { Inspector } from './components/shell/Inspector'
 import { WelcomeScreen } from './components/WelcomeScreen'
-import type { ZevState } from './components/ZevPresence'
-import {
-  ExperimentDialog,
-  ImplementationDialog,
-  ExperimentsView,
-  ImplementationsView,
-  ProductsView,
-  SavingsView,
-  SpendView,
-  WasteView,
-  WorkspaceControl,
-} from './components/Views'
-import { api } from './lib/api'
-import type { Economics, Experiment, Finding, Health, Implementation, Product, ScanResult, ViewKey } from './lib/types'
-import type { DesktopAuthState } from './lib/auth'
+import { OverviewView } from './components/views/OverviewView'
+import { WorkspaceView } from './components/views/WorkspaceView'
+import { OpportunitiesView } from './components/views/OpportunitiesView'
+import { ExperimentsView } from './components/views/ExperimentsView'
+import { ChangesView } from './components/views/ChangesView'
+import { RuntimeView } from './components/views/RuntimeView'
+import { ZevView } from './components/views/ZevView'
+import { SettingsView } from './components/views/SettingsView'
+import { AddProductDialog } from './components/dialogs/AddProductDialog'
+import { TestOpportunityDialog } from './components/dialogs/TestOpportunityDialog'
+import { PrepareChangeDialog } from './components/dialogs/PrepareChangeDialog'
+import { CommandPalette } from './components/dialogs/CommandPalette'
+import type { Experiment, Finding } from './lib/types'
+import { BrandLoader } from './brand/Logo'
 
-export default function App() {
-  const [view, setView] = useState<ViewKey>('zev')
-  const [health, setHealth] = useState<Health | null>(null)
-  const [backendError, setBackendError] = useState('')
-  const [products, setProducts] = useState<Product[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [scan, setScan] = useState<ScanResult | null>(null)
-  const [aiCallCount, setAiCallCount] = useState(0)
-  const [detectedStack, setDetectedStack] = useState<string[]>([])
-  const [findings, setFindings] = useState<Finding[]>([])
-  const [economics, setEconomics] = useState<Economics | null>(null)
-  const [experiments, setExperiments] = useState<Experiment[]>([])
-  const [implementations, setImplementations] = useState<Implementation[]>([])
+function Shell() {
+  const store = useStore()
+  const toast = useToast()
+  const { view, setView, auth, backendError, inspectorOpen, connectProduct, refreshProductData, setInspect, refreshAuth } = store
   const [addOpen, setAddOpen] = useState(false)
   const [testing, setTesting] = useState<Finding | null>(null)
   const [preparing, setPreparing] = useState<Experiment | null>(null)
-  const [model, setModel] = useState(localStorage.getItem('zevqora.agentModel') || 'openrouter/auto')
-  const [inspectorOpen, setInspectorOpen] = useState(true)
-  const [agentState, setAgentState] = useState<ZevState>('idle')
   const [commandOpen, setCommandOpen] = useState(false)
-  const [auth, setAuth] = useState<DesktopAuthState | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
+  const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState('')
-
-  const selected = useMemo(() => products.find((item) => item.id === selectedId) || null, [products, selectedId])
-
-  useEffect(() => {
-    document.documentElement.removeAttribute('data-theme')
-    localStorage.removeItem('zevqora.theme')
-    const bridge = window.zevqoraDesktop
-    if (!bridge) {
-      setAuth({ signedIn: false, error: 'Desktop authentication is available inside the installed ZEVQORA app.' })
-      setAuthLoading(false)
-      return
-    }
-
-    let active = true
-    const refreshAuth = () => {
-      void bridge.getAuthState()
-        .then((state) => { if (active) setAuth(state) })
-        .catch((error) => { if (active) setAuthError(error instanceof Error ? error.message : String(error)) })
-        .finally(() => { if (active) setAuthLoading(false) })
-    }
-    refreshAuth()
-    const authInterval = window.setInterval(refreshAuth, 60_000)
-    window.addEventListener('focus', refreshAuth)
-
-    const unsubscribe = bridge.onAuthChanged((state) => {
-      if (!active) return
-      setAuth(state)
-      setAuthError(state.error || '')
-      setAuthLoading(false)
-    })
-
-    return () => {
-      active = false
-      window.clearInterval(authInterval)
-      window.removeEventListener('focus', refreshAuth)
-      unsubscribe?.()
-    }
-  }, [])
-
-  const refreshHealth = useCallback(async () => {
-    try {
-      const next = await api.health()
-      setHealth(next)
-      setBackendError('')
-    } catch (err) {
-      setHealth(null)
-      setBackendError(err instanceof Error ? err.message : String(err))
-    }
-  }, [])
-
-  const refreshProducts = useCallback(async () => {
-    const rows = await api.products()
-    setProducts(rows)
-    setSelectedId((current) => current && rows.some((item) => item.id === current) ? current : rows[0]?.id || null)
-  }, [])
-
-  const refreshProductData = useCallback(async () => {
-    if (!selectedId) {
-      setFindings([])
-      setEconomics(null)
-      setExperiments([])
-      setImplementations([])
-      setAiCallCount(0)
-      setDetectedStack([])
-      return
-    }
-    const [nextCalls, nextFindings, nextEconomics, nextExperiments, nextImplementations] = await Promise.all([
-      api.aiCalls(selectedId), api.findings(selectedId), api.economics(selectedId), api.experiments(selectedId), api.implementations(selectedId),
-    ])
-    setAiCallCount(nextCalls.length)
-    setDetectedStack(Array.from(new Set(nextCalls.map((item) => item.provider))).sort())
-    setFindings(nextFindings)
-    setEconomics(nextEconomics)
-    setExperiments(nextExperiments)
-    setImplementations(nextImplementations)
-    await refreshProducts()
-  }, [selectedId, refreshProducts])
-
-  useEffect(() => {
-    void (async () => {
-      await refreshHealth()
-      try { await refreshProducts() } catch { /* local offline state is shown in UI */ }
-    })()
-    const id = window.setInterval(() => void refreshHealth(), 10000)
-    return () => window.clearInterval(id)
-  }, [refreshHealth, refreshProducts])
-
-  useEffect(() => {
-    setScan(null)
-    void refreshProductData().catch(() => undefined)
-  }, [refreshProductData])
-
-  useEffect(() => {
-    if (health?.status === 'ok' && !products.length) void refreshProducts().catch(() => undefined)
-  }, [health?.status, products.length, refreshProducts])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -155,171 +45,101 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  const connect = async (path: string, name?: string) => {
-    setAgentState('scanning')
-    try {
-      const result = await api.connectLocal(path, name)
-      setScan(result)
-      setAiCallCount(result.ai_calls.length)
-      setDetectedStack(result.detected_stack)
-      await refreshProducts()
-      setSelectedId(result.product.id)
-      setView('zev')
-      setAgentState('done')
-      window.setTimeout(() => setAgentState('idle'), 1200)
-    } catch (err) {
-      setAgentState('idle')
-      throw err
-    }
-  }
-
-  const runScan = async () => {
-    if (!selected) return
-    setAgentState('scanning')
-    try {
-      const result = await api.scan(selected.id)
-      setScan(result)
-      setAiCallCount(result.ai_calls.length)
-      setDetectedStack(result.detected_stack)
-      await refreshProductData()
-      setAgentState('done')
-      window.setTimeout(() => setAgentState('idle'), 1200)
-    } catch (err) {
-      setAgentState('idle')
-      throw err
-    }
-  }
-
-  const toggleMonitoring = async () => {
-    if (!selected) return
-    await api.monitoring(selected.id, !selected.monitoring_enabled)
-    await refreshProducts()
-  }
-
-  const importTraceFile = async () => {
-    if (!selected) return
-    if (!window.zevqoraDesktop) {
-      alert('Trace file picker is available in the Electron desktop shell.')
-      return
-    }
-    const file = await window.zevqoraDesktop.selectTraceFile()
-    if (!file) return
-    setAgentState('verifying')
-    try {
-      const result = await api.importTraces(selected.id, file.content)
-      if (result.rejected) alert(`Imported ${result.imported}. Rejected ${result.rejected}. First error: ${result.errors[0] || 'unknown'}`)
-      await refreshProductData()
-      setAgentState('done')
-      window.setTimeout(() => setAgentState('idle'), 1200)
-    } catch (err) {
-      setAgentState('idle')
-      throw err
-    }
-  }
-
-  const updateModel = (value: string) => {
-    setModel(value)
-    localStorage.setItem('zevqora.agentModel', value)
-  }
-
-  const directLogin = async (email: string, password: string) => {
+  const directLogin = useCallback(async (email: string, password: string) => {
     setAuthError('')
     setAuthLoading(true)
     try {
       if (!window.zevqoraDesktop) throw new Error('Desktop authentication bridge is unavailable.')
-      const state = await window.zevqoraDesktop.signInWithPassword(email, password)
-      setAuth(state)
-      setAuthError(state.error || '')
+      await window.zevqoraDesktop.signInWithPassword(email, password)
+      await refreshAuth()
     } catch (error) {
-      setAuth({ signedIn: false })
-      setAuthError(error instanceof Error ? error.message : String(error))
+      setAuthError(errorMessage(error))
       throw error
     } finally {
       setAuthLoading(false)
     }
+  }, [refreshAuth])
+
+  if (auth === null) {
+    return (
+      <div className="flex h-screen items-center justify-center app-env">
+        <BrandLoader label="Restoring your session" size={32} />
+      </div>
+    )
   }
 
-  const createAccount = () => {
-    void window.zevqoraDesktop?.openSignup()
-  }
-
-  const signOut = async () => {
-    if (!window.zevqoraDesktop) return
-    const state = await window.zevqoraDesktop.signOut()
-    setAuth(state)
-  }
-
-  if (!auth?.signedIn) {
+  if (!auth.signedIn) {
     return (
       <WelcomeScreen
         auth={auth}
         loading={authLoading}
         error={authError}
         onDirectLogin={directLogin}
-        onCreateAccount={createAccount}
+        onBrowserLogin={() => void window.zevqoraDesktop?.startBrowserAuth()}
+        onCreateAccount={() => void window.zevqoraDesktop?.openSignup()}
       />
     )
   }
 
   let content: React.ReactNode
-  if (view === 'products') content = <ProductsView products={products} selected={selected} onSelect={setSelectedId} onAdd={() => setAddOpen(true)} />
-  else if (view === 'spend') content = <SpendView product={selected} economics={economics} onImport={importTraceFile} />
-  else if (view === 'waste') content = <WasteView product={selected} findings={findings} onTest={(finding) => { setTesting(finding); setAgentState('verifying') }} />
-  else if (view === 'experiments') content = <ExperimentsView experiments={experiments} />
-  else if (view === 'savings') content = <SavingsView experiments={experiments} />
-  else if (view === 'implementations') content = <ImplementationsView experiments={experiments} implementations={implementations} onPrepare={(experiment) => { setPreparing(experiment); setAgentState('experimenting') }} />
-  else if (view === 'settings') content = <DesktopSettings health={health} model={model} onModel={updateModel} auth={auth} />
-  else content = (
-    <LivingWorkspace
-      product={selected}
-      health={health}
-      economics={economics}
-      findings={findings}
-      experiments={experiments}
-      aiCallCount={aiCallCount}
-      agentState={agentState}
-      onAgentState={setAgentState}
-      onDataChanged={refreshProductData}
-      onScan={runScan}
-    />
-  )
+  if (view === 'workspace') content = <WorkspaceView onAddProduct={() => setAddOpen(true)} />
+  else if (view === 'opportunities') content = <OpportunitiesView onTest={(finding) => setTesting(finding)} />
+  else if (view === 'experiments') content = <ExperimentsView onPrepare={(experiment) => setPreparing(experiment)} onTest={() => setView('opportunities')} />
+  else if (view === 'changes') content = <ChangesView onPrepare={(experiment) => setPreparing(experiment)} />
+  else if (view === 'runtime') content = <RuntimeView />
+  else if (view === 'zev') content = <ZevView />
+  else if (view === 'settings') content = <SettingsView />
+  else content = <OverviewView onAddProduct={() => setAddOpen(true)} />
 
   return (
-    <div className="app-window">
-      <TitleBar
-        inspectorOpen={inspectorOpen}
-        onToggleInspector={() => setInspectorOpen((current) => !current)}
-        onOpenCommand={() => setCommandOpen(true)}
-        productName={selected?.name}
-        auth={auth}
-        onOpenAccount={() => void window.zevqoraDesktop?.openAccount()}
-        onSignOut={() => void signOut()}
-      />
+    <div className="app-window app-env">
+      <TitleBar onOpenCommand={() => setCommandOpen(true)} />
       <div className="app-body">
-        <Sidebar view={view} onView={setView} products={products} selectedId={selectedId} onSelectProduct={setSelectedId} onAddProduct={() => setAddOpen(true)} />
+        <Sidebar onAddProduct={() => setAddOpen(true)} />
         <main className="main-surface">
-          {backendError && <div className="offline-toast"><WifiOff size={13} /> Backend offline. Start the local engine on 127.0.0.1:8000.</div>}
-          {content}
-          {view !== 'zev' && <WorkspaceControl product={selected} scan={scan} onScan={runScan} onToggle={toggleMonitoring} inspectorOpen={inspectorOpen} />}
+          {backendError && (
+            <div className="flex items-center gap-2 border-b border-warning/30 bg-warning-bg px-5 py-2 text-[12.5px] text-warning">
+              <WifiOff size={13} /> Local engine offline. {backendError} Start the local engine on 127.0.0.1:8000.
+            </div>
+          )}
+          {auth.degraded && auth.error && <div className="border-b border-warning/30 bg-warning-bg px-5 py-2 text-[12.5px] text-warning">{auth.error}</div>}
+          {view === 'zev' ? <div className="relative flex min-h-0 flex-1 flex-col">{content}</div> : <div className="main-scroll">{content}</div>}
         </main>
-        {inspectorOpen && (
-          <EvidenceRail
-            health={health}
-            product={selected}
-            scan={scan}
-            aiCallCount={aiCallCount}
-            detectedStack={detectedStack}
-            findings={findings}
-            economics={economics}
-            experiments={experiments}
-          />
-        )}
+        {inspectorOpen && <Inspector />}
       </div>
 
-      <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} onView={setView} onAddProduct={() => setAddOpen(true)} />
-      <AddProductDialog open={addOpen} onClose={() => setAddOpen(false)} onConnect={connect} />
-      <ExperimentDialog finding={testing} product={selected} onClose={() => { setTesting(null); setAgentState('idle') }} onComplete={async () => { await refreshProductData(); setAgentState('done'); window.setTimeout(() => setAgentState('idle'), 1200); setView('experiments') }} />
-      <ImplementationDialog experiment={preparing} product={selected} model={model} onClose={() => { setPreparing(null); setAgentState('idle') }} onComplete={async () => { await refreshProductData(); setAgentState('done'); window.setTimeout(() => setAgentState('idle'), 1200); setView('implementations') }} />
+      <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} onAddProduct={() => setAddOpen(true)} />
+      <AddProductDialog open={addOpen} onClose={() => setAddOpen(false)} onConnect={async (path, name) => { const result = await connectProduct(path, name); toast({ tone: 'ok', title: `Connected ${result.product.name}`, description: `${result.files_scanned} files · ${result.ai_calls.length} AI call sites · ${result.findings.length} opportunities` }); setView('overview'); return result }} />
+      <TestOpportunityDialog
+        finding={testing}
+        onClose={() => setTesting(null)}
+        onComplete={async (evaluation) => {
+          await refreshProductData()
+          setInspect({ kind: 'evaluation', id: evaluation.id })
+          setView('experiments')
+          toast({ tone: evaluation.status === 'VERIFIED' ? 'ok' : 'info', title: evaluation.status === 'VERIFIED' ? 'Quality gate passed' : evaluation.status === 'REJECTED' ? 'Cheaper isn’t verified' : `Evaluation ${evaluation.status}`, description: evaluation.rejection_reason || undefined })
+        }}
+      />
+      <PrepareChangeDialog
+        experiment={preparing}
+        onClose={() => setPreparing(null)}
+        onComplete={async (implementation) => {
+          await refreshProductData()
+          setInspect({ kind: 'implementation', id: implementation.id })
+          setView('changes')
+          toast({ tone: 'ok', title: 'Change candidate prepared', description: `${implementation.branch_name} · ${implementation.status.replace(/_/g, ' ').toLowerCase()}` })
+        }}
+      />
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <ToastProvider>
+      <StoreProvider>
+        <Shell />
+      </StoreProvider>
+    </ToastProvider>
   )
 }
