@@ -32,6 +32,26 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def sha256_line_ending_variants(path: Path) -> dict[str, str]:
+    """Hashes of the file as checked out, plus its LF-only and CRLF-only forms.
+
+    The manifests were produced from a Windows working copy (CRLF), while git
+    stores the evidence with LF. A checkout on a POSIX runner therefore hashes
+    differently from the same bytes on Windows although the content is
+    identical. Accepting the matching line-ending form keeps the manifests
+    immutable and the verifier portable; a genuine content change still fails
+    on every variant.
+    """
+    raw = path.read_bytes()
+    lf = raw.replace(b"\r\n", b"\n")
+    crlf = lf.replace(b"\n", b"\r\n")
+    return {
+        "as-is": hashlib.sha256(raw).hexdigest(),
+        "lf": hashlib.sha256(lf).hexdigest(),
+        "crlf": hashlib.sha256(crlf).hexdigest(),
+    }
+
+
 def verify_bundle(bundle: Path) -> tuple[int, list[str]]:
     """Return (files_checked, failures)."""
     manifest = bundle / MANIFEST_NAME
@@ -56,8 +76,9 @@ def verify_bundle(bundle: Path) -> tuple[int, list[str]]:
         if not target.is_file():
             failures.append(f"{bundle.name}/{name}: MISSING")
             continue
-        actual = sha256_file(target)
-        if actual.lower() != expected.strip().lower():
+        variants = sha256_line_ending_variants(target)
+        actual = variants["as-is"]
+        if expected.strip().lower() not in {v.lower() for v in variants.values()}:
             failures.append(f"{bundle.name}/{name}: MISMATCH\n    expected {expected}\n    actual   {actual}")
     return checked, failures
 
