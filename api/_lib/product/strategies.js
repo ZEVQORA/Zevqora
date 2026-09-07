@@ -9,6 +9,9 @@ import { estimateCost, normalizeModel } from '../pricing.js';
 export const PLAN_VERSION = 'plan_v1';
 export const MIN_REUSE_GROUP_SIZE = 2;
 export const SMOKE_MAX_OUTPUT_TOKENS = 64;
+// Ceiling for a replay's output cap, so a pathological baseline cannot turn one
+// sample into an unbounded generation.
+export const MAX_CANDIDATE_OUTPUT_TOKENS = 1024;
 export const MAX_CANDIDATE_SAMPLES = 10;
 export const DEFAULT_MAX_EXPERIMENT_COST_USD = 0.5;
 
@@ -92,6 +95,39 @@ export function planExactReuse(traces, finding) {
 }
 
 /** Conservative per-sample cost estimate from public list prices (+25% padding). */
+/**
+ * The request to replay for a baseline trace. A candidate is only a fair
+ * comparison if it is asked the same question, so the recorded prompt is used
+ * verbatim; assistant turns are dropped so the model answers rather than
+ * continues its own reply.
+ */
+export function candidateMessages(trace) {
+  if (Array.isArray(trace.messages) && trace.messages.length) {
+    const turns = trace.messages.filter((m) => m.role !== 'tool');
+    let end = turns.length;
+    while (end > 0 && turns[end - 1].role === 'assistant') end -= 1;
+    const replay = turns.slice(0, end);
+    if (replay.some((m) => m.role === 'user')) return replay;
+  }
+  const user = trace.input_text || trace.expected_output || '';
+  const system = trace.system_prompt || (trace.metadata && typeof trace.metadata.system_prompt === 'string' ? trace.metadata.system_prompt : '');
+  return system ? [{ role: 'system', content: system }, { role: 'user', content: user }] : [{ role: 'user', content: user }];
+}
+
+/** True when no baseline trace records the prompt that produced its output. */
+export function promptEvidenceMissing(traces) {
+  return traces.length > 0 && traces.every((t) => !t.system_prompt && !(Array.isArray(t.messages) && t.messages.length) && !(t.metadata && t.metadata.system_prompt));
+}
+
+/**
+ * Output cap for the replay. Too low and the candidate is truncated and graded
+ * down for the wrong reason, so the baseline's own output length sets the floor.
+ */
+export function outputCapFor(traces) {
+  const longest = traces.reduce((max, t) => Math.max(max, Number(t.output_tokens || 0), Math.ceil(String(t.output_text || t.expected_output || '').length / 3)), 0);
+  return Math.min(MAX_CANDIDATE_OUTPUT_TOKENS, Math.max(SMOKE_MAX_OUTPUT_TOKENS, Math.ceil(longest * 1.5)));
+}
+
 export function estimateSampleCost(pricing, model, trace, { maxOutputTokens = SMOKE_MAX_OUTPUT_TOKENS } = {}) {
   const key = normalizeModel(null, model).key;
   const text = trace.input_text || trace.expected_output || '';
@@ -110,7 +146,9 @@ export function planModelSubstitution(traces, finding, { candidateModel, allowed
   const usable = scoped(traces, finding).filter((t) => !t.protected && (t.input_text || t.expected_output) && (t.output_text !== null || t.expected_output !== null));
   const selected = usable.slice(0, MAX_CANDIDATE_SAMPLES);
   if (!selected.length) return blocked('model_substitution', finding, 'No bounded non-protected baseline traces with task input for model substitution.', { max_budget_usd: budget, required_evidence: ['baseline_runtime_traces', 'allowlisted_candidate_model'] });
-  const estimates = selected.map((t) => estimateSampleCost(pricing, candidateModel, t));
+  const outputCap = outputCapFor(selected);
+  const promptsMissing = promptEvidenceMissing(selected);
+  const estimates = selected.map((t) => estimateSampleCost(pricing, candidateModel, t, { maxOutputTokens: outputCap }));
   const ids = selected.map((t) => t.id);
   if (estimates.some((e) => e === null) && budget > 0) {
     return { ...blocked('model_substitution', finding, 'Cannot estimate candidate cost from pricing snapshot; refusing automatic run under strict budget.', { max_budget_usd: budget, required_evidence: ['verified_pricing_rates_or_provider_reported_cost'], baseline_config: { baseline_trace_ids: ids }, candidate_config: { model: candidateModel } }), sample_scope: ids, blocked_reason: 'unknown_pricing_under_strict_budget' };
@@ -120,7 +158,7 @@ export function planModelSubstitution(traces, finding, { candidateModel, allowed
     strategy: 'model_substitution',
     status: 'READY',
     finding_id: finding?.id || null,
-    reason: `Model substitution eligible for ${selected.length} baseline sample(s) → ${candidateModel}.`,
+    reason: `Model substitution eligible for ${selected.length} baseline sample(s) → ${candidateModel}.${promptsMissing ? ' These traces record no prompt, so the replay can only send the recorded input; grade the result accordingly.' : ''}`,
     expected_mechanism: 'Send equivalent task to allowlisted candidate model via the platform provider.',
     risk: 'medium',
     fallback: 'retain_baseline',
@@ -132,7 +170,7 @@ export function planModelSubstitution(traces, finding, { candidateModel, allowed
       task_fingerprints: Object.fromEntries(selected.map((t) => [t.id, taskFingerprint(t)])),
       baseline_hashes: Object.fromEntries(selected.map((t) => [t.id, { input_hash: t.input_hash || sha256Text(t.input_text), output_hash: t.output_hash || sha256Text(t.output_text), model: t.model, cost_source: t.cost_source }])),
     },
-    candidate_config: { model: candidateModel, temperature: 0, max_tokens: SMOKE_MAX_OUTPUT_TOKENS, estimated_max_cost_usd: estimatedTotal },
+    candidate_config: { model: candidateModel, temperature: 0, max_tokens: outputCap, estimated_max_cost_usd: estimatedTotal, prompt_evidence: promptsMissing ? 'input_only' : 'recorded_prompt' },
     required_evidence: ['baseline_runtime_traces', 'allowlisted_candidate_model', 'budget_ok'],
     plan_version: PLAN_VERSION,
     blocked_reason: null,
@@ -215,11 +253,11 @@ export async function executeModelSubstitutionSample(plan, baseline, complete, {
   if (!model || !allowedModels.has(model)) return { baseline_trace_id: baseline.id, status: 'failed', error_category: 'invalid_model', error_detail: 'Candidate model missing or not allowlisted.', execution_proven: false };
   const temperature = Number(cfg.temperature ?? 0);
   const maxTokens = Number(cfg.max_tokens || SMOKE_MAX_OUTPUT_TOKENS);
-  const userContent = baseline.input_text || baseline.expected_output || '';
+  const messages = candidateMessages(baseline);
   const started = Date.now();
   let response;
   try {
-    response = await complete({ model, messages: [{ role: 'user', content: userContent }], temperature, max_tokens: maxTokens });
+    response = await complete({ model, messages, temperature, max_tokens: maxTokens });
   } catch (error) {
     return { baseline_trace_id: baseline.id, status: 'failed', provider: 'openrouter', requested_model: model, error_category: classifyProviderError(error?.message), error_detail: String(error?.message || error).slice(0, 500), execution_proven: false, provider_call_count: 1, latency_ms: Date.now() - started };
   }
@@ -244,6 +282,7 @@ export async function executeModelSubstitutionSample(plan, baseline, complete, {
     provider: 'openrouter',
     requested_model: model,
     resolved_model: response.model || model,
+    prompt_evidence: baseline.system_prompt || (Array.isArray(baseline.messages) && baseline.messages.length) ? 'recorded_prompt' : 'input_only',
     output_text: content,
     output_hash: sha256Text(content),
     input_tokens: response.inputTokens ?? null,

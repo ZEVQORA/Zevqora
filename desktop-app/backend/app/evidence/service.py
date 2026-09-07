@@ -9,9 +9,57 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db_models import Trace
+from ..providers.models import LLMMessage
 from ..schemas import EconomicsOut, TraceIn
 from ..telemetry.normalizer import normalize_imported_trace
 from .canonical import canonical_verified_experiments
+
+_PROMPT_ROLES = {"system", "developer", "user", "assistant", "tool"}
+
+
+def _replay_snapshot(item: TraceIn, input_text: str | None):
+    """The recorded request, so a candidate is asked exactly what the baseline was.
+
+    Imported traces used to reach the replay with only `input_text`, so model
+    substitution sent the bare input with none of the instructions that produced
+    the baseline answer and was then graded down for the wrong reason. When the
+    export carries the prompt, it is preserved verbatim here and the existing
+    faithful-replay path takes over.
+    """
+    # Imported here: evidence.replay reaches back into optimization, which
+    # imports this package, so a module-level import would be circular.
+    from .replay import ReplayableRequestSnapshot
+
+    messages: list[LLMMessage] = []
+    if item.messages:
+        for raw in item.messages[:60]:
+            role = str(raw.get("role", "")).strip().lower()
+            content = raw.get("content")
+            if isinstance(content, list):
+                content = "".join(part if isinstance(part, str) else str(part.get("text", "")) for part in content)
+            if role not in _PROMPT_ROLES or not isinstance(content, str):
+                return None
+            messages.append(LLMMessage(role=role, content=content))
+        # A trailing baseline answer must not be replayed back at the candidate.
+        while messages and messages[-1].role == "assistant":
+            messages.pop()
+    elif item.system_prompt:
+        messages = [LLMMessage(role="system", content=item.system_prompt)]
+        if input_text:
+            messages.append(LLMMessage(role="user", content=input_text))
+    if not messages or not any(m.role == "user" for m in messages):
+        return None
+    meta = item.metadata or {}
+    temperature = meta.get("temperature")
+    return ReplayableRequestSnapshot(
+        messages=messages,
+        temperature=float(temperature) if isinstance(temperature, (int, float)) else 0.0,
+        max_tokens=None,
+        response_format=meta.get("response_format") if isinstance(meta.get("response_format"), dict) else None,
+        workflow=item.workflow,
+        symbol=item.symbol,
+        metadata={"source": "imported_trace", "request_id": item.request_id},
+    )
 
 
 def import_traces(db: Session, product_id: str, traces: list[TraceIn]) -> int:
@@ -66,6 +114,10 @@ def import_traces(db: Session, product_id: str, traces: list[TraceIn]) -> int:
             protected=item.protected,
             metadata_json=json.dumps({**item.metadata, **normalized["metadata"]}, ensure_ascii=False),
         )
+        snapshot = _replay_snapshot(item, normalized["input_text"])
+        if snapshot is not None:
+            trace.request_snapshot_json = snapshot.model_dump_json()
+            trace.request_snapshot_hash = snapshot.snapshot_hash()
         db.add(trace)
         imported += 1
     db.commit()

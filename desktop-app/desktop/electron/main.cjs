@@ -58,6 +58,39 @@ function webAppUrl() {
   return String(configured).replace(/\/$/, '')
 }
 
+// The origin the shell renders. In development that is the Vite server; when
+// packaged it is the hosted product, so the desktop and the web run the same
+// build and cannot drift apart.
+function shellOrigin() {
+  return new URL(process.env.VITE_DEV_SERVER_URL || webAppUrl()).origin
+}
+
+function shellEntryUrl() {
+  return `${process.env.VITE_DEV_SERVER_URL ? process.env.VITE_DEV_SERVER_URL.replace(/\/$/, '') : webAppUrl()}/app`
+}
+
+function isShellOrigin(rawUrl) {
+  try {
+    return new URL(String(rawUrl)).origin === shellOrigin()
+  } catch {
+    return false
+  }
+}
+
+// Every privileged bridge call must come from a frame on the shell's own
+// origin. A page loaded from anywhere else gets no folder picker, no local API
+// token and no account session, whatever it asks for.
+function handle(channel, listener) {
+  ipcMain.handle(channel, (event, ...args) => {
+    const senderUrl = event.senderFrame?.url || ''
+    if (!isShellOrigin(senderUrl) && !senderUrl.startsWith('file://')) {
+      console.error(`[ZEVQORA] Refused ${channel} from ${senderUrl || 'an unknown frame'}`)
+      throw new Error('This ZEVQORA bridge is not available to this page.')
+    }
+    return listener(event, ...args)
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Preferences (non-secret): active workspace/project, remembered per device.
 // ---------------------------------------------------------------------------
@@ -510,6 +543,9 @@ function startPackagedBackend() {
       // Optional device-local BYOK only. Platform compute needs no key here.
       ...(localKey ? { OPENROUTER_API_KEY: localKey } : {}),
       OPENROUTER_SITE_URL: webAppUrl(),
+      // The shell renders the hosted product, so its origin must pass CORS on
+      // 127.0.0.1. The per-launch token is still what authorises the request.
+      ZEVQORA_API_ALLOWED_ORIGINS: `http://127.0.0.1:5173,http://localhost:5173,null,${new URL(webAppUrl()).origin}`,
     },
   })
   backendProcess.on('exit', () => { backendProcess = null })
@@ -540,7 +576,10 @@ function createWindow() {
     minWidth: 1160,
     minHeight: 740,
     show: false,
-    frame: false,
+    // The shell renders the hosted product, which draws no window controls of
+    // its own, so the window keeps the platform frame.
+    frame: true,
+    title: 'ZEVQORA',
     roundedCorners: true,
     thickFrame: true,
     backgroundColor: '#F7F8FA',
@@ -561,17 +600,24 @@ function createWindow() {
     if (isAllowedExternal(url)) shell.openExternal(url)
     return { action: 'deny' }
   })
+  // Navigation stays inside the product's own origin; everything else is handed
+  // to the system browser.
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    const devUrl = process.env.VITE_DEV_SERVER_URL
-    if (devUrl && url.startsWith(devUrl)) return
+    if (isShellOrigin(url)) return
     if (url.startsWith('file://')) return
     event.preventDefault()
     if (isAllowedExternal(url)) shell.openExternal(url)
   })
 
-  const devUrl = process.env.VITE_DEV_SERVER_URL
-  if (devUrl) mainWindow.loadURL(devUrl)
-  else mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
+  // If the product cannot be reached, say so plainly instead of showing a
+  // browser error page. The local engine keeps running either way.
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    if (!isMainFrame || errorCode === -3) return
+    console.error(`[ZEVQORA] Could not load ${validatedURL}: ${errorDescription}`)
+    mainWindow?.loadFile(path.join(__dirname, 'offline.html'), { query: { reason: errorDescription || 'unreachable', target: shellEntryUrl() } })
+  })
+
+  mainWindow.loadURL(shellEntryUrl())
 
   mainWindow.once('ready-to-show', () => {
     if (mainWindow) mainWindow.show()
@@ -624,9 +670,9 @@ function isAllowedExternal(rawUrl) {
 // ---------------------------------------------------------------------------
 // IPC
 // ---------------------------------------------------------------------------
-ipcMain.handle('zevqora:get-api-token', async () => resolveApiToken())
+handle('zevqora:get-api-token', async () => resolveApiToken())
 
-ipcMain.handle('zevqora:window-action', (_event, action) => {
+handle('zevqora:window-action', (_event, action) => {
   if (!mainWindow) return false
   if (action === 'minimize') mainWindow.minimize()
   else if (action === 'maximize') mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize()
@@ -634,15 +680,15 @@ ipcMain.handle('zevqora:window-action', (_event, action) => {
   return true
 })
 
-ipcMain.handle('zevqora:window-state', () => ({ maximized: Boolean(mainWindow?.isMaximized()), platform: process.platform, packaged: app.isPackaged, version: app.getVersion() }))
+handle('zevqora:window-state', () => ({ maximized: Boolean(mainWindow?.isMaximized()), platform: process.platform, packaged: app.isPackaged, version: app.getVersion() }))
 
-ipcMain.handle('zevqora:select-folder', async () => {
+handle('zevqora:select-folder', async () => {
   const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
   if (result.canceled || !result.filePaths.length) return null
   return result.filePaths[0]
 })
 
-ipcMain.handle('zevqora:select-trace-file', async () => {
+handle('zevqora:select-trace-file', async () => {
   const result = await dialog.showOpenDialog({
     properties: ['openFile'],
     filters: [{ name: 'Execution traces', extensions: ['jsonl', 'json'] }],
@@ -658,7 +704,7 @@ ipcMain.handle('zevqora:select-trace-file', async () => {
   return { path: selected, content: fs.readFileSync(selected, 'utf8') }
 })
 
-ipcMain.handle('zevqora:save-text-file', async (_event, payload) => {
+handle('zevqora:save-text-file', async (_event, payload) => {
   const suggested = String(payload?.suggestedName || 'zevqora-export.json').replace(/[^A-Za-z0-9_.\-]/g, '_')
   const result = await dialog.showSaveDialog({ defaultPath: suggested, filters: [{ name: 'JSON', extensions: ['json'] }, { name: 'All files', extensions: ['*'] }] })
   if (result.canceled || !result.filePath) return null
@@ -666,7 +712,7 @@ ipcMain.handle('zevqora:save-text-file', async (_event, payload) => {
   return result.filePath
 })
 
-ipcMain.handle('zevqora:open-path', async (_event, target) => {
+handle('zevqora:open-path', async (_event, target) => {
   const resolved = path.resolve(String(target || ''))
   if (!fs.existsSync(resolved)) throw new Error('That folder no longer exists.')
   const error = await shell.openPath(resolved)
@@ -674,33 +720,33 @@ ipcMain.handle('zevqora:open-path', async (_event, target) => {
   return true
 })
 
-ipcMain.handle('zevqora:open-external', async (_event, url) => {
+handle('zevqora:open-external', async (_event, url) => {
   if (!isAllowedExternal(url)) throw new Error('Only ZEVQORA and code-hosting links open from Desktop.')
   await shell.openExternal(String(url))
   return true
 })
 
-ipcMain.handle('zevqora:start-browser-auth', async () => {
+handle('zevqora:start-browser-auth', async () => {
   pendingAuthState = crypto.randomBytes(32).toString('base64url')
   const url = `${webAppUrl()}/desktop-auth?state=${encodeURIComponent(pendingAuthState)}`
   await shell.openExternal(url)
   return true
 })
 
-ipcMain.handle('zevqora:sign-in-password', async (_event, credentials) => {
+handle('zevqora:sign-in-password', async (_event, credentials) => {
   const result = await signInWithPassword(credentials?.email, credentials?.password)
   emitAuthState(result)
   return result
 })
 
-ipcMain.handle('zevqora:open-signup', async () => {
+handle('zevqora:open-signup', async () => {
   await shell.openExternal(`${webAppUrl()}/signup`)
   return true
 })
 
-ipcMain.handle('zevqora:get-auth-state', async () => publicAuthState())
+handle('zevqora:get-auth-state', async () => publicAuthState())
 
-ipcMain.handle('zevqora:sign-out', async () => {
+handle('zevqora:sign-out', async () => {
   pendingAuthState = null
   saveSession(null)
   lastAuthState = { signedIn: false }
@@ -710,29 +756,29 @@ ipcMain.handle('zevqora:sign-out', async () => {
   return state
 })
 
-ipcMain.handle('zevqora:update-profile', async (_event, profile) => {
+handle('zevqora:update-profile', async (_event, profile) => {
   return updateAccountProfile(profile?.displayName, profile?.username)
 })
 
-ipcMain.handle('zevqora:open-account', async () => {
+handle('zevqora:open-account', async () => {
   await shell.openExternal(`${webAppUrl()}/app/settings`)
   return true
 })
 
-ipcMain.handle('zevqora:open-pricing', async () => {
+handle('zevqora:open-pricing', async () => {
   await shell.openExternal(`${webAppUrl()}/pricing`)
   return true
 })
 
-ipcMain.handle('zevqora:open-web', async (_event, route) => {
+handle('zevqora:open-web', async (_event, route) => {
   const clean = String(route || '/').startsWith('/') ? String(route) : '/'
   await shell.openExternal(`${webAppUrl()}${clean}`)
   return true
 })
 
-ipcMain.handle('zevqora:get-provider-config', async () => providerConfig())
+handle('zevqora:get-provider-config', async () => providerConfig())
 
-ipcMain.handle('zevqora:save-openrouter-key', async (_event, key) => {
+handle('zevqora:save-openrouter-key', async (_event, key) => {
   const cleaned = String(key || '').trim()
   if (cleaned && !cleaned.startsWith('sk-or-')) throw new Error('That does not look like an OpenRouter API key.')
   writeEncryptedSecret('openrouter-api-key', cleaned)
@@ -740,23 +786,23 @@ ipcMain.handle('zevqora:save-openrouter-key', async (_event, key) => {
   return providerConfig()
 })
 
-ipcMain.handle('zevqora:clear-openrouter-key', async () => {
+handle('zevqora:clear-openrouter-key', async () => {
   writeEncryptedSecret('openrouter-api-key', '')
   await restartBackend()
   return providerConfig()
 })
 
-ipcMain.handle('zevqora:platform-request', async (_event, payload) => platformRequest(payload?.method, payload?.path, payload?.body))
+handle('zevqora:platform-request', async (_event, payload) => platformRequest(payload?.method, payload?.path, payload?.body))
 
-ipcMain.handle('zevqora:get-context', async () => activeContext())
+handle('zevqora:get-context', async () => activeContext())
 
-ipcMain.handle('zevqora:set-context', async (_event, payload) => {
+handle('zevqora:set-context', async (_event, payload) => {
   const next = setActiveContext(payload?.workspaceId, payload?.projectId)
   schedulePlatformSync()
   return next
 })
 
-ipcMain.handle('zevqora:sync-platform', async () => syncPlatformSession())
+handle('zevqora:sync-platform', async () => syncPlatformSession())
 
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
