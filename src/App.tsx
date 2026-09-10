@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router';
+import { Analytics } from '@vercel/analytics/react';
 import { FullPageLoader } from '@/brand/BrandLoader';
 import { useSession } from '@/lib/session';
 import { MarketingLayout } from '@/marketing/MarketingLayout';
@@ -55,6 +56,7 @@ export function RequireAuth({ children }: { children: React.ReactElement }) {
 export function App() {
   return (
     <>
+      <Analytics />
       <ScrollToTop />
       <Suspense fallback={<FullPageLoader />}>
         <Routes>
