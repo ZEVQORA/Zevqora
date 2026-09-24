@@ -80,6 +80,18 @@ describe('exact reuse end to end', () => {
     expect(evaluation.gates.find((g) => g.name === 'quality_floor')?.outcome).toBe('passed');
   });
 
+  it('keeps a partially priced baseline unknown and returns INCOMPLETE, not a smaller saving', async () => {
+    const inputs = ['a', 'b', 'c'];
+    const rows = [0, 1, 2, 3, 4, 5].map((i) => ({ ...traceRow(i, `msg ${inputs[i % 3]}`, ['billing', 'technical', 'account'][i % 3], i % 3 === 1 ? { cost_usd: null } : {}), id: `t${i}`, metadata: {}, protected: false, input_hash: null, output_hash: null, cost_source: 'imported_external', timestamp: `2026-09-0${(i % 6) + 1}T00:00:00Z` }));
+    const plan = { ...planExactReuse(rows, { id: 'f1', symbol: 'classify' }), id: 'p1' };
+    const execution = await executePlan({ plan, traces: rows, complete: async () => { throw new Error('no provider expected'); }, pricing: pricingMap(), allowedModels: new Set() });
+    const evaluation = runEvaluation({ execution, plan, traces: rows, gateConfig: { min_samples: 3, quality_floor: 0.95, require_fallback: false } });
+    expect(evaluation.status).toBe('INCOMPLETE');
+    expect(evaluation.raw_cost_delta_percent).toBeNull();
+    expect(evaluation.gates.find((g) => g.name === 'cost_improvement')?.outcome).toBe('missing');
+    expect(evaluation.rejection_reason).toContain('baseline_cost_unknown');
+  });
+
   it('is BLOCKED without repeated evidence', () => {
     const rows = [0, 1].map((i) => ({ ...traceRow(i, `unique ${i}`, 'billing'), id: `t${i}`, metadata: {} }));
     expect(planExactReuse(rows, null).status).toBe('BLOCKED');

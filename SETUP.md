@@ -11,10 +11,26 @@ supabase/migrations/003_billing_plan_starter.sql
 supabase/migrations/004_platform.sql
 supabase/migrations/005_admin_bootstrap.sql
 supabase/migrations/006_rollups.sql
+supabase/migrations/007_telemetry_event_key_unique.sql
+supabase/migrations/008_credit_precision.sql
+supabase/migrations/009_product_engine.sql
+supabase/migrations/010_trace_prompt_evidence.sql
+supabase/migrations/011_harden_security_definer_rpc_surface.sql   (already live since 2026-09-11; backfilled)
+supabase/migrations/012_least_privilege_client_access.sql
 ```
 
 Auth providers: Email/Password, Google, GitHub. Redirect URLs must include
-`https://zevqora.vercel.app/**` (and any custom domain). Recommended: enable leaked-password protection.
+`https://zevqora.vercel.app/**` (and any custom domain). **Enable leaked-password protection**
+(Dashboard → Authentication → Providers → Email); it is a dashboard setting, not SQL.
+
+Security advisor findings that remain **by design** after 012:
+
+- `rls_enabled_no_policy` on `admin_audit_log`, `connection_secrets`, `desktop_auth_handoffs`, `feature_flags`:
+  server-only tables, read and written by the API with the service role. No client policy and no client grant.
+  Never add a permissive policy to silence this.
+- `authenticated_security_definer_function_executable` on `is_workspace_member`, `has_workspace_role`,
+  `shares_workspace_with`: RLS policies call them, so `authenticated` must keep EXECUTE. Since 011 they answer
+  only about the caller (`uid` other than `auth.uid()` returns false), so direct RPC reveals nothing new.
 
 Admins are rows in `public.admin_roles`. Further admins are granted from `/admin/admins` (superadmin only, audited).
 

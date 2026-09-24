@@ -74,9 +74,10 @@ export default function ExperimentPage({ report = false }: { report?: boolean })
 
   const passed = e.status === 'passed';
   const failed = e.status === 'failed';
-  const baseCost = Number(e.baseline?.cost_usd ?? 0);
-  const candCost = Number(e.candidate?.cost_usd ?? 0);
-  const rawDelta = baseCost > 0 ? ((baseCost - candCost) / baseCost) * 100 : null;
+  // Unknown cost stays unknown; a missing side must not read as a 100% saving.
+  const baseCost = e.baseline?.cost_usd ?? null;
+  const candCost = e.candidate?.cost_usd ?? null;
+  const rawDelta = baseCost !== null && candCost !== null && Number(baseCost) > 0 ? ((Number(baseCost) - Number(candCost)) / Number(baseCost)) * 100 : null;
 
   return (
     <div className="print-page">

@@ -308,9 +308,13 @@ export function runEvaluation({ execution, plan, traces, gateConfig, cases }) {
   const cCosts = caseRows.map((r) => r.candidate_cost_usd).filter((v) => v !== null);
   const bLats = caseRows.map((r) => r.baseline_latency_ms).filter((v) => v !== null);
   const cLats = caseRows.map((r) => r.candidate_latency_ms).filter((v) => v !== null);
-  const baselineCost = bCosts.length ? bCosts.reduce((a, b) => a + b, 0) : null;
-  let candidateCost = execution.cost_usd !== null && execution.cost_usd !== undefined ? Number(execution.cost_usd) : cCosts.length ? cCosts.reduce((a, b) => a + b, 0) : null;
-  if (candidateCost === null && cCosts.length && cCosts.length === caseRows.length) candidateCost = cCosts.reduce((a, b) => a + b, 0);
+  // A total over only the priced cases would understate that side and tilt the
+  // cost gate. Unknown cost stays unknown: the gate goes missing (INCOMPLETE).
+  const baselineCost = caseRows.length && bCosts.length === caseRows.length ? bCosts.reduce((a, b) => a + b, 0) : null;
+  let candidateCost = execution.cost_usd !== null && execution.cost_usd !== undefined ? Number(execution.cost_usd) : null;
+  if (candidateCost === null && caseRows.length && cCosts.length === caseRows.length) candidateCost = cCosts.reduce((a, b) => a + b, 0);
+  if (caseRows.length && bCosts.length < caseRows.length) missingReasons.push(`baseline_cost_unknown:${caseRows.length - bCosts.length}_of_${caseRows.length}_cases`);
+  if (candidateCost === null && caseRows.length) missingReasons.push(`candidate_cost_unknown:${caseRows.length - cCosts.length}_of_${caseRows.length}_cases`);
   const specIds = new Set(specs.map((c) => c.baseline_trace_id));
   const evidenceComplete = execution.status === 'SUCCEEDED' && Boolean(execution.provenance_hash) && samples.filter((s) => specIds.has(s.baseline_trace_id)).every((s) => s.execution_proven) && !missingReasons.some((r) => r.startsWith('baseline_missing') || r.startsWith('candidate_sample_missing')) && caseRows.length === specs.length;
   if (!evidenceComplete && !missingReasons.length) missingReasons.push('evidence_incomplete');

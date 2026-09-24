@@ -56,7 +56,8 @@ export default function OverviewView() {
   const verified = evaluations.filter((e) => e.status === 'VERIFIED');
   const rejected = evaluations.filter((e) => e.status === 'REJECTED');
   const latest = evaluations[0] || null;
-  const verifiedSavingPct = verified.length ? Math.max(...verified.map((e) => e.raw_cost_delta_percent || 0)) : null;
+  const knownDeltas = verified.map((e) => e.raw_cost_delta_percent).filter((v): v is number => typeof v === 'number');
+  const verifiedSavingPct = knownDeltas.length ? Math.max(...knownDeltas) : null;
   const providers = Array.from(new Set(aiCalls.map((c) => c.provider)));
   const openChanges = implementations.filter((i) => i.status !== 'REJECTED').length;
   const steps = [
@@ -135,7 +136,7 @@ export default function OverviewView() {
                 </div>
                 <div className="flex flex-col items-end justify-between gap-2">
                   <StatusChip status={latest.status} />
-                  <div className={`text-right text-[14px] font-semibold ${latest.status === 'VERIFIED' ? 'text-verified' : 'text-rejected'}`}>{latest.status === 'VERIFIED' ? 'Quality gate passed.' : latest.status === 'REJECTED' ? 'Cheaper isn’t verified.' : latest.rejection_reason || 'Evidence incomplete.'}</div>
+                  <div className={`text-right text-[14px] font-semibold ${latest.status === 'VERIFIED' ? 'text-verified' : latest.status === 'REJECTED' ? 'text-rejected' : 'text-warning'}`}>{latest.status === 'VERIFIED' ? 'Quality gate passed.' : latest.status === 'REJECTED' ? 'Cheaper isn’t verified.' : latest.rejection_reason || 'Evidence incomplete.'}</div>
                 </div>
               </div>
             )}
