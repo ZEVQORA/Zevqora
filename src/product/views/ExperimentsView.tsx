@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Download, GitBranch, Play } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { ProductFrame } from '../Frame';
+import { NoProject, ProductFrame } from '../Frame';
 import { useProduct } from '../store';
 import { useProductDialogs } from '../dialogs/context';
 import { Button, Card, CardHeader, Empty, Note, StatusChip, saveTextFile, useProductToast } from '../ui';
@@ -41,9 +41,9 @@ export default function ExperimentsView() {
 
   if (!selected) {
     return (
-      <ProductFrame>
+      <NoProject>
         <Empty title="Connect a repository first" action={<Button onClick={dialogs.openConnect}>Connect repository</Button>} />
-      </ProductFrame>
+      </NoProject>
     );
   }
 

@@ -145,3 +145,29 @@ describe('Evaluation view', () => {
     expect((screen.getByDisplayValue('Acme') as HTMLInputElement).disabled).toBe(true);
   });
 });
+
+describe('Deliberate states', () => {
+  it('shows a loader, not "nothing connected", while projects are loading', () => {
+    store = fixtureStore({ selected: null, products: [], productsLoading: true });
+    show(<EvidenceView />);
+    expect(screen.getByText('Loading projects')).toBeTruthy();
+    expect(screen.queryByText('No project selected')).toBeNull();
+  });
+
+  it('says evidence failed to load instead of reading as empty', () => {
+    store = fixtureStore({ evaluations: [], dataError: 'Request failed (502).' });
+    show(<SavingsView />);
+    expect(screen.getByText(/Could not load this project’s evidence/)).toBeTruthy();
+    expect(screen.getByText(/Request failed \(502\)/)).toBeTruthy();
+  });
+
+  it('flags when no finding has a supported strategy', async () => {
+    const { default: OpportunitiesView } = await import('@/product/views/OpportunitiesView');
+    store = fixtureStore({ findings: [{ id: 'f', origin: 'runtime_evidence', category: 'context_review', title: 'Long context', root_cause: '…', file_path: 'runtime evidence', line: 0, symbol: null, confidence: 0.9, risk: 'low', evidence_status: 'observed' }] });
+    show(<OpportunitiesView />);
+    expect(screen.getByText('No supported opportunity found.')).toBeTruthy();
+    const testButton = screen.getAllByRole('button', { name: /Let Zev test it/ }).find((el) => el.tagName === 'BUTTON') as HTMLButtonElement;
+    expect(testButton.disabled).toBe(true);
+    expect(screen.getByText('No supported strategy')).toBeTruthy();
+  });
+});

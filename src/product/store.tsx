@@ -43,6 +43,8 @@ interface ProductStore {
   executions: OptimizationExecution[];
   evaluations: Evaluation[];
   dataLoading: boolean;
+  /** Set when the selected project's evidence failed to load; views must not read as empty. */
+  dataError: string;
   refreshProducts: () => Promise<void>;
   refreshProductData: () => Promise<void>;
   /** Browser: folder picker + local scan + upload. Desktop: local engine scans the folder. */
@@ -118,6 +120,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const [executions, setExecutions] = useState<OptimizationExecution[]>([]);
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
+  const [dataError, setDataError] = useState('');
   const [zevState, setZevState] = useState<ZevState>('idle');
   const [model, setModelState] = useState(() => {
     try {
@@ -193,6 +196,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const refreshProductData = useCallback(async () => {
     if (!selectedId) {
+      setDataError('');
       setAiCalls([]);
       setFindings([]);
       setEconomics(null);
@@ -223,6 +227,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       setPlans(nextPlans);
       setExecutions(nextExecutions);
       setEvaluations(nextEvaluations);
+      setDataError('');
+    } catch (error) {
+      setDataError(engineErrorMessage(error));
+      throw error;
     } finally {
       setDataLoading(false);
     }
@@ -375,8 +383,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<ProductStore>(
-    () => ({ engine, runtime, canEdit, inspect, setInspect, health, engineError, platformStatus, refreshHealth, products, productsLoading, selected, selectProduct, scan, aiCalls, findings, economics, experiments, implementations, plans, executions, evaluations, dataLoading, refreshProducts, refreshProductData, connectRepository, runScan, toggleMonitoring, importTraceFile, archiveProduct, readRepositoryFile, ensureRepository, pickedRepository, zevState, setZevState, model, setModel }),
-    [engine, runtime, canEdit, inspect, health, engineError, platformStatus, refreshHealth, products, productsLoading, selected, selectProduct, scan, aiCalls, findings, economics, experiments, implementations, plans, executions, evaluations, dataLoading, refreshProducts, refreshProductData, connectRepository, runScan, toggleMonitoring, importTraceFile, archiveProduct, readRepositoryFile, ensureRepository, pickedRepository, zevState, model, setModel],
+    () => ({ engine, runtime, canEdit, inspect, setInspect, health, engineError, platformStatus, refreshHealth, products, productsLoading, selected, selectProduct, scan, aiCalls, findings, economics, experiments, implementations, plans, executions, evaluations, dataLoading, dataError, refreshProducts, refreshProductData, connectRepository, runScan, toggleMonitoring, importTraceFile, archiveProduct, readRepositoryFile, ensureRepository, pickedRepository, zevState, setZevState, model, setModel }),
+    [engine, runtime, canEdit, inspect, health, engineError, platformStatus, refreshHealth, products, productsLoading, selected, selectProduct, scan, aiCalls, findings, economics, experiments, implementations, plans, executions, evaluations, dataLoading, dataError, refreshProducts, refreshProductData, connectRepository, runScan, toggleMonitoring, importTraceFile, archiveProduct, readRepositoryFile, ensureRepository, pickedRepository, zevState, model, setModel],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Archive, FolderOpen, ScanSearch, ShieldCheck, Upload } from 'lucide-react';
-import { ProductFrame } from '../Frame';
+import { NoProject, ProductFrame } from '../Frame';
 import { useProduct } from '../store';
 import { useProductDialogs } from '../dialogs/context';
 import { engineErrorMessage } from '../engine';
@@ -18,9 +18,9 @@ export default function ProjectView() {
 
   if (!selected) {
     return (
-      <ProductFrame>
+      <NoProject>
         <Empty title="No repository connected" description="Connect the folder you actually develop in. ZEVQORA inspects supported source files read-only and never changes code during this step." action={<Button onClick={dialogs.openConnect}><FolderOpen size={15} /> Connect repository</Button>} />
-      </ProductFrame>
+      </NoProject>
     );
   }
 

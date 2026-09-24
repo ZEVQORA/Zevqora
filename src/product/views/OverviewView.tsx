@@ -2,7 +2,7 @@ import { ArrowRight, FolderGit2, Lightbulb, MessageSquare, ScanSearch, Upload } 
 import { useNavigate } from 'react-router';
 import { Zev } from '@/brand/Zev';
 import { useSession } from '@/lib/session';
-import { ProductFrame } from '../Frame';
+import { NoProject, ProductFrame } from '../Frame';
 import { useProduct } from '../store';
 import { useProductDialogs } from '../dialogs/context';
 import { Button, Card, CardHeader, Empty, Metric, StatusChip } from '../ui';
@@ -18,7 +18,7 @@ export default function OverviewView() {
 
   if (!selected) {
     return (
-      <ProductFrame>
+      <NoProject>
         <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div>
             <div className="peyebrow">Verified AI cost optimization</div>
@@ -53,7 +53,7 @@ export default function OverviewView() {
             <Zev view="pose-waving" height={240} alt="Zev" />
           </div>
         </div>
-      </ProductFrame>
+      </NoProject>
     );
   }
 

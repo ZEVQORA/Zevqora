@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router';
 import { Check, ChevronsUpDown, FolderGit2, Plus } from 'lucide-react';
 import { useSession } from '@/lib/session';
 import { cn } from '@/lib/cn';
@@ -7,16 +8,18 @@ import { useProduct } from './store';
 import { useProductDialogs } from './dialogs/context';
 import { creditSummary } from './credits';
 import { money } from './format';
+import { BrandLoader } from '@/brand/BrandLoader';
 
 function RepositorySwitcher() {
   const { products, selected, selectProduct, productsLoading } = useProduct();
   const dialogs = useProductDialogs();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
       <button type="button" onClick={() => setOpen((v) => !v)} aria-haspopup="listbox" aria-expanded={open} className="text-caption inline-flex h-8 max-w-[320px] items-center gap-2 rounded-md border border-line/70 bg-surface/70 px-2.5 text-ink transition-control hover:bg-surface">
         <FolderGit2 size={13} className="shrink-0 text-subtle" aria-hidden />
-        <span className="truncate">{selected ? selected.name : productsLoading ? 'Loading repositories…' : 'No repository connected'}</span>
+        <span className="truncate">{selected ? selected.name : productsLoading ? 'Loading projects…' : 'No project connected'}</span>
         <ChevronsUpDown size={12} className="shrink-0 text-subtle" aria-hidden />
       </button>
       {open && (
@@ -32,10 +35,13 @@ function RepositorySwitcher() {
                 {selected?.id === p.id && <Check size={14} className="shrink-0 text-accent-text" />}
               </button>
             ))}
-            {!products.length && <p className="text-technical px-2.5 py-2 text-subtle">No repositories connected yet.</p>}
+            {!products.length && <p className="text-technical px-2.5 py-2 text-subtle">No projects connected yet.</p>}
             <div className="my-1 border-t border-line" />
             <button type="button" onClick={() => { setOpen(false); dialogs.openConnect(); }} className="text-caption flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-muted transition-control hover:bg-ink/5 hover:text-ink">
               <Plus size={14} aria-hidden /> Connect a repository
+            </button>
+            <button type="button" onClick={() => { setOpen(false); navigate('/app/onboarding'); }} className="text-caption flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-muted transition-control hover:bg-ink/5 hover:text-ink">
+              <Plus size={14} aria-hidden /> Start from a trace export
             </button>
           </div>
         </>
@@ -68,7 +74,7 @@ function EngineStatus() {
 
 /** Product page frame: repository toolbar, scrolling content, and the Evidence Inspector. */
 export function ProductFrame({ children, inspector = true, padded = true }: { children: ReactNode; inspector?: boolean; padded?: boolean }) {
-  const { canEdit } = useProduct();
+  const { canEdit, dataError, refreshProductData } = useProduct();
   return (
     <div className="product-frame">
       <div className="product-main">
@@ -76,6 +82,12 @@ export function ProductFrame({ children, inspector = true, padded = true }: { ch
           <RepositorySwitcher />
           <EngineStatus />
         </div>
+        {dataError && (
+          <div role="alert" className="flex flex-wrap items-center justify-between gap-2 border-b border-rejected/25 bg-rejected-bg px-4 py-2 text-[12.5px] lg:px-6">
+            <span className="text-rejected"><b className="font-semibold">Could not load this project&rsquo;s evidence.</b> What is shown may be incomplete; nothing here should be read as empty. {dataError}</span>
+            <button type="button" className="font-medium text-ink underline underline-offset-4" onClick={() => void refreshProductData().catch(() => undefined)}>Retry</button>
+          </div>
+        )}
         {!canEdit && (
           <div role="status" className="border-b border-line/60 bg-sunken/60 px-4 py-2 text-[12.5px] text-muted lg:px-6">
             <b className="font-medium text-ink">View only.</b> You are a viewer in this workspace: you can inspect evidence and verdicts, but scans, imports, experiments and changes need a member role.
@@ -86,4 +98,14 @@ export function ProductFrame({ children, inspector = true, padded = true }: { ch
       {inspector && <EvidenceInspector />}
     </div>
   );
+}
+
+/**
+ * What a product view shows when no project is selected: a loader while the
+ * project list is still loading (never a false "nothing connected"), then the
+ * view's empty state.
+ */
+export function NoProject({ children }: { children: ReactNode }) {
+  const { productsLoading } = useProduct();
+  return <ProductFrame>{productsLoading ? <div className="flex min-h-[40vh] items-center justify-center"><BrandLoader label="Loading projects" /></div> : children}</ProductFrame>;
 }

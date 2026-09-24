@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Download, FileText } from 'lucide-react';
-import { ProductFrame } from '../Frame';
+import { NoProject, ProductFrame } from '../Frame';
 import { useProduct } from '../store';
 import { useProductDialogs } from '../dialogs/context';
 import { Button, Card, CardHeader, Empty, KeyValue, StatusChip, saveTextFile, useProductToast } from '../ui';
@@ -58,9 +58,9 @@ export default function EvidenceView() {
 
   if (!selected) {
     return (
-      <ProductFrame>
+      <NoProject>
         <Empty title="No project selected" description="Connect a repository or a workload first. Evidence appears here once a candidate has been replayed and graded." action={<Button onClick={dialogs.openConnect}>Connect evidence</Button>} />
-      </ProductFrame>
+      </NoProject>
     );
   }
 

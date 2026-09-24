@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, Download, ExternalLink, FileCode2, FolderOpen, GitBranch, GitPullRequest, UploadCloud, X } from 'lucide-react';
-import { ProductFrame } from '../Frame';
+import { NoProject, ProductFrame } from '../Frame';
 import { useProduct } from '../store';
 import { useProductDialogs } from '../dialogs/context';
 import { engineErrorMessage } from '../engine';
@@ -48,9 +48,9 @@ export default function ChangesView() {
 
   if (!selected) {
     return (
-      <ProductFrame>
+      <NoProject>
         <Empty title="Connect a repository first" action={<Button onClick={dialogs.openConnect}>Connect repository</Button>} />
-      </ProductFrame>
+      </NoProject>
     );
   }
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Download, Save, ShieldCheck } from 'lucide-react';
 import { useSession } from '@/lib/session';
-import { ProductFrame } from '../Frame';
+import { NoProject, ProductFrame } from '../Frame';
 import { useProduct } from '../store';
 import { useProductDialogs } from '../dialogs/context';
 import { engineErrorMessage } from '../engine';
@@ -34,9 +34,9 @@ export default function EvaluationView() {
 
   if (!selected) {
     return (
-      <ProductFrame>
+      <NoProject>
         <Empty title="No project selected" description="An evaluation covers one authorized workload. Connect it first." action={<Button onClick={dialogs.openConnect}>Connect evidence</Button>} />
-      </ProductFrame>
+      </NoProject>
     );
   }
   if (runtime === 'desktop') {

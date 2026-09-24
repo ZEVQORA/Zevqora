@@ -67,7 +67,7 @@ export function fixtureStore(over: Record<string, unknown> = {}) {
     executions: [execution('ex-verified'), execution('ex-rejected'), execution('ex-incomplete')],
     evaluations: [INCOMPLETE, REJECTED_CHEAPER, VERIFIED], dataLoading: false, refreshProducts: noop, refreshProductData: noop, connectRepository: async () => null, runScan: async () => null,
     toggleMonitoring: noop, importTraceFile: noop, archiveProduct: noop, readRepositoryFile: async () => null, ensureRepository: async () => null, pickedRepository: null,
-    zevState: 'idle', setZevState: () => undefined, model: 'openai/gpt-4o-mini', setModel: () => undefined,
+    zevState: 'idle', setZevState: () => undefined, model: 'openai/gpt-4o-mini', setModel: () => undefined, dataError: '',
     ...over,
   };
 }

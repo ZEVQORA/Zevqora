@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Play, ScanSearch, Upload } from 'lucide-react';
-import { ProductFrame } from '../Frame';
+import { NoProject, ProductFrame } from '../Frame';
 import { useProduct } from '../store';
 import { useProductDialogs } from '../dialogs/context';
 import { Button, Empty, StatusChip } from '../ui';
@@ -24,9 +24,9 @@ export default function OpportunitiesView() {
 
   if (!selected) {
     return (
-      <ProductFrame>
+      <NoProject>
         <Empty title="Connect a repository first" description="Opportunities are detected from your source and your execution traces." action={<Button onClick={dialogs.openConnect}>Connect repository</Button>} />
-      </ProductFrame>
+      </NoProject>
     );
   }
 
@@ -53,6 +53,10 @@ export default function OpportunitiesView() {
         ))}
         <span className="ml-auto text-[12px] text-subtle">{findings.length} signals · {traces} execution traces · {aiCalls.length} call sites</span>
       </div>
+
+      {findings.length > 0 && !findings.some((f) => candidateFor(f, traces).strategy) && (
+        <div className="pnote pnote-warn mb-4"><b>No supported opportunity found.</b> These are signals ZEVQORA cannot test yet (supported today: model substitution and exact reuse). They are shown so nothing is hidden; none of them is savings.</div>
+      )}
 
       {!traces && findings.length > 0 && (
         <div className="pnote pnote-warn mb-4">Replays need baseline execution traces. Import a JSONL export from your runtime (request_id, input_text, output_text, expected_output, cost_usd, model) before testing a candidate.</div>

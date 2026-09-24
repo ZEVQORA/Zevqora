@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import { FolderGit2, Radio, ScanSearch, ShieldCheck, Upload } from 'lucide-react';
-import { ProductFrame } from '../Frame';
+import { NoProject, ProductFrame } from '../Frame';
 import { useProduct } from '../store';
 import { useProductDialogs } from '../dialogs/context';
 import { Button, Card, CardHeader, Empty, KeyValue, StatusChip } from '../ui';
@@ -13,9 +13,9 @@ export default function ConnectionsView() {
 
   if (!selected) {
     return (
-      <ProductFrame>
+      <NoProject>
         <Empty title="Nothing connected yet" description="Connect the repository you develop in, or a workload you can export traces from. ZEVQORA reads what you give it and changes nothing." action={<Button onClick={dialogs.openConnect}><FolderGit2 size={15} /> Connect evidence</Button>} />
-      </ProductFrame>
+      </NoProject>
     );
   }
 

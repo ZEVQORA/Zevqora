@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { ProductFrame } from '../Frame';
+import { NoProject, ProductFrame } from '../Frame';
 import { useProduct } from '../store';
 import { useProductDialogs } from '../dialogs/context';
 import { Button, Card, CardHeader, Empty, StatusChip } from '../ui';
@@ -22,9 +22,9 @@ export default function SavingsView() {
 
   if (!selected) {
     return (
-      <ProductFrame>
+      <NoProject>
         <Empty title="No project selected" description="Savings only exist after a verified experiment on a connected workload." action={<Button onClick={dialogs.openConnect}>Connect evidence</Button>} />
-      </ProductFrame>
+      </NoProject>
     );
   }
 
