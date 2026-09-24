@@ -11,6 +11,8 @@ interface SessionState {
   session: Session | null;
   me: Me | null;
   meError: string | null;
+  /** Server error code for the last /api/me failure, e.g. ACCOUNT_SUSPENDED. */
+  meErrorCode: string | null;
   refreshMe: () => Promise<Me | null>;
   signOut: () => Promise<void>;
   activeWorkspace: Workspace | null;
@@ -44,6 +46,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [me, setMe] = useState<Me | null>(null);
   const [meError, setMeError] = useState<string | null>(null);
+  const [meErrorCode, setMeErrorCode] = useState<string | null>(null);
   const [activeWorkspaceId, setWs] = useState<string | null>(() => read(WS_KEY));
   const [activeProjectId, setProject] = useState<string | null>(() => read(PROJECT_KEY));
   const loading = useRef<Promise<Me | null> | null>(null);
@@ -54,17 +57,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       .then((data) => {
         setMe(data);
         setMeError(null);
+        setMeErrorCode(null);
         return data;
       })
       .catch(async (error) => {
         if (error instanceof ApiClientError && (error.status === 401 || error.code === 'ACCOUNT_SUSPENDED')) {
-          if (error.code === 'ACCOUNT_SUSPENDED') setMeError(error.message);
+          if (error.code === 'ACCOUNT_SUSPENDED') {
+            setMeError(error.message);
+            setMeErrorCode(error.code);
+          }
           const sb = await getSupabase();
           if (error.status === 401) await sb?.auth.signOut();
           setMe(null);
           return null;
         }
         setMeError(error instanceof Error ? error.message : 'Could not load your account.');
+        setMeErrorCode(error instanceof ApiClientError ? error.code || null : null);
         return null;
       })
       .finally(() => {
@@ -113,6 +121,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const sb = await getSupabase();
     await sb?.auth.signOut();
     setMe(null);
+    setMeError(null);
+    setMeErrorCode(null);
     setStatus('signed_out');
   }, []);
 
@@ -141,8 +151,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<SessionState>(
-    () => ({ status, session, me, meError, refreshMe, signOut, activeWorkspace, setActiveWorkspaceId, activeProjectId, setActiveProjectId }),
-    [status, session, me, meError, refreshMe, signOut, activeWorkspace, setActiveWorkspaceId, activeProjectId, setActiveProjectId],
+    () => ({ status, session, me, meError, meErrorCode, refreshMe, signOut, activeWorkspace, setActiveWorkspaceId, activeProjectId, setActiveProjectId }),
+    [status, session, me, meError, meErrorCode, refreshMe, signOut, activeWorkspace, setActiveWorkspaceId, activeProjectId, setActiveProjectId],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

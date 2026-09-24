@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router';
 import { FullPageLoader } from '@/brand/BrandLoader';
 import { useSession } from '@/lib/session';
 import { MarketingLayout } from '@/marketing/MarketingLayout';
+import { AccountStateScreen } from '@/auth/AccountStateScreen';
 
 const HomePage = lazy(() => import('@/marketing/HomePage'));
 const PricingPage = lazy(() => import('@/marketing/PricingPage'));
@@ -37,18 +38,14 @@ function ScrollToTop() {
 }
 
 export function RequireAuth({ children }: { children: React.ReactElement }) {
-  const { status, meError } = useSession();
+  const { status, me, meError, meErrorCode } = useSession();
   const location = useLocation();
   if (status === 'loading') return <FullPageLoader label="Checking your session" />;
   if (status === 'unconfigured') return <Navigate to="/login" replace />;
   if (status === 'signed_out') return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
-  if (meError && /suspended/i.test(meError)) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center px-6 text-center">
-        <p className="text-body max-w-[46ch] text-muted">{meError}</p>
-      </div>
-    );
-  }
+  if (meErrorCode === 'ACCOUNT_SUSPENDED') return <AccountStateScreen kind="suspended" />;
+  // Signed in, but /api/me failed and there is no account to render: say so instead of loading forever.
+  if (meError && !me) return <AccountStateScreen kind="load_failed" detail={meError} />;
   return children;
 }
 

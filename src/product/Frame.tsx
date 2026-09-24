@@ -68,6 +68,7 @@ function EngineStatus() {
 
 /** Product page frame: repository toolbar, scrolling content, and the Evidence Inspector. */
 export function ProductFrame({ children, inspector = true, padded = true }: { children: ReactNode; inspector?: boolean; padded?: boolean }) {
+  const { canEdit } = useProduct();
   return (
     <div className="product-frame">
       <div className="product-main">
@@ -75,6 +76,11 @@ export function ProductFrame({ children, inspector = true, padded = true }: { ch
           <RepositorySwitcher />
           <EngineStatus />
         </div>
+        {!canEdit && (
+          <div role="status" className="border-b border-line/60 bg-sunken/60 px-4 py-2 text-[12.5px] text-muted lg:px-6">
+            <b className="font-medium text-ink">View only.</b> You are a viewer in this workspace: you can inspect evidence and verdicts, but scans, imports, experiments and changes need a member role.
+          </div>
+        )}
         {padded ? <div className="product-page">{children}</div> : children}
       </div>
       {inspector && <EvidenceInspector />}
