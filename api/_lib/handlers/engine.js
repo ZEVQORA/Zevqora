@@ -22,7 +22,7 @@ import { classifyPath, containsSecretLikeValue, redactSecretLikeValues } from '.
 import { parseTraces, diagnoseRuntimeEvidence, economics } from '../product/traces.js';
 import { planExactReuse, planModelSubstitution, executionKeyFor } from '../product/strategies.js';
 import { executePlan } from '../product/executor.js';
-import { runEvaluation } from '../product/evaluator.js';
+import { runEvaluation, enforceRequirements, sanitizeRequirements } from '../product/evaluator.js';
 import { unifiedDiff } from '../product/diff.js';
 import { runZev } from '../product/zev.js';
 
@@ -49,7 +49,7 @@ async function rows(admin, table, productId, order = 'created_at') {
 }
 
 function productOut(p) {
-  return { id: p.id, name: p.name, root_path: p.root_path, monitoring_enabled: p.monitoring_enabled, created_at: p.created_at, last_scan_at: p.last_scan_at, source: p.source, workspace_id: p.workspace_id, project_id: p.project_id, files_scanned: p.files_scanned, skipped_sensitive_paths: p.skipped_sensitive_paths, detected_stack: p.detected_stack || [] };
+  return { id: p.id, name: p.name, root_path: p.root_path, monitoring_enabled: p.monitoring_enabled, created_at: p.created_at, last_scan_at: p.last_scan_at, source: p.source, workspace_id: p.workspace_id, project_id: p.project_id, files_scanned: p.files_scanned, skipped_sensitive_paths: p.skipped_sensitive_paths, detected_stack: p.detected_stack || [], evaluation_requirements: p.evaluation_requirements || {} };
 }
 
 function findingOut(f) {
@@ -168,7 +168,31 @@ on('POST', '/api/engine/products', async ({ request }) => {
   if (existing) return productOut(existing);
   const { count } = await admin.from('engine_products').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).is('archived_at', null);
   if ((count || 0) >= 25) throw new ApiError(409, 'A workspace can hold up to 25 connected repositories.', 'LIMIT_REACHED');
-  const { data, error } = await admin.from('engine_products').insert({ workspace_id: workspaceId, name, root_path: rootPath, source, created_by: user.id }).select('*').single();
+  let requirements = {};
+  try {
+    requirements = sanitizeRequirements(body?.evaluation_requirements);
+  } catch (error) {
+    throw new ApiError(422, String(error?.message || error), 'VALIDATION');
+  }
+  const row = { workspace_id: workspaceId, name, root_path: rootPath, source, created_by: user.id };
+  if (Object.keys(requirements).length) row.evaluation_requirements = { ...requirements, frozen_at: new Date().toISOString(), frozen_by: user.id };
+  const { data, error } = await admin.from('engine_products').insert(row).select('*').single();
+  if (error) throw error;
+  return productOut(data);
+});
+
+/** Changing the team's quality bar applies to experiments evaluated from now on; past verdicts keep theirs. */
+on('POST', '/api/engine/products/:id/requirements', async ({ request, params }) => {
+  const { user, admin } = await requireUser(request);
+  const { product } = await loadProduct(admin, user, params.id, 'admin');
+  const body = await readJson(request);
+  let requirements;
+  try {
+    requirements = sanitizeRequirements(body?.evaluation_requirements);
+  } catch (error) {
+    throw new ApiError(422, String(error?.message || error), 'VALIDATION');
+  }
+  const { data, error } = await admin.from('engine_products').update({ evaluation_requirements: { ...requirements, frozen_at: new Date().toISOString(), frozen_by: user.id } }).eq('id', product.id).select('*').single();
   if (error) throw error;
   return productOut(data);
 });
@@ -391,7 +415,9 @@ on('POST', '/api/engine/products/:id/evaluations', async ({ request, params }) =
   const traces = await rows(admin, 'engine_traces', product.id);
   let result;
   try {
-    result = runEvaluation({ execution: executionOut(execution), plan: plan ? planOut(plan) : null, traces, gateConfig: body?.gate_config || {}, cases: Array.isArray(body?.cases) ? body.cases : null });
+    // The project's frozen requirements are a floor: the request may tighten a gate, never loosen it.
+    const gateConfig = enforceRequirements(body?.gate_config || {}, product.evaluation_requirements || {});
+    result = runEvaluation({ execution: executionOut(execution), plan: plan ? planOut(plan) : null, traces, gateConfig, cases: Array.isArray(body?.cases) ? body.cases : null });
   } catch (error) {
     throw new ApiError(422, String(error?.message || error), 'VALIDATION');
   }

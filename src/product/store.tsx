@@ -4,6 +4,7 @@ import { cloudEngine, localEngine, syncLocalEngineSession, engineErrorMessage, t
 import { desktopBridge, isDesktop } from './bridge';
 import { pickRepository, pickTraceFile, type PickedRepository } from './browserScan';
 import { useProductToast } from './ui';
+import { isWorkloadProduct } from './types';
 import type { AICall, Economics, EngineHealth, EnginePlatformStatus, Evaluation, Experiment, Finding, Implementation, OptimizationExecution, OptimizationPlan, Product, ScanResult } from './types';
 
 export type InspectTarget =
@@ -67,6 +68,15 @@ export function useProduct() {
   const ctx = useContext(Ctx);
   if (!ctx) throw new Error('useProduct must be used within ProductProvider');
   return ctx;
+}
+
+/** Make a product the selection for its workspace before the product views mount (onboarding). */
+export function rememberSelectedProduct(workspaceId: string, productId: string) {
+  try {
+    localStorage.setItem(`zevqora.selectedProduct:${workspaceId}`, productId);
+  } catch {
+    /* storage unavailable: the first product is selected by default */
+  }
 }
 
 function readSelection(key: string) {
@@ -269,6 +279,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const runScan = useCallback(async () => {
     if (!selected || viewOnly()) return null;
+    if (isWorkloadProduct(selected)) {
+      toast({ tone: 'err', title: 'No repository to scan', description: 'This project is a workload: its evidence is imported traces. Connect a repository as a separate project to scan code.' });
+      return null;
+    }
     setZevState('scanning');
     try {
       let result: ScanResult;

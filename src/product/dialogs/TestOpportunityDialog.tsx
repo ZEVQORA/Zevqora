@@ -7,13 +7,10 @@ import { creditSummary } from '../credits';
 import { Button, Field, Modal, Note, StatusChip } from '../ui';
 import { costDeltaLabel, money, STRATEGY_HINT, STRATEGY_LABEL, zeroCostReason } from '../format';
 import type { Evaluation, Finding, OptimizationExecution, OptimizationPlan } from '../types';
+import { candidateFor } from '../evidence';
 
 type Phase = 'configure' | 'plan' | 'replay' | 'evaluate' | 'done' | 'error';
 
-const CATEGORY_DEFAULT: Record<string, 'exact_reuse' | 'model_substitution'> = {
-  duplicate_work: 'exact_reuse',
-  cache_candidate: 'exact_reuse',
-};
 
 export function TestOpportunityDialog({ finding, onClose, onComplete }: { finding: Finding | null; onClose: () => void; onComplete: (evaluation: Evaluation) => Promise<void> | void }) {
   const { engine, selected, platformStatus, health, economics, setZevState } = useProduct();
@@ -38,13 +35,18 @@ export function TestOpportunityDialog({ finding, onClose, onComplete }: { findin
 
   useEffect(() => {
     if (!finding) return;
-    setStrategy(CATEGORY_DEFAULT[finding.category] || 'model_substitution');
+    setStrategy(candidateFor(finding, 0).strategy || 'model_substitution');
+    // Start from the project's frozen floor; the server enforces it regardless.
+    const req = selected?.evaluation_requirements || {};
+    setQuality(String(req.quality_floor ?? 0.95));
+    setMinSamples(String(req.min_samples ?? 5));
+    setProtect(Boolean(req.require_protected_cases));
     setPhase('configure');
     setError('');
     setPlan(null);
     setExecution(null);
     setEvaluation(null);
-  }, [finding]);
+  }, [finding, selected?.evaluation_requirements]);
 
   useEffect(() => {
     if (!candidate && models.length) setCandidate(models.find((m) => !m.startsWith('mock/')) || models[0]);
@@ -174,7 +176,7 @@ export function TestOpportunityDialog({ finding, onClose, onComplete }: { findin
             </div>
           )}
           <div className="grid gap-3 sm:grid-cols-3">
-            <Field label="Quality floor" hint="Candidate quality must reach this (0–1)."><input className="pinput mono" type="number" min="0.01" max="1" step="0.01" value={quality} onChange={(e) => setQuality(e.target.value)} /></Field>
+            <Field label="Quality floor" hint={selected?.evaluation_requirements?.quality_floor !== undefined ? `Project floor ${selected.evaluation_requirements.quality_floor}; you can only raise it.` : 'Candidate quality must reach this (0–1).'}><input className="pinput mono" type="number" min="0.01" max="1" step="0.01" value={quality} onChange={(e) => setQuality(e.target.value)} /></Field>
             <Field label="Minimum samples"><input className="pinput mono" type="number" min="1" value={minSamples} onChange={(e) => setMinSamples(e.target.value)} /></Field>
             <Field label="Max latency regression %"><input className="pinput mono" type="number" min="0" value={latency} onChange={(e) => setLatency(e.target.value)} /></Field>
           </div>

@@ -38,6 +38,24 @@ export interface Product {
   files_scanned?: number;
   skipped_sensitive_paths?: number;
   detected_stack?: string[];
+  /** The team's frozen gate floor (platform engine). */
+  evaluation_requirements?: EvaluationRequirements;
+}
+
+export interface EvaluationRequirements {
+  quality_floor?: number;
+  min_samples?: number;
+  require_protected_cases?: boolean;
+  require_latency?: boolean;
+  max_latency_regression_pct?: number;
+  frozen_at?: string;
+  frozen_by?: string;
+}
+
+/** Projects without a repository: evidence comes from imported traces only. */
+export const WORKLOAD_PREFIX = 'workload://';
+export function isWorkloadProduct(p: { root_path: string } | null | undefined) {
+  return Boolean(p?.root_path.startsWith(WORKLOAD_PREFIX));
 }
 
 export interface AICall {

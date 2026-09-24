@@ -12,6 +12,46 @@ export const DEFAULT_CLASSIFICATION_LABELS = ['billing', 'technical', 'account']
 
 export const DEFAULT_GATE_CONFIG = { min_samples: 5, quality_floor: 0.95, non_inferiority_tolerance: 0, require_cost_improvement: true, min_cost_improvement_pct: 0, require_latency: true, max_latency_regression_pct: 20, require_fallback: true, require_protected_cases: false, latency_informational: false, aggregation: 'mean' };
 
+/**
+ * A project's evaluation requirements, frozen when the team sets them. They
+ * are the floor every experiment on the project is held to.
+ */
+export function sanitizeRequirements(raw) {
+  if (raw === null || raw === undefined) return {};
+  if (typeof raw !== 'object' || Array.isArray(raw)) throw new Error('evaluation_requirements must be an object.');
+  const out = {};
+  const num = (k, min, max, integer = false) => {
+    if (raw[k] === undefined || raw[k] === null || raw[k] === '') return;
+    const n = Number(raw[k]);
+    if (!Number.isFinite(n) || n < min || n > max || (integer && !Number.isInteger(n))) throw new Error(`${k} must be ${integer ? 'an integer ' : ''}between ${min} and ${max}.`);
+    out[k] = n;
+  };
+  num('quality_floor', 0.5, 1);
+  num('min_samples', 3, 10000, true);
+  num('max_latency_regression_pct', 0, 1000);
+  for (const k of ['require_protected_cases', 'require_latency']) if (raw[k] !== undefined) out[k] = Boolean(raw[k]);
+  return out;
+}
+
+/**
+ * The gates an experiment actually runs under: whatever the request asked
+ * for, made at least as strict as the project's requirements. A caller can
+ * tighten a gate for one experiment; it can never loosen the team's floor.
+ */
+export function enforceRequirements(requested = {}, requirements = {}) {
+  const req = sanitizeRequirements(requirements);
+  const cfg = normalizeGateConfig(requested || {});
+  if (req.quality_floor !== undefined) cfg.quality_floor = Math.max(cfg.quality_floor, req.quality_floor);
+  if (req.min_samples !== undefined) cfg.min_samples = Math.max(cfg.min_samples, req.min_samples);
+  if (req.max_latency_regression_pct !== undefined) cfg.max_latency_regression_pct = Math.min(cfg.max_latency_regression_pct, req.max_latency_regression_pct);
+  if (req.require_protected_cases) cfg.require_protected_cases = true;
+  if (req.require_latency) {
+    cfg.require_latency = true;
+    cfg.latency_informational = false;
+  }
+  return cfg;
+}
+
 export function normalizeGateConfig(raw = {}) {
   const cfg = { ...DEFAULT_GATE_CONFIG };
   const num = (k, min, max) => {

@@ -16,8 +16,13 @@ supabase/migrations/008_credit_precision.sql
 supabase/migrations/009_product_engine.sql
 supabase/migrations/010_trace_prompt_evidence.sql
 supabase/migrations/011_harden_security_definer_rpc_surface.sql   (already live since 2026-09-11; backfilled)
-supabase/migrations/012_least_privilege_client_access.sql
+supabase/migrations/012_least_privilege_client_access.sql      (live since 2026-09-24)
+supabase/migrations/013_site_hero_copy.sql                     (publishes the new hero copy: apply with the release)
+supabase/migrations/014_engine_evaluation_requirements.sql     (live since 2026-09-24; additive)
 ```
+
+Role-switched privilege check (always aborts, safe on production): `supabase/tests/rls_privilege_check.sql`.
+Rollback for 012: `supabase/rollback/012_least_privilege_client_access.rollback.sql`.
 
 Auth providers: Email/Password, Google, GitHub. Redirect URLs must include
 `https://zevqora.vercel.app/**` (and any custom domain). **Enable leaked-password protection**

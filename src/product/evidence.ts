@@ -198,3 +198,51 @@ export function evidenceReportMarkdown(ctx: ReportContext): string {
   lines.push('', 'Deterministic graders; no model judged another model. A person decides whether this change ships.');
   return lines.join('\n') + '\n';
 }
+
+// ---- which findings the engine can actually test ---------------------------------
+
+export type SupportedStrategy = 'exact_reuse' | 'model_substitution';
+
+interface CategoryInfo {
+  family: string;
+  strategy: SupportedStrategy | null;
+  tradeoff: string;
+}
+
+/**
+ * Finding category -> the strategy the engine can run for it today. Categories
+ * without a strategy are signals: worth reading, never testable as a candidate.
+ */
+const CATEGORY: Record<string, CategoryInfo> = {
+  repeated_execution: { family: 'Exact reuse', strategy: 'exact_reuse', tradeoff: 'Only identical requests are reused; answers stay byte-identical, freshness depends on how long results are kept.' },
+  duplicate_work: { family: 'Exact reuse', strategy: 'exact_reuse', tradeoff: 'Only identical requests are reused; answers stay byte-identical, freshness depends on how long results are kept.' },
+  cache_candidate: { family: 'Exact reuse', strategy: 'exact_reuse', tradeoff: 'Only identical requests are reused; answers stay byte-identical, freshness depends on how long results are kept.' },
+  structured_task_candidate: { family: 'Model substitution', strategy: 'model_substitution', tradeoff: 'A cheaper model on a bounded task; quality must hold on graded cases.' },
+  structured_output_candidate: { family: 'Model substitution', strategy: 'model_substitution', tradeoff: 'A cheaper model on a structured-output task; format and quality must hold on graded cases.' },
+  expensive_model_simple_task: { family: 'Model substitution', strategy: 'model_substitution', tradeoff: 'A cheaper model on a simple task; quality must hold on graded cases.' },
+  cost_concentration: { family: 'Model substitution', strategy: 'model_substitution', tradeoff: 'Where most of the cost is; test a cheaper model here first.' },
+  context_review: { family: 'Context review', strategy: null, tradeoff: 'Signal only: context reduction is not a supported strategy yet.' },
+  context_bloat: { family: 'Context review', strategy: null, tradeoff: 'Signal only: context reduction is not a supported strategy yet.' },
+  reliability_retries: { family: 'Reliability', strategy: null, tradeoff: 'Signal only: retry policy changes are not a supported strategy yet.' },
+  retry_storm: { family: 'Reliability', strategy: null, tradeoff: 'Signal only: retry policy changes are not a supported strategy yet.' },
+  routing_candidate: { family: 'Routing', strategy: null, tradeoff: 'Signal only: bounded routing runs on the desktop engine, not on the platform yet.' },
+};
+
+export interface CandidateState {
+  family: string;
+  strategy: SupportedStrategy | null;
+  executable: boolean;
+  /** Why it cannot be tested yet, when it cannot. */
+  blocker: string | null;
+  tradeoff: string;
+}
+
+export function candidateFor(finding: { category: string; origin: string }, traceCount: number): CandidateState {
+  const info = CATEGORY[finding.category] || { family: 'Signal', strategy: null, tradeoff: 'No supported strategy for this signal yet.' };
+  const blocker = !info.strategy ? 'No supported strategy' : traceCount === 0 ? 'Needs execution traces' : null;
+  return { family: info.family, strategy: info.strategy, executable: !blocker, blocker, tradeoff: info.tradeoff };
+}
+
+export function firstSupported<T extends { category: string; origin: string; confidence: number }>(findings: T[], traceCount: number): T | null {
+  return [...findings].filter((f) => candidateFor(f, traceCount).strategy).sort((a, b) => b.confidence - a.confidence)[0] || null;
+}

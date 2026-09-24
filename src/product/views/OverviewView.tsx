@@ -21,22 +21,25 @@ export default function OverviewView() {
       <ProductFrame>
         <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div>
-            <div className="peyebrow">AI Cost Optimization Engineer</div>
+            <div className="peyebrow">Verified AI cost optimization</div>
             <h1 className="ph1 mt-2">Make AI cheaper without guessing.</h1>
-            <p className="plede">Connect the repository you actually develop in. ZEVQORA finds where your product calls models, diagnoses spend, tests cheaper candidates on your own traces, and only calls a saving verified when every gate passes.</p>
+            <p className="plede">Connect one authorized evidence source: the repository you develop in, or an export of a workload&rsquo;s traces. ZEVQORA establishes a baseline, tests supported candidates on the same cases, and only calls a saving verified when every gate passes.</p>
             <div className="mt-6 flex flex-wrap gap-2">
-              <Button onClick={dialogs.openConnect}>
+              <Button onClick={() => navigate('/app/onboarding')}>
+                <Upload size={15} /> Start from a trace export
+              </Button>
+              <Button variant="secondary" onClick={dialogs.openConnect}>
                 <FolderGit2 size={15} /> Connect a repository
               </Button>
-              <Button variant="secondary" onClick={() => navigate('/app/zev')}>
+              <Button variant="ghost" onClick={() => navigate('/app/zev')}>
                 <MessageSquare size={15} /> Ask Zev
               </Button>
             </div>
             <div className="mt-8 grid gap-2 sm:grid-cols-3">
               {[
-                ['01', 'Measure', 'Read-only scan + imported execution traces.'],
-                ['02', 'Replay', 'Bounded candidate on your real samples.'],
-                ['03', 'Verify', 'Quality gate decides. Then a reviewed patch.'],
+                ['01', 'Measure', 'A baseline from your traces, with where every number came from.'],
+                ['02', 'Replay', 'A supported candidate on the same representative cases.'],
+                ['03', 'Verify', 'Frozen gates decide: VERIFIED, REJECTED or INCOMPLETE.'],
               ].map(([n, t, d]) => (
                 <div key={n} className="pstep">
                   <span className="n">{n}</span>

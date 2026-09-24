@@ -16,6 +16,7 @@ import type {
   AICall,
   Economics,
   EngineHealth,
+  EvaluationRequirements,
   EnginePlatformStatus,
   Evaluation,
   Experiment,
@@ -29,6 +30,7 @@ import type {
   ScanResult,
   ScanUpload,
 } from './types';
+import { WORKLOAD_PREFIX } from './types';
 
 export type EngineKind = 'cloud' | 'local';
 
@@ -38,7 +40,10 @@ export interface Engine {
   platformStatus(): Promise<EnginePlatformStatus>;
   products(): Promise<Product[]>;
   /** Cloud: register a repository whose scan the browser performed locally. Local: the engine scans the folder itself. */
-  connect(input: { rootPath: string; name?: string; upload?: ScanUpload }): Promise<ScanResult>;
+  connect(input: { rootPath: string; name?: string; upload?: ScanUpload; requirements?: EvaluationRequirements }): Promise<ScanResult>;
+  /** A project with no repository; its evidence is imported traces. */
+  createWorkload(input: { name: string; requirements?: EvaluationRequirements }): Promise<Product>;
+  setRequirements(productId: string, requirements: EvaluationRequirements): Promise<Product>;
   scan(productId: string, upload?: ScanUpload): Promise<ScanResult>;
   archiveProduct(productId: string): Promise<void>;
   monitoring(productId: string, enabled: boolean): Promise<Product>;
@@ -80,8 +85,8 @@ export function cloudEngine(workspaceId: string): Engine {
     health: () => api<EngineHealth>(`${base}/health`),
     platformStatus: () => api<EnginePlatformStatus>(`${base}/platform/status?workspace_id=${workspaceId}`),
     products: () => api<Product[]>(`${base}/products?workspace_id=${workspaceId}`),
-    connect: async ({ rootPath, name, upload }) => {
-      const product = await api<Product>(`${base}/products`, { method: 'POST', body: { workspace_id: workspaceId, root_path: rootPath, name: name || null, source: 'browser' } });
+    connect: async ({ rootPath, name, upload, requirements }) => {
+      const product = await api<Product>(`${base}/products`, { method: 'POST', body: { workspace_id: workspaceId, root_path: rootPath, name: name || null, source: 'browser', evaluation_requirements: requirements || null } });
       if (!upload) return { product, files_scanned: product.files_scanned || 0, ai_calls: [], findings: [], detected_stack: product.detected_stack || [], skipped_sensitive_paths: product.skipped_sensitive_paths || 0 };
       return api<ScanResult>(`${p(product.id)}/scan`, { method: 'POST', body: upload });
     },
@@ -89,6 +94,11 @@ export function cloudEngine(workspaceId: string): Engine {
       if (!upload) throw new EngineError(400, 'Pick the repository folder again so the browser can rescan it.');
       return api<ScanResult>(`${p(productId)}/scan`, { method: 'POST', body: upload });
     },
+    createWorkload: ({ name, requirements }) => {
+      const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'workload';
+      return api<Product>(`${base}/products`, { method: 'POST', body: { workspace_id: workspaceId, root_path: `${WORKLOAD_PREFIX}${slug}`, name: name.trim(), source: 'browser', evaluation_requirements: requirements || null } });
+    },
+    setRequirements: (productId, requirements) => api<Product>(`${p(productId)}/requirements`, { method: 'POST', body: { evaluation_requirements: requirements } }),
     archiveProduct: async (productId) => {
       await api(`${p(productId)}`, { method: 'DELETE' });
     },
@@ -179,6 +189,12 @@ export function localEngine(): Engine {
     platformStatus: () => localRequest<EnginePlatformStatus>('/platform/status'),
     products: () => localRequest<Product[]>('/products'),
     connect: ({ rootPath, name }) => localRequest<ScanResult>('/products/connect-local', { method: 'POST', body: JSON.stringify({ path: rootPath, name: name || null }) }),
+    createWorkload: async () => {
+      throw new EngineError(501, 'Workload-only projects run on the platform engine. Use the web app, or connect a repository here.');
+    },
+    setRequirements: async () => {
+      throw new EngineError(501, 'Evaluation requirements are enforced by the platform engine; the local engine applies the gates you set per experiment.');
+    },
     scan: (productId) => localRequest<ScanResult>(`${p(productId)}/scan`, { method: 'POST' }),
     archiveProduct: async (productId) => {
       await localRequest(`${p(productId)}`, { method: 'DELETE' });
