@@ -224,6 +224,61 @@ export function diagnoseRuntimeEvidence(traces) {
   return findings;
 }
 
+const STALE_AFTER_DAYS = 30;
+const known = (v) => v !== null && v !== undefined && v !== '';
+
+function tally(rows, key) {
+  const out = {};
+  for (const r of rows) {
+    const k = key(r);
+    out[k] = (out[k] || 0) + 1;
+  }
+  return out;
+}
+
+/**
+ * Where every baseline number comes from, and what is missing. A total over
+ * only the priced traces is a lower bound, so coverage travels with it and
+ * the gaps are named instead of silently treated as zero.
+ */
+export function baselineProvenance(traces, now = Date.now()) {
+  const n = traces.length;
+  const priced = traces.filter((t) => known(t.cost_usd));
+  const timed = traces.filter((t) => known(t.latency_ms));
+  const withTokens = traces.filter((t) => known(t.input_tokens) && known(t.output_tokens));
+  const withExpected = traces.filter((t) => known(t.expected_output));
+  const withPrompt = traces.filter((t) => (Array.isArray(t.messages) && t.messages.length) || known(t.system_prompt));
+  const latest = traces.map((t) => t.timestamp).filter(Boolean).sort().pop() || null;
+  const ageDays = latest ? (now - Date.parse(latest)) / 86_400_000 : null;
+  const stale = ageDays !== null && Number.isFinite(ageDays) && ageDays > STALE_AFTER_DAYS;
+  const gaps = [];
+  if (!n) gaps.push('no_traces: import execution traces to establish a baseline');
+  else {
+    if (priced.length < n) gaps.push(`cost_unknown: ${n - priced.length} of ${n} traces have no cost; the cost total is a lower bound`);
+    if (timed.length < n) gaps.push(`latency_unknown: ${n - timed.length} of ${n} traces have no latency`);
+    if (withExpected.length < n) gaps.push(`no_expected_output: ${n - withExpected.length} of ${n} traces cannot be graded against an expected answer`);
+    if (withPrompt.length < n) gaps.push(`input_only: ${n - withPrompt.length} of ${n} traces carry no recorded prompt; a replay cannot ask the same question`);
+    if (!traces.some((t) => t.protected)) gaps.push('no_protected_cases: no case is marked protected, so the protected gate cannot assert anything');
+    if (stale) gaps.push(`stale: newest trace is ${Math.floor(ageDays)} days old`);
+  }
+  return {
+    trace_count: n,
+    cost: { known: priced.length, unknown: n - priced.length, complete: n > 0 && priced.length === n, sources: tally(priced, (t) => t.cost_source || 'unlabelled') },
+    latency: { known: timed.length, unknown: n - timed.length },
+    tokens: {
+      known: withTokens.length,
+      input: withTokens.length ? withTokens.reduce((a, t) => a + Number(t.input_tokens), 0) : null,
+      output: withTokens.length ? withTokens.reduce((a, t) => a + Number(t.output_tokens), 0) : null,
+    },
+    models: tally(traces, (t) => t.model || 'unknown'),
+    workflows: tally(traces, (t) => t.workflow || t.symbol || 'unattributed'),
+    evaluation_coverage: { with_expected_output: withExpected.length, with_recorded_prompt: withPrompt.length, protected: traces.filter((t) => t.protected).length },
+    stale,
+    stale_after_days: STALE_AFTER_DAYS,
+    gaps,
+  };
+}
+
 export function economics(traces, verifiedEvaluations) {
   const costs = traces.filter((t) => t.cost_usd !== null && t.cost_usd !== undefined).map((t) => Number(t.cost_usd));
   const lats = traces.filter((t) => t.latency_ms !== null && t.latency_ms !== undefined).map((t) => Number(t.latency_ms));
@@ -241,6 +296,7 @@ export function economics(traces, verifiedEvaluations) {
     providers,
     verified_savings_usd: Number(savings.toFixed(8)),
     verified_experiments: verifiedEvaluations.length,
+    baseline: baselineProvenance(traces),
     note: traces.length
       ? 'Observed values come only from imported execution evidence. Imported costs are imported_external provenance, not provider-verified. No monthly projection is fabricated.'
       : 'No runtime evidence imported yet. Static findings are not Verified Savings.',

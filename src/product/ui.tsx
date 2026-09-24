@@ -261,10 +261,10 @@ export function DiffView({ diff, file }: { diff: string; file?: string }) {
 }
 
 /** Download text in the browser; in the desktop shell the bridge shows a save dialog. */
-export async function saveTextFile(name: string, content: string) {
+export async function saveTextFile(name: string, content: string, type = 'application/json') {
   const bridge = window.zevqoraDesktop;
   if (bridge?.saveTextFile) return bridge.saveTextFile(name, content);
-  const blob = new Blob([content], { type: 'application/json' });
+  const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

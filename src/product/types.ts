@@ -83,6 +83,21 @@ export interface Economics {
   verified_savings_usd: number;
   verified_experiments: number;
   note: string;
+  /** Platform engine only; the desktop engine does not report it yet. */
+  baseline?: BaselineProvenance;
+}
+
+export interface BaselineProvenance {
+  trace_count: number;
+  cost: { known: number; unknown: number; complete: boolean; sources: Record<string, number> };
+  latency: { known: number; unknown: number };
+  tokens: { known: number; input: number | null; output: number | null };
+  models: Record<string, number>;
+  workflows: Record<string, number>;
+  evaluation_coverage: { with_expected_output: number; with_recorded_prompt: number; protected: number };
+  stale: boolean;
+  stale_after_days: number;
+  gaps: string[];
 }
 
 export interface Gate {

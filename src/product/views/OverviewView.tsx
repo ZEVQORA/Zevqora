@@ -6,7 +6,8 @@ import { ProductFrame } from '../Frame';
 import { useProduct } from '../store';
 import { useProductDialogs } from '../dialogs/context';
 import { Button, Card, CardHeader, Empty, Metric, StatusChip } from '../ui';
-import { costDeltaLabel, dateTime, money, pct, relativeTime, score, zeroCostReason } from '../format';
+import { costDeltaLabel, dateTime, money, relativeTime, score, zeroCostReason } from '../format';
+import { countsAsMeasuredSaving } from '../evidence';
 
 export default function OverviewView() {
   const store = useProduct();
@@ -56,9 +57,9 @@ export default function OverviewView() {
   const verified = evaluations.filter((e) => e.status === 'VERIFIED');
   const rejected = evaluations.filter((e) => e.status === 'REJECTED');
   const latest = evaluations[0] || null;
-  const knownDeltas = verified.map((e) => e.raw_cost_delta_percent).filter((v): v is number => typeof v === 'number');
-  const verifiedSavingPct = knownDeltas.length ? Math.max(...knownDeltas) : null;
-  const providers = Array.from(new Set(aiCalls.map((c) => c.provider)));
+  const incomplete = evaluations.filter((e) => e.status === 'INCOMPLETE');
+  const latestCounted = evaluations.find(countsAsMeasuredSaving) || null;
+  const baseline = economics?.baseline;
   const openChanges = implementations.filter((i) => i.status !== 'REJECTED').length;
   const steps = [
     { n: '01', t: 'Connect', d: selected.name, done: true },
@@ -101,16 +102,30 @@ export default function OverviewView() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card className="p-5">
-          <Metric label="Observed cost" value={money(economics?.observed_cost_usd, { digits: 4 })} hint={economics?.trace_count ? `${economics.trace_count} execution traces · ${economics.avg_cost_per_trace_usd != null ? money(economics.avg_cost_per_trace_usd, { digits: 5 }) + ' per trace' : ''}` : 'Import traces to measure spend'} />
+          <Metric
+            label="Measurable cost signal"
+            value={economics?.observed_cost_usd == null ? '—' : `${baseline && !baseline.cost.complete ? '≥ ' : ''}${money(economics.observed_cost_usd, { digits: 4 })}`}
+            hint={!economics?.trace_count ? 'Import execution traces to measure cost' : baseline ? `${baseline.cost.known} of ${baseline.trace_count} traces priced${baseline.cost.complete ? '' : ' · total is a lower bound'}` : `${economics.trace_count} execution traces`}
+          />
         </Card>
         <Card className="p-5">
-          <Metric label="AI call sites" value={String(aiCalls.length)} hint={providers.length ? providers.join(' · ') : scan ? 'None detected in scanned files' : 'Run a scan'} />
+          <Metric
+            label="Evidence completeness"
+            value={!baseline ? '—' : baseline.gaps.length ? `${baseline.gaps.length} gap${baseline.gaps.length === 1 ? '' : 's'}` : 'Complete'}
+            hint={!baseline ? (economics?.trace_count ? 'Baseline detail not reported by this engine' : 'No baseline yet') : baseline.gaps.length ? baseline.gaps[0].split(':')[0].replace(/_/g, ' ') + (baseline.gaps.length > 1 ? ` and ${baseline.gaps.length - 1} more · see Projects` : ' · see Projects') : `${baseline.evaluation_coverage.with_expected_output} gradable · ${baseline.evaluation_coverage.protected} protected`}
+            tone={baseline && !baseline.gaps.length ? 'verified' : undefined}
+          />
         </Card>
         <Card className="p-5">
-          <Metric label="Potential opportunities" value={String(findings.length)} hint="Signals, not savings, until replayed and graded" tone="accent" />
+          <Metric label="Open opportunities" value={String(findings.length)} hint="Signals, not savings, until replayed and graded" tone="accent" />
         </Card>
         <Card className="p-5">
-          <Metric label="Verified cost reduction" value={verifiedSavingPct === null ? '—' : pct(verifiedSavingPct)} hint={verified.length ? `best verified replay · ${verified.length} verified · ${rejected.length} rejected · ${money(economics?.verified_savings_usd, { digits: 4 })} saved on samples` : `${rejected.length ? rejected.length + ' rejected · ' : ''}nothing verified yet`} tone={verified.length ? 'verified' : undefined} />
+          <Metric
+            label="Latest verified impact"
+            value={latestCounted ? money(-(latestCounted.raw_cost_delta_usd as number), { digits: 6 }) : '—'}
+            hint={latestCounted ? `lower cost on ${latestCounted.sample_count} evaluated cases · measured, not projected` : `${rejected.length ? `${rejected.length} rejected · ` : ''}${incomplete.length ? `${incomplete.length} incomplete · ` : ''}nothing verified yet`}
+            tone={latestCounted ? 'verified' : undefined}
+          />
         </Card>
       </div>
 

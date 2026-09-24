@@ -7,22 +7,28 @@ const ProductOverview = lazy(() => import('@/product/views/OverviewView'));
 const ProductProject = lazy(() => import('@/product/views/ProjectView'));
 const ProductOpportunities = lazy(() => import('@/product/views/OpportunitiesView'));
 const ProductExperiments = lazy(() => import('@/product/views/ExperimentsView'));
+const ProductEvidence = lazy(() => import('@/product/views/EvidenceView'));
+const ProductSavings = lazy(() => import('@/product/views/SavingsView'));
 const ProductChanges = lazy(() => import('@/product/views/ChangesView'));
+const ProductConnections = lazy(() => import('@/product/views/ConnectionsView'));
 const ProductZev = lazy(() => import('@/product/views/ZevView'));
-const OverviewPage = lazy(() => import('./pages/OverviewPage'));
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage'));
-const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
-const OpportunitiesPage = lazy(() => import('./pages/OpportunitiesPage'));
-const ExperimentPage = lazy(() => import('./pages/ExperimentPage'));
-const RunsPage = lazy(() => import('./pages/RunsPage'));
-const EvidencePage = lazy(() => import('./pages/EvidencePage'));
-const RuntimePage = lazy(() => import('./pages/RuntimePage'));
-const ConnectionsPage = lazy(() => import('./pages/ConnectionsPage'));
-const ReportsPage = lazy(() => import('./pages/ReportsPage'));
 const UsagePage = lazy(() => import('./pages/UsagePage'));
 const TeamPage = lazy(() => import('./pages/TeamPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const DocsPage = lazy(() => import('./pages/DocsPage'));
+
+/** Paths from the retired telemetry-era pages, kept so old links and bookmarks still land somewhere useful. */
+const RETIRED: Array<[string, string]> = [
+  ['dashboard', '/app'],
+  ['projects', '/app/project'],
+  ['runs', '/app/experiments'],
+  ['runtime', '/app/connections'],
+  ['reports', '/app/evidence'],
+  ['reports/:id', '/app/evidence'],
+  ['experiments/:id', '/app/experiments'],
+  ['opportunities/:id', '/app/opportunities'],
+];
 
 export default function AppRoutes() {
   return (
@@ -35,25 +41,19 @@ export default function AppRoutes() {
           <Route path="project" element={<ProductProject />} />
           <Route path="opportunities" element={<ProductOpportunities />} />
           <Route path="experiments" element={<ProductExperiments />} />
+          <Route path="evidence" element={<ProductEvidence />} />
+          <Route path="savings" element={<ProductSavings />} />
           <Route path="changes" element={<ProductChanges />} />
+          <Route path="connections" element={<ProductConnections />} />
           <Route path="zev" element={<ProductZev />} />
         </Route>
-        {/* Workspace surfaces: cloud projects, runtime telemetry, billing, team. */}
-        <Route path="dashboard" element={<OverviewPage />} />
-        <Route path="projects" element={<ProjectsPage />} />
-        <Route path="opportunities/:id" element={<OpportunitiesPage />} />
-        <Route path="experiments/:id" element={<ExperimentPage />} />
-        <Route path="runs" element={<RunsPage />} />
-        <Route path="evidence" element={<EvidencePage />} />
-        <Route path="runtime" element={<RuntimePage />} />
-        <Route path="connections" element={<ConnectionsPage />} />
-        <Route path="reports" element={<ReportsPage />} />
-        <Route path="reports/:id" element={<ExperimentPage report />} />
+        {/* Workspace surfaces: team, billing, settings. */}
         <Route path="usage" element={<UsagePage />} />
         <Route path="team" element={<TeamPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="settings/:tab" element={<SettingsPage />} />
         <Route path="docs" element={<DocsPage />} />
+        {RETIRED.map(([from, to]) => <Route key={from} path={from} element={<Navigate to={to} replace />} />)}
         <Route path="*" element={<Navigate to="/app" replace />} />
       </Route>
     </Routes>

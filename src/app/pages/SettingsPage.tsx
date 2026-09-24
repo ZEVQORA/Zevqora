@@ -93,7 +93,7 @@ export default function SettingsPage() {
       setActiveWorkspaceId(workspace.id);
       setCreateOpen(false);
       toast({ tone: 'success', title: 'Workspace created' });
-      navigate('/app/projects?new=1');
+      navigate('/app/connections');
     } catch (err) {
       toast({ tone: 'error', title: 'Could not create workspace', description: errorMessage(err) });
     } finally {
@@ -196,7 +196,7 @@ export default function SettingsPage() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   <ButtonLink to="/app/usage" variant="secondary" size="sm">Usage & credits</ButtonLink>
                   <ButtonLink to="/app/team" variant="secondary" size="sm">Members</ButtonLink>
-                  <ButtonLink to="/app/connections" variant="secondary" size="sm">Integrations</ButtonLink>
+                  <ButtonLink to="/app/connections" variant="secondary" size="sm">Connections</ButtonLink>
                 </div>
               </div>
             </Panel>

@@ -1,7 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router';
 import { AnimatePresence, motion } from 'motion/react';
-import { Activity, BarChart3, BookOpen, ChevronsUpDown, FileText, FlaskConical, FolderGit2, FolderKanban, GitPullRequest, Home, Lightbulb, LogOut, Menu, MessageSquare, Monitor, Plug, Radio, Search, Settings, Shield, Users, X, PanelLeftClose, PanelLeftOpen, ChevronRight, Check, Plus } from 'lucide-react';
+import { BarChart3, BookOpen, ChevronsUpDown, FileCheck2, FlaskConical, FolderGit2, GitPullRequest, Home, Lightbulb, LogOut, Menu, MessageSquare, Monitor, Plug, Scale, Search, Settings, Shield, Users, X, PanelLeftClose, PanelLeftOpen, ChevronRight, Check, Plus } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useSession } from '@/lib/session';
 import { ZevqoraMark } from '@/brand/ZevqoraMark';
@@ -9,48 +9,28 @@ import { ZevqoraLogo } from '@/brand/ZevqoraLogo';
 import { Avatar, Kbd } from '@/components/ui/Misc';
 import { FullPageLoader } from '@/brand/BrandLoader';
 import { CommandPalette } from './CommandPalette';
-import { InspectorProvider, InspectorPanel } from './Inspector';
-import { useAsync } from '@/lib/useAsync';
-import { listProjects } from './data';
-import type { Project } from '@/lib/types';
 
 export const NAV: Array<{ to: string; label: string; Icon: typeof Home; end?: boolean; section?: string }> = [
   { to: '/app', label: 'Overview', Icon: Home, end: true },
-  { to: '/app/project', label: 'Project', Icon: FolderGit2 },
+  { to: '/app/project', label: 'Projects', Icon: FolderGit2 },
   { to: '/app/opportunities', label: 'Opportunities', Icon: Lightbulb, end: true },
   { to: '/app/experiments', label: 'Experiments', Icon: FlaskConical, end: true },
+  { to: '/app/evidence', label: 'Evidence', Icon: FileCheck2 },
+  { to: '/app/savings', label: 'Savings', Icon: Scale },
   { to: '/app/changes', label: 'Changes', Icon: GitPullRequest },
-  { to: '/app/zev', label: 'Zev', Icon: MessageSquare },
-  { to: '/app/runtime', label: 'Live Runtime', Icon: Radio, section: 'Workspace' },
   { to: '/app/connections', label: 'Connections', Icon: Plug },
-  { to: '/app/projects', label: 'Cloud projects', Icon: FolderKanban },
-  { to: '/app/runs', label: 'Runs / Replay', Icon: Activity },
-  { to: '/app/evidence', label: 'Evidence', Icon: Shield },
-  { to: '/app/reports', label: 'Reports', Icon: FileText },
+  { to: '/app/zev', label: 'Ask Zev', Icon: MessageSquare },
+  { to: '/app/team', label: 'Team', Icon: Users, section: 'Workspace' },
   { to: '/app/usage', label: 'Usage', Icon: BarChart3 },
-  { to: '/app/team', label: 'Team', Icon: Users },
   { to: '/app/settings', label: 'Settings', Icon: Settings },
   { to: '/app/docs', label: 'Docs', Icon: BookOpen },
   { to: '/download', label: 'Desktop app', Icon: Monitor },
 ];
 
 /** Product routes render edge-to-edge (they carry their own toolbar and Evidence Inspector). */
-const PRODUCT_PATHS = new Set(['/app', '/app/project', '/app/opportunities', '/app/experiments', '/app/changes', '/app/zev']);
+const PRODUCT_PATHS = new Set(['/app', '/app/project', '/app/opportunities', '/app/experiments', '/app/evidence', '/app/savings', '/app/changes', '/app/connections', '/app/zev']);
 export function isProductPath(pathname: string) {
   return PRODUCT_PATHS.has(pathname.replace(/\/+$/, '') || '/app');
-}
-
-interface ProjectsCtx {
-  projects: Project[];
-  loading: boolean;
-  reload: () => Promise<void>;
-  activeProject: Project | null;
-}
-const ProjectsContext = createContext<ProjectsCtx | null>(null);
-export function useProjects() {
-  const ctx = useContext(ProjectsContext);
-  if (!ctx) throw new Error('useProjects outside AppShell');
-  return ctx;
 }
 
 function WorkspaceSwitcher({ collapsed }: { collapsed: boolean }) {
@@ -94,38 +74,6 @@ function WorkspaceSwitcher({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-function ProjectSwitcher() {
-  const { projects, activeProject } = useProjects();
-  const { setActiveProjectId } = useSession();
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="relative">
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-haspopup="listbox" aria-expanded={open} className="text-caption inline-flex h-8 items-center gap-1.5 rounded-md border border-line/70 bg-surface/70 px-2.5 text-ink transition-control hover:bg-surface">
-        <FolderKanban size={13} className="text-subtle" aria-hidden />
-        <span className="max-w-[160px] truncate">{activeProject ? activeProject.name : 'All projects'}</span>
-        <ChevronsUpDown size={12} className="text-subtle" aria-hidden />
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} aria-hidden />
-          <div role="listbox" className="glass-pop absolute left-0 top-full z-40 mt-1.5 w-60 rounded-lg p-1.5">
-            <button type="button" role="option" aria-selected={!activeProject} onClick={() => { setActiveProjectId(null); setOpen(false); }} className={cn('text-caption flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-ink transition-control hover:bg-ink/5', !activeProject && 'bg-ink/5')}>
-              All projects {!activeProject && <Check size={14} className="text-accent-text" />}
-            </button>
-            {projects.map((p) => (
-              <button key={p.id} type="button" role="option" aria-selected={activeProject?.id === p.id} onClick={() => { setActiveProjectId(p.id); setOpen(false); }} className={cn('text-caption flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-ink transition-control hover:bg-ink/5', activeProject?.id === p.id && 'bg-ink/5')}>
-                <span className="truncate">{p.name}</span>
-                {activeProject?.id === p.id && <Check size={14} className="text-accent-text" />}
-              </button>
-            ))}
-            {!projects.length && <p className="text-technical px-2.5 py-2 text-subtle">No projects yet.</p>}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 function UserMenu() {
   const { me, signOut } = useSession();
   const [open, setOpen] = useState(false);
@@ -160,7 +108,7 @@ function UserMenu() {
 const TITLES: Record<string, string> = Object.fromEntries(NAV.map((n) => [n.to, n.label]));
 
 export function AppShell() {
-  const { me, activeWorkspace, activeProjectId, status } = useSession();
+  const { me, activeWorkspace, status } = useSession();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -172,11 +120,6 @@ export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
-  const projectsQuery = useAsync(() => (activeWorkspace ? listProjects(activeWorkspace.id) : Promise.resolve([] as Project[])), [activeWorkspace?.id], { enabled: Boolean(activeWorkspace) });
-  const reloadProjects = useCallback(() => projectsQuery.reload(true), [projectsQuery]);
-  const projects = useMemo(() => projectsQuery.data || [], [projectsQuery.data]);
-  const activeProject = useMemo(() => projects.find((p) => p.id === activeProjectId) || null, [projects, activeProjectId]);
-  const projectsCtx = useMemo<ProjectsCtx>(() => ({ projects, loading: projectsQuery.loading, reload: reloadProjects, activeProject }), [projects, projectsQuery.loading, reloadProjects, activeProject]);
 
   useEffect(() => {
     try {
@@ -259,8 +202,7 @@ export function AppShell() {
   );
 
   return (
-    <ProjectsContext.Provider value={projectsCtx}>
-      <InspectorProvider>
+    <>
         <div className="app-env flex min-h-dvh">
           <div className="sticky top-0 hidden h-dvh shrink-0 lg:block">{sidebar}</div>
           <AnimatePresence>
@@ -291,7 +233,6 @@ export function AppShell() {
                 )}
               </nav>
               <div className="ml-auto flex items-center gap-2">
-                <ProjectSwitcher />
                 <button type="button" onClick={() => setPaletteOpen(true)} className="text-caption hidden h-8 items-center gap-2 rounded-md border border-line/70 bg-surface/70 px-2.5 text-muted transition-control hover:bg-surface hover:text-ink md:inline-flex" aria-label="Open command palette">
                   <Search size={13} aria-hidden /> Search <Kbd>⌘K</Kbd>
                 </button>
@@ -310,11 +251,9 @@ export function AppShell() {
               )}
             </main>
           </div>
-          <InspectorPanel />
           <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
         </div>
-      </InspectorProvider>
-    </ProjectsContext.Provider>
+    </>
   );
 }
 

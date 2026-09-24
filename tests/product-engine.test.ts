@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scanText, scanFiles, classifyPath, redactSecretLikeValues } from '../api/_lib/product/scanner.js';
-import { parseTraces, diagnoseRuntimeEvidence, economics } from '../api/_lib/product/traces.js';
+import { parseTraces, diagnoseRuntimeEvidence, economics, baselineProvenance } from '../api/_lib/product/traces.js';
 import { planExactReuse, planModelSubstitution, executionKeyFor, candidateMessages, outputCapFor, promptEvidenceMissing } from '../api/_lib/product/strategies.js';
 import { executePlan } from '../api/_lib/product/executor.js';
 import { runEvaluation, gradeClassification, decideStatus } from '../api/_lib/product/evaluator.js';
@@ -56,6 +56,23 @@ describe('traces', () => {
     const e = economics(withIds, []);
     expect(e.trace_count).toBe(3);
     expect(e.observed_cost_usd).toBeCloseTo(0.009, 6);
+  });
+
+  it('reports baseline provenance and names every gap instead of treating it as zero', () => {
+    const now = Date.parse('2026-09-24T00:00:00Z');
+    const rows = [
+      { ...traceRow(1, 'a', 'billing'), system_prompt: 'Classify.', protected: true, timestamp: '2026-09-20T00:00:00Z', cost_source: 'provider_reported' },
+      { ...traceRow(2, 'b', 'billing'), cost_usd: null, latency_ms: null, expected_output: null, timestamp: '2026-09-21T00:00:00Z' },
+    ];
+    const b = baselineProvenance(rows, now);
+    expect(b.cost).toEqual({ known: 1, unknown: 1, complete: false, sources: { provider_reported: 1 } });
+    expect(b.latency.unknown).toBe(1);
+    expect(b.tokens).toEqual({ known: 2, input: 80, output: 4 });
+    expect(b.evaluation_coverage).toEqual({ with_expected_output: 1, with_recorded_prompt: 1, protected: 1 });
+    expect(b.stale).toBe(false);
+    expect(b.gaps.map((g: string) => g.split(':')[0])).toEqual(['cost_unknown', 'latency_unknown', 'no_expected_output', 'input_only']);
+    expect(baselineProvenance(rows, Date.parse('2026-12-01T00:00:00Z')).gaps.some((g: string) => g.startsWith('stale'))).toBe(true);
+    expect(baselineProvenance([], now).gaps).toEqual(['no_traces: import execution traces to establish a baseline']);
   });
 });
 

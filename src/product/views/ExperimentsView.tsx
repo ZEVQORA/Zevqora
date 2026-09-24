@@ -137,7 +137,7 @@ export default function ExperimentsView() {
                         <td />
                         <td />
                         <td />
-                        <td className={`right tnum font-semibold ${current.raw_cost_delta_percent !== null && current.raw_cost_delta_percent > 0 ? 'text-verified' : 'text-rejected'}`}>{costDeltaLabel(current, { digits: 2, zeroReason: zeroCostReason(execution?.cost_source) })}</td>
+                        <td className={`right tnum font-semibold ${current.raw_cost_delta_percent === null ? 'text-subtle' : current.raw_cost_delta_percent > 0 ? 'text-verified' : 'text-rejected'}`}>{costDeltaLabel(current, { digits: 2, zeroReason: zeroCostReason(execution?.cost_source) })}</td>
                         <td className="right tnum">{current.baseline_latency_ms && current.candidate_latency_ms ? pct(((current.candidate_latency_ms - current.baseline_latency_ms) / current.baseline_latency_ms) * 100) : '—'}</td>
                         <td className={`right tnum font-semibold ${current.quality_delta !== null && current.quality_delta < 0 ? 'text-rejected' : 'text-verified'}`}>{current.quality_delta === null ? '—' : (current.quality_delta >= 0 ? '+' : '') + current.quality_delta.toFixed(3)}</td>
                       </tr>
