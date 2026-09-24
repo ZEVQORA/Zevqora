@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { motion, useMotionValue, useSpring, useTransform, useReducedMotion } from 'motion/react';
-import { Check, X } from 'lucide-react';
+import { AlertTriangle, Check, X } from 'lucide-react';
 import { ButtonLink } from '@/components/ui/Button';
 import { ZevqoraMark } from '@/brand/ZevqoraMark';
 import { useSiteContent } from '@/lib/site';
@@ -21,49 +21,48 @@ function useFinePointer() {
 }
 
 /**
- * The proof card is the argument in one glance: a candidate that was cheaper
- * and still rejected, because quality missed the frozen floor.
+ * The hero shows the decision, not a savings number: a cheaper candidate that
+ * was rejected because quality missed the frozen floor, and a run that stays
+ * INCOMPLETE because evidence is missing. No percentage is shown here.
  */
 function ProofCard({ className }: { className?: string }) {
   const { proof } = useSiteContent();
   return (
-    <div className={className} role="figure" aria-label="Example verification result: a cheaper candidate rejected by the quality gate">
+    <div className={className} role="figure" aria-label="Example verdict: a cheaper candidate rejected by the quality gate">
       <div className="glass-strong rounded-xl p-5">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-eyebrow uppercase text-subtle">Candidate</span>
+          <span className="text-eyebrow uppercase text-subtle">Cheaper candidate</span>
           <span className="inline-flex items-center gap-1.5 rounded-sm bg-rejected-bg px-2 py-1 font-mono text-technical text-rejected">
             <X size={11} strokeWidth={2.5} aria-hidden /> REJECTED
           </span>
         </div>
-        <p className="mt-3 text-[2.1rem] font-semibold leading-none tracking-[-0.03em] text-ink tnum">{proof.rejected.cost_reduction} cheaper</p>
-        <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-line pt-4">
-          <div>
-            <dt className="text-eyebrow uppercase text-subtle">Quality</dt>
-            <dd className="mt-1 font-mono text-caption text-rejected tnum">{proof.rejected.quality}</dd>
+        <dl className="mt-4 space-y-2.5">
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-caption text-muted">Cost</dt>
+            <dd className="inline-flex items-center gap-1.5 font-mono text-technical text-verified"><Check size={11} strokeWidth={3} aria-hidden /> lower</dd>
           </div>
-          <div>
-            <dt className="text-eyebrow uppercase text-subtle">Required</dt>
-            <dd className="mt-1 font-mono text-caption text-ink tnum">{proof.rejected.quality_floor}</dd>
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-caption text-muted">Quality</dt>
+            <dd className="inline-flex items-center gap-1.5 font-mono text-technical text-rejected tnum"><X size={11} strokeWidth={3} aria-hidden /> {proof.rejected.quality} &lt; floor {proof.rejected.quality_floor}</dd>
           </div>
         </dl>
-        <p className="text-caption mt-4 border-t border-line pt-3 text-muted">Cheaper isn&rsquo;t verified.</p>
+        <p className="text-caption mt-4 border-t border-line pt-3 text-muted">Cheaper is not the same as better.</p>
       </div>
     </div>
   );
 }
 
-function VerifiedChip({ className }: { className?: string }) {
-  const { proof } = useSiteContent();
+function IncompleteChip({ className }: { className?: string }) {
   return (
     <div className={className} aria-hidden>
       <div className="glass rounded-lg px-3.5 py-2.5">
         <div className="flex items-center gap-2">
-          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-verified-bg text-verified">
-            <Check size={12} strokeWidth={3} />
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-warning-bg text-warning">
+            <AlertTriangle size={11} strokeWidth={2.5} />
           </span>
-          <span className="font-mono text-technical text-ink tnum">{proof.verified.cost_reduction} · quality {proof.verified.quality}</span>
+          <span className="font-mono text-technical text-ink">INCOMPLETE · cost unknown on 2 cases</span>
         </div>
-        <p className="text-technical mt-1 text-subtle">Verified on replay. Point estimate.</p>
+        <p className="text-technical mt-1 text-subtle">No evidence, no win.</p>
       </div>
     </div>
   );
@@ -129,13 +128,13 @@ export function Hero() {
               {hero.announcement}
             </Link>
           )}
-          <p className="text-eyebrow uppercase text-muted">AI cost optimization engineer</p>
-          <h1 className="text-display mt-5 max-w-[12ch] text-ink">
+          <p className="text-eyebrow uppercase text-muted">Verified AI cost optimization</p>
+          <h1 className="text-display mt-5 max-w-[15ch] text-ink">
             {hero.headline.replace(/\.$/, '')}
             <span className="text-brand">.</span>
           </h1>
-          <p className="text-h3 mt-6 max-w-[30ch] font-medium text-ink">{hero.subheadline}</p>
-          <p className="text-body-lg mt-5 max-w-[46ch] text-muted">{hero.supporting}</p>
+          {hero.subheadline && <p className="text-h3 mt-6 max-w-[30ch] font-medium text-ink">{hero.subheadline}</p>}
+          <p className="text-body-lg mt-6 max-w-[48ch] text-muted">{hero.supporting}</p>
           <div className="mt-9 flex flex-wrap items-center gap-3">
             <ButtonLink to={hero.primary_cta.href} size="lg">
               {hero.primary_cta.label}
@@ -144,6 +143,9 @@ export function Hero() {
               {hero.secondary_cta.label}
             </ButtonLink>
           </div>
+          <p className="text-caption mt-5">
+            <Link to="/#design-partners" className="text-muted underline decoration-line underline-offset-4 transition-control hover:text-ink">Apply for a design-partner evaluation</Link>
+          </p>
           <p className="text-technical mt-8 font-mono text-subtle">{hero.trust_line}</p>
         </div>
 
@@ -166,10 +168,10 @@ export function Hero() {
               <ProofCard />
             </motion.div>
             <motion.div className="absolute -top-1 right-0 hidden sm:block lg:-right-2" style={fine && !reduced ? { x: chipX, y: chipY } : undefined}>
-              <VerifiedChip />
+              <IncompleteChip />
             </motion.div>
           </div>
-          <p className="text-technical mt-4 text-center font-mono text-subtle lg:text-right">Example from our internal benchmark. Not a production savings claim.</p>
+          <p className="text-technical mt-4 text-center font-mono text-subtle lg:text-right">Illustrative verdicts. Quality figures from our internal benchmark, not customer data.</p>
         </div>
       </div>
     </section>

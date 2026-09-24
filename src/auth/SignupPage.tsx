@@ -87,8 +87,8 @@ export default function SignupPage() {
 
   return (
     <AuthShell
-      title="Start optimizing"
-      subtitle={plan ? `You picked the ${plan} plan. Create your account, then choose billing from Usage.` : 'Create your account. Connect a workload in minutes.'}
+      title="Create your account"
+      subtitle={plan ? `You picked the ${plan} plan. Create your account, then choose billing from Usage.` : 'Then connect one workload and run your first evaluation.'}
       footer={
         <p className="text-caption text-muted">
           Already have an account?{' '}

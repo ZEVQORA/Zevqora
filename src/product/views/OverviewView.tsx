@@ -21,7 +21,7 @@ export default function OverviewView() {
         <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div>
             <div className="peyebrow">AI Cost Optimization Engineer</div>
-            <h1 className="ph1 mt-2">Cut AI COGS without cutting product quality.</h1>
+            <h1 className="ph1 mt-2">Make AI cheaper without guessing.</h1>
             <p className="plede">Connect the repository you actually develop in. ZEVQORA finds where your product calls models, diagnoses spend, tests cheaper candidates on your own traces, and only calls a saving verified when every gate passes.</p>
             <div className="mt-6 flex flex-wrap gap-2">
               <Button onClick={dialogs.openConnect}>

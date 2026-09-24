@@ -131,7 +131,7 @@ export default function UsagePage() {
                   <p className="text-eyebrow uppercase text-muted">Plans</p>
                   <h2 className="text-h3 mt-1 text-ink">Upgrade when Zev earns it.</h2>
                 </div>
-                <BillingToggle annual={annual} onChange={setAnnual} />
+                <BillingToggle annual={annual} onChange={setAnnual} plans={plans} />
               </div>
               <div className="grid gap-4 lg:grid-cols-3">
                 {(plans || []).filter((p) => p.visible).map((p) => (

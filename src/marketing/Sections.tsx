@@ -1,11 +1,8 @@
 import type { ReactNode } from 'react';
-import { Link } from 'react-router';
 import { motion, useReducedMotion } from 'motion/react';
-import { Check, X, Shield, Lock, EyeOff, KeyRound, ArrowRight, Radio, Map, Stethoscope, FlaskConical, RotateCcw, ShieldCheck, GitPullRequest } from 'lucide-react';
+import { AlertTriangle, Check, X, Shield, Lock, EyeOff, UserCheck, FolderSearch, Gauge, Crosshair, FlaskConical, RotateCcw, ShieldCheck, Scale, GitPullRequest, Code2, LineChart } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { ButtonLink, ButtonAnchor } from '@/components/ui/Button';
-import { StatusChip } from '@/components/ui/StatusChip';
-import { Zev } from '@/brand/Zev';
 import { useSiteContent } from '@/lib/site';
 
 export function Section({ id, children, className, surface, rule = true }: { id?: string; children: ReactNode; className?: string; surface?: 'ink' | 'sunken'; rule?: boolean }) {
@@ -25,14 +22,51 @@ export function Reveal({ children, className, delay = 0 }: { children: ReactNode
   );
 }
 
+export function Problem() {
+  const levers = ['Switch to a cheaper model', 'Shorten the prompt', 'Add a cache', 'Ask a coding agent to rewrite the call'];
+  return (
+    <Section id="problem" rule={false}>
+      <div className="container-page">
+        <div className="grid gap-12 lg:grid-cols-[1.2fr_1fr] lg:gap-20">
+          <Reveal>
+            <p className="text-eyebrow uppercase text-muted">The problem</p>
+            <h2 className="text-h1 mt-5 max-w-[20ch] text-ink">Your AI bill is easy to cut. Your product quality is easy to break.</h2>
+            <p className="text-body-lg mt-6 max-w-[50ch] text-muted">Teams can already switch models, shorten prompts, add caching or ask a coding agent to change code. The hard part is knowing whether a cheaper change still works on the workload users actually depend on.</p>
+          </Reveal>
+          <Reveal delay={0.08}>
+            <div className="rounded-xl border border-line bg-surface p-6">
+              <p className="text-eyebrow uppercase text-subtle">Easy to do</p>
+              <ul className="mt-4 space-y-3">
+                {levers.map((l) => (
+                  <li key={l} className="flex items-center justify-between gap-4 text-caption text-ink">
+                    <span>{l}</span>
+                    <span className="font-mono text-technical text-subtle">cost ↓</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-5 border-t border-line pt-4">
+                <p className="text-eyebrow uppercase text-subtle">Hard to know</p>
+                <p className="text-caption mt-2 text-muted">Did quality hold on the cases your users actually send, including the ones that must never regress?</p>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+// Every step describes what the product does today. Strategies not implemented
+// in the engine are not named here.
 const STEPS = [
-  { n: '01', title: 'Connect', Icon: Radio, lead: 'Code, runtime, GitHub, server telemetry.', body: 'A scoped, revocable token streams AI call metadata from your runtime: provider, model, tokens, latency, cost. Source code stays where it is. Samples are opt-in and sanitized.' },
-  { n: '02', title: 'Map', Icon: Map, lead: 'Models, providers, calls, tokens, cost drivers, latency.', body: 'Every call lands on one spend map. You see which model does which work, how often, and what each unit of work actually costs.' },
-  { n: '03', title: 'Diagnose', Icon: Stethoscope, lead: 'Expensive model use, repeated requests, cache and deterministic opportunities, prompt and retrieval waste, fallback issues.', body: 'Deterministic analysis names the waste and attaches the evidence it was derived from. No model guesses at your architecture.' },
-  { n: '04', title: 'Experiment', Icon: FlaskConical, lead: 'Generate candidate optimizations.', body: 'Each opportunity carries a candidate: a cheaper model, a bounded routing policy, a response cache, a smaller context. Candidates are proposals, not changes.' },
-  { n: '05', title: 'Replay', Icon: RotateCcw, lead: 'Run the representative workload again.', body: 'The candidate is executed on captured samples of your real requests, measured the same way as the baseline, on ZEVQORA&rsquo;s platform credential.' },
-  { n: '06', title: 'Verify', Icon: ShieldCheck, lead: 'Compare cost, quality, latency, behaviour.', body: 'Named gates decide: minimum samples, evidence completeness, execution success, quality floor, cost improvement, latency regression. All must pass.' },
-  { n: '07', title: 'Review', Icon: GitPullRequest, lead: 'A reviewable change. Human approval required.', body: 'A verified result becomes a report with its evidence attached. A person decides whether it ships. ZEVQORA never merges or deploys.' },
+  { n: '01', title: 'Connect evidence', Icon: FolderSearch, body: 'Point ZEVQORA at a repository or import execution traces from your runtime. Repository scans run on your machine; only AI call locations and findings are sent.' },
+  { n: '02', title: 'Establish a baseline', Icon: Gauge, body: 'Cost, tokens, latency and outputs from your recorded traces, each with its source. Unknown cost stays unknown, never zero.' },
+  { n: '03', title: 'Detect an opportunity', Icon: Crosshair, body: 'Supported today: substituting a cheaper model, and reusing exact or deterministic results. Other patterns are reported as signals, not as savings.' },
+  { n: '04', title: 'Create a candidate', Icon: FlaskConical, body: 'A concrete, bounded change with its scope, budget and fallback written down before anything runs.' },
+  { n: '05', title: 'Replay the workload', Icon: RotateCcw, body: 'The candidate answers the same representative cases the baseline answered, with the same recorded prompt.' },
+  { n: '06', title: 'Apply frozen gates', Icon: ShieldCheck, body: 'Evidence completeness, minimum samples, quality floor, non-inferiority, protected cases, cost and latency. Deterministic graders, no model judging a model.' },
+  { n: '07', title: 'Return a verdict', Icon: Scale, body: 'VERIFIED when every required gate passes. REJECTED when one fails. INCOMPLETE when evidence is missing, with the exact evidence still needed.' },
+  { n: '08', title: 'Human decision', Icon: GitPullRequest, body: 'An evidence report and a reviewable change. A person decides whether it ships. ZEVQORA never merges or deploys.' },
 ];
 
 export function HowItWorks() {
@@ -41,13 +75,13 @@ export function HowItWorks() {
       <div className="container-page">
         <Reveal>
           <p className="text-eyebrow uppercase text-muted">How it works</p>
-          <h2 className="text-h1 mt-5 max-w-[18ch] text-ink">Find the waste. Test the fix. Verify the savings.</h2>
-          <p className="text-body-lg mt-6 max-w-[52ch] text-muted">One loop, in order. Nothing is recommended until it has survived the same workload it is meant to replace.</p>
+          <h2 className="text-h1 mt-5 max-w-[20ch] text-ink">One loop. Evidence in, a decision out.</h2>
+          <p className="text-body-lg mt-6 max-w-[54ch] text-muted">Nothing is recommended until it has been tested on the same workload it is meant to replace.</p>
         </Reveal>
-        <ol className="mt-14 grid gap-px overflow-hidden rounded-xl border border-line bg-line lg:grid-cols-2">
+        <ol className="mt-14 grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2">
           {STEPS.map((s, i) => (
-            <li key={s.n} className={cn('bg-surface p-6 lg:p-8', i === STEPS.length - 1 && 'lg:col-span-2')}>
-              <Reveal delay={Math.min(i * 0.04, 0.2)}>
+            <li key={s.n} className="bg-surface p-6 lg:p-7">
+              <Reveal delay={Math.min(i * 0.03, 0.18)}>
                 <div className="flex items-start gap-4">
                   <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-subtle text-accent-text">
                     <s.Icon size={18} aria-hidden />
@@ -55,10 +89,9 @@ export function HowItWorks() {
                   <div className="min-w-0">
                     <div className="flex items-baseline gap-3">
                       <span className="font-mono text-technical text-subtle tnum">{s.n}</span>
-                      <h3 className="text-h3 text-ink">{s.title}</h3>
+                      <h3 className="text-h4 text-ink">{s.title}</h3>
                     </div>
-                    <p className="text-caption mt-2 font-medium text-ink" dangerouslySetInnerHTML={{ __html: s.lead }} />
-                    <p className="text-caption mt-2 max-w-[60ch] text-muted" dangerouslySetInnerHTML={{ __html: s.body }} />
+                    <p className="text-caption mt-2 max-w-[56ch] text-muted">{s.body}</p>
                   </div>
                 </div>
               </Reveal>
@@ -70,86 +103,18 @@ export function HowItWorks() {
   );
 }
 
-export function VerifiedSavings() {
+function VerdictCard({ status, title, body, children }: { status: 'VERIFIED' | 'REJECTED' | 'INCOMPLETE'; title: string; body: string; children?: ReactNode }) {
+  const tone = status === 'VERIFIED' ? 'border-verified/30' : status === 'REJECTED' ? 'border-rejected/25' : 'border-warning/30';
+  const Icon = status === 'VERIFIED' ? Check : status === 'REJECTED' ? X : AlertTriangle;
+  const color = status === 'VERIFIED' ? 'text-verified bg-verified-bg' : status === 'REJECTED' ? 'text-rejected bg-rejected-bg' : 'text-warning bg-warning-bg';
   return (
-    <Section surface="sunken">
-      <div className="container-page">
-        <div className="grid gap-12 lg:grid-cols-[1fr_1.15fr] lg:gap-20">
-          <Reveal>
-            <p className="text-eyebrow uppercase text-muted">Verified Savings</p>
-            <h2 className="text-h1 mt-5 max-w-[14ch] text-ink">Potential is a guess. Verified is a fact.</h2>
-            <p className="text-body-lg mt-6 max-w-[46ch] text-muted">ZEVQORA keeps the two apart on every screen. Nothing moves from one column to the other without a replay and a passed gate.</p>
-          </Reveal>
-          <Reveal delay={0.08}>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-xl border border-line bg-surface p-6">
-                <StatusChip status="candidate" label="POTENTIAL SAVINGS" />
-                <p className="text-h3 mt-5 text-ink">A theoretical estimate.</p>
-                <p className="text-caption mt-3 text-muted">Derived from observed spend and public price lists. Useful for deciding what to test first. Never reported as a result.</p>
-                <ul className="text-technical mt-5 space-y-2 font-mono text-subtle">
-                  <li>estimate · from telemetry</li>
-                  <li>confidence · labelled</li>
-                  <li>evidence · partial or complete</li>
-                </ul>
-              </div>
-              <div className="rounded-xl border border-verified/30 bg-verified-bg/40 p-6">
-                <StatusChip status="verified" label="VERIFIED SAVINGS" />
-                <p className="text-h3 mt-5 text-ink">A replayed, gated result.</p>
-                <p className="text-caption mt-3 text-muted">The candidate ran on your real samples, measured against the baseline, and passed every configured quality constraint.</p>
-                <ul className="text-technical mt-5 space-y-2 font-mono text-verified">
-                  <li>replay · same workload</li>
-                  <li>quality gate · passed</li>
-                  <li>evidence hash · attached</li>
-                </ul>
-              </div>
-            </div>
-          </Reveal>
-        </div>
-      </div>
-    </Section>
-  );
-}
-
-function ProofPanel({ kind }: { kind: 'rejected' | 'verified' }) {
-  const { proof } = useSiteContent();
-  const rejected = kind === 'rejected';
-  const c: { cost_reduction: string; quality: string; quality_floor: string; reason?: string; ci95?: string } = rejected ? proof.rejected : proof.verified;
-  const gates = rejected
-    ? [
-        { label: 'Cost reduction', value: c.cost_reduction, status: 'pass' },
-        { label: 'Quality', value: c.quality, floor: c.quality_floor, status: 'fail' },
-      ]
-    : [
-        { label: 'Cost reduction', value: c.cost_reduction, status: 'pass' },
-        { label: 'Quality', value: c.quality, floor: c.quality_floor, status: 'pass' },
-        { label: 'Protected behaviour', value: 'held', status: 'pass' },
-        { label: 'Evidence completeness', value: 'complete', status: 'pass' },
-      ];
-  return (
-    <div className={cn('rounded-xl border bg-surface p-7', rejected ? 'border-rejected/25' : 'border-verified/30')}>
-      <div className="flex items-center justify-between gap-4">
-        <StatusChip status={rejected ? 'rejected' : 'verified'} size="md" />
-        <span className="font-mono text-technical text-subtle">{rejected ? c.reason || 'quality_floor' : 'all_gates_pass'}</span>
-      </div>
-      <p className="text-eyebrow mt-8 uppercase text-muted">{rejected ? 'Measured cost reduction' : 'Measured point estimate'}</p>
-      <p className="mt-2 text-[3rem] font-semibold leading-none tracking-[-0.04em] text-ink tnum">{c.cost_reduction}</p>
-      <p className="text-caption mt-2 text-muted">lower raw measured inference cost</p>
-      <dl className="mt-8 border-t border-line">
-        {gates.map((g) => (
-          <div key={g.label} className="flex items-baseline justify-between gap-4 border-b border-line py-3">
-            <dt className="text-caption text-muted">{g.label}</dt>
-            <dd className="flex items-baseline gap-3 font-mono text-technical tnum">
-              {g.floor && <span className="text-subtle">floor {g.floor}</span>}
-              <span className={g.status === 'fail' ? 'text-rejected' : 'text-ink'}>{g.value}</span>
-              <span className={cn('inline-flex items-center gap-1 uppercase', g.status === 'fail' ? 'text-rejected' : 'text-verified')}>
-                {g.status === 'fail' ? <X size={11} strokeWidth={3} /> : <Check size={11} strokeWidth={3} />}
-                {g.status}
-              </span>
-            </dd>
-          </div>
-        ))}
-      </dl>
-      <p className="text-caption mt-5 text-muted">{rejected ? `Cheaper by ${c.cost_reduction}, and thrown away. Quality scored ${c.quality} against a frozen ${c.quality_floor} floor.` : `Smaller saving, every gate passed. 95% CI ${c.ci95 || 'crosses zero'}: a point estimate, not a conclusive result.`}</p>
+    <div className={cn('flex h-full flex-col rounded-xl border bg-surface p-6', tone)}>
+      <span className={cn('inline-flex w-fit items-center gap-1.5 rounded-sm px-2 py-1 font-mono text-technical', color)}>
+        <Icon size={11} strokeWidth={2.5} aria-hidden /> {status}
+      </span>
+      <h3 className="text-h4 mt-5 text-ink">{title}</h3>
+      <p className="text-caption mt-2 text-muted">{body}</p>
+      {children && <div className="mt-auto pt-5">{children}</div>}
     </div>
   );
 }
@@ -160,98 +125,96 @@ export function Proof() {
     <Section id="proof" className="studio">
       <div className="container-page">
         <Reveal>
-          <p className="text-eyebrow uppercase text-muted">Proof</p>
-          <h2 className="text-h1 mt-5 max-w-[14ch] text-ink">Cheaper isn&rsquo;t verified.</h2>
-          <p className="text-body-lg mt-6 max-w-[52ch] text-muted">Two candidates from our own {proof.kind.toLowerCase()}. The one that saved more money is the one ZEVQORA rejected.</p>
+          <p className="text-eyebrow uppercase text-muted">Proof philosophy</p>
+          <h2 className="text-h1 mt-5 max-w-[18ch] text-ink">Cheaper is not the same as better.</h2>
+          <p className="text-body-lg mt-6 max-w-[54ch] text-muted">If a candidate saves money but fails the team&rsquo;s quality floor, ZEVQORA rejects it. If evidence is missing, it returns INCOMPLETE instead of manufacturing a win.</p>
         </Reveal>
-        <div className="mt-12 grid gap-6 lg:grid-cols-2">
+        <div className="mt-12 grid gap-5 lg:grid-cols-3">
           <Reveal>
-            <ProofPanel kind="rejected" />
+            <VerdictCard status="VERIFIED" title="Every required gate passed." body="The report lists each gate with its threshold and observed value, the cases it ran on, and where every cost figure came from." />
           </Reveal>
-          <Reveal delay={0.08}>
-            <ProofPanel kind="verified" />
+          <Reveal delay={0.05}>
+            <VerdictCard status="REJECTED" title="Cheaper, and thrown away." body="The failed gate is named. A rejected candidate is never counted as savings, however much cheaper it was.">
+              <dl className="border-t border-line pt-4 font-mono text-technical tnum">
+                <div className="flex justify-between gap-3"><dt className="text-subtle">cost</dt><dd className="text-verified">{proof.rejected.cost_reduction} lower</dd></div>
+                <div className="mt-1.5 flex justify-between gap-3"><dt className="text-subtle">quality</dt><dd className="text-rejected">{proof.rejected.quality} &lt; floor {proof.rejected.quality_floor}</dd></div>
+                <p className="mt-3 font-sans text-[12px] text-subtle">From our internal {proof.cases}-case benchmark.</p>
+              </dl>
+            </VerdictCard>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <VerdictCard status="INCOMPLETE" title="Missing evidence is not a result." body="Unknown cost, missing latency or too few cases stop the run. The report says exactly what evidence is still needed." />
           </Reveal>
         </div>
         <Reveal>
-          <div className="mt-10 grid gap-6 rounded-xl border border-warning/30 bg-warning-bg/50 p-6 lg:grid-cols-[auto_1fr] lg:gap-10">
-            <p className="text-eyebrow uppercase text-warning">Read this with the numbers</p>
-            <ul className="space-y-2">
-              <li className="text-caption text-ink">{proof.qualifier}</li>
-              <li className="text-caption text-muted">{proof.cases} cases. Internal benchmark produced before the 2026-08-28 engine hardening pass; a hardened-engine rerun is pending.</li>
-              <li className="text-caption text-muted">Our first real-workload evaluation is an affiliated design-partner pilot (the founder built the partner system). It is not independent customer validation and it is labelled that way everywhere it appears.</li>
-            </ul>
+          <div className="mt-8 grid gap-4 rounded-xl border border-line bg-surface p-6 md:grid-cols-3">
+            {[
+              ['Measured', 'Improvement on the evaluated cases. The only number a verdict produces.'],
+              ['Projected', 'Production impact, shown only when explicitly modelled, and labelled as a projection.'],
+              ['Realized', 'The outcome after the change ships, from real post-change evidence.'],
+            ].map(([k, v]) => (
+              <div key={k}>
+                <p className="text-caption font-semibold text-ink">{k}</p>
+                <p className="text-caption mt-1 text-muted">{v}</p>
+              </div>
+            ))}
+            <p className="text-technical text-subtle md:col-span-3">These three are always reported separately. They are never added into one savings number.</p>
           </div>
+        </Reveal>
+        <Reveal>
+          <p className="text-technical mt-6 max-w-[80ch] text-subtle">{proof.qualifier} We have no production customer results to publish yet.</p>
         </Reveal>
       </div>
     </Section>
   );
 }
 
-export function ProductSurface() {
-  const rows = [
-    { id: 'req_8f2c41', model: 'gpt-4o-mini', work: 'classify.intent', cost: '$0.0004', latency: '310 ms', state: 'observed' },
-    { id: 'req_8f2c43', model: 'gpt-4o', work: 'summarize.thread', cost: '$0.0192', latency: '2 140 ms', state: 'observed' },
-    { id: 'req_8f2c44', model: 'gpt-4o', work: 'classify.intent', cost: '$0.0188', latency: '1 980 ms', state: 'diagnosed', focus: true },
-    { id: 'req_8f2c45', model: 'gpt-4o', work: 'classify.intent', cost: '$0.0191', latency: '2 050 ms', state: 'diagnosed' },
-    { id: 'req_8f2c46', model: 'gpt-4o-mini', work: 'classify.intent', cost: '$0.0004', latency: '290 ms', state: 'candidate' },
-    { id: 'req_8f2c47', model: 'cache', work: 'classify.intent', cost: '$0.0000', latency: '3 ms', state: 'verifying' },
+export function Surfaces() {
+  const surfaces = [
+    {
+      Icon: Code2,
+      name: 'ZEVQORA Dev',
+      lead: 'For the repository and the developer workflow.',
+      now: ['Finds AI call sites in a repository without uploading source', 'Turns a verified result into a reviewable change', 'Desktop engine: prepares a branch in a separate Git worktree'],
+      next: ['GitHub app and CI checks are not available yet'],
+    },
+    {
+      Icon: LineChart,
+      name: 'ZEVQORA Optimize',
+      lead: 'For a workload’s cost, quality and history.',
+      now: ['Baseline from imported execution traces', 'Experiments with frozen gates and verdicts', 'Evidence reports you can export and share'],
+      next: ['Continuous production monitoring is not available yet'],
+    },
   ];
   return (
-    <Section id="product" surface="ink" rule={false}>
+    <Section id="product" surface="sunken">
       <div className="container-page">
-        <div className="grid gap-12 lg:grid-cols-[1fr_1.3fr] lg:gap-16">
-          <Reveal>
-            <p className="text-eyebrow uppercase text-muted">The product</p>
-            <h2 className="text-h1 mt-5 max-w-[16ch] text-ink">Your AI bill is a system problem, not a model picker problem.</h2>
-            <p className="text-body-lg mt-6 max-w-[44ch] text-muted">Cost leaks hide across repeated work, oversized models, retries, context and routing. ZEVQORA follows the full execution path instead of stopping at the provider invoice.</p>
-            <ul className="mt-8 space-y-3">
-              {['Evidence, not assumptions: every conclusion traces back to real execution.', 'Candidates are replayed on your own samples before they earn a number.', 'Verified Savings is a gated result, never a projection dressed up as one.', 'A human approves every change. ZEVQORA never merges or deploys.'].map((t) => (
-                <li key={t} className="flex items-start gap-3 text-caption text-muted">
-                  <Check size={15} className="mt-0.5 shrink-0 text-accent" aria-hidden />
-                  <span>{t}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-8">
-              <ButtonLink to="/signup" variant="primary" size="lg">
-                Start optimizing <ArrowRight size={16} aria-hidden />
-              </ButtonLink>
-            </div>
-          </Reveal>
-          <Reveal delay={0.08}>
-            <div className="relative">
-              <div className="rounded-xl border border-line bg-surface p-1 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.6)]" data-surface="light">
-                <div className="rounded-lg bg-canvas">
-                  <div className="flex items-center justify-between border-b border-line px-4 py-3">
-                    <span className="text-eyebrow uppercase text-subtle">Observed execution</span>
-                    <span className="font-mono text-technical text-subtle">support.thread · last 7 days</span>
-                  </div>
-                  <div className="px-2 py-1.5">
-                    {rows.map((r, i) => (
-                      <div key={r.id} className={cn('grid grid-cols-[1fr_auto] items-center gap-3 rounded-md px-3 py-2.5 sm:grid-cols-[5.5rem_1fr_5rem_5rem_6.5rem]', r.focus && 'bg-accent-subtle/70')} style={{ animation: `zq-row-in 460ms cubic-bezier(0.2,0,0,1) ${120 + i * 90}ms both` }}>
-                        <span className="hidden font-mono text-technical text-subtle tnum sm:block">{r.id}</span>
-                        <span className="min-w-0">
-                          <span className="text-caption block truncate text-ink">{r.work}</span>
-                          <span className="block truncate font-mono text-technical text-subtle">{r.model}</span>
-                        </span>
-                        <span className="flex flex-col items-end gap-0.5 sm:contents">
-                          <span className="text-right font-mono text-technical text-ink tnum">{r.cost}</span>
-                          <span className="text-right font-mono text-technical text-muted tnum">{r.latency}</span>
-                          <span className="sm:pl-2">
-                            <StatusChip status={r.state} />
-                          </span>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="border-t border-line px-4 py-2.5 text-right font-mono text-technical text-subtle">Illustrative values. Not measured results.</div>
-                </div>
+        <Reveal>
+          <p className="text-eyebrow uppercase text-muted">One proof engine, two surfaces</p>
+          <h2 className="text-h1 mt-5 max-w-[20ch] text-ink">Same evidence. Same verdicts.</h2>
+        </Reveal>
+        <div className="mt-12 grid gap-5 lg:grid-cols-2">
+          {surfaces.map((s, i) => (
+            <Reveal key={s.name} delay={i * 0.06}>
+              <div className="h-full rounded-xl border border-line bg-surface p-7">
+                <s.Icon size={20} className="text-accent-text" aria-hidden />
+                <h3 className="text-h3 mt-4 text-ink">{s.name}</h3>
+                <p className="text-caption mt-1 text-muted">{s.lead}</p>
+                <ul className="mt-5 space-y-2.5">
+                  {s.now.map((t) => (
+                    <li key={t} className="flex items-start gap-2.5 text-caption text-ink">
+                      <Check size={14} className="mt-0.5 shrink-0 text-verified" aria-hidden /> {t}
+                    </li>
+                  ))}
+                  {s.next.map((t) => (
+                    <li key={t} className="flex items-start gap-2.5 text-caption text-subtle">
+                      <span aria-hidden className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full border border-subtle" /> {t}
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <div className="pointer-events-none absolute -bottom-10 -left-6 hidden lg:block">
-                <Zev view="pose-sitting" height={150} />
-              </div>
-            </div>
-          </Reveal>
+            </Reveal>
+          ))}
         </div>
       </div>
     </Section>
@@ -260,23 +223,21 @@ export function ProductSurface() {
 
 export function SecurityTeaser() {
   const items = [
-    { Icon: Shield, title: 'Workspace isolation', body: 'Row-level security on every table. Server-side role checks on every write.' },
-    { Icon: KeyRound, title: 'Scoped, revocable tokens', body: 'Telemetry tokens are hashed at rest, shown once, scoped to one project, rotatable.' },
-    { Icon: EyeOff, title: 'No source code, no secrets', body: 'The platform reads call metadata. Samples are opt-in and sanitized before storage.' },
-    { Icon: Lock, title: 'Platform credential stays server-side', body: 'Replays run on ZEVQORA&rsquo;s provider key. It never reaches a browser, log or bundle.' },
+    { Icon: Shield, title: 'Workspace isolation', body: 'Row-level security on every table. The browser can only read; every write goes through the server with a role check.' },
+    { Icon: EyeOff, title: 'Source stays on your machine', body: 'Repository scans run locally. Only AI call locations and findings are sent. Preparing a change sends the one file being changed, when you ask.' },
+    { Icon: Lock, title: 'Credentials stay server-side', body: 'Replays run on the ZEVQORA platform key. It never reaches a browser, a log or a bundle.' },
+    { Icon: UserCheck, title: 'A person decides', body: 'ZEVQORA prepares a reviewable change. It never merges, deploys or changes production on its own.' },
   ];
   return (
-    <Section>
+    <Section id="security">
       <div className="container-page">
         <div className="grid gap-12 lg:grid-cols-[1fr_1.2fr] lg:gap-16">
           <Reveal>
-            <p className="text-eyebrow uppercase text-muted">Security</p>
-            <h2 className="text-h1 mt-5 max-w-[14ch] text-ink">Built to be trusted with a real workload.</h2>
-            <p className="text-body-lg mt-6 max-w-[44ch] text-muted">Every connection tells you what it reads, what it never touches, when it was last used, and how to revoke it.</p>
+            <p className="text-eyebrow uppercase text-muted">Security and data boundary</p>
+            <h2 className="text-h1 mt-5 max-w-[16ch] text-ink">You decide what evidence it sees.</h2>
+            <p className="text-body-lg mt-6 max-w-[44ch] text-muted">An evaluation needs one authorized workload, not unrestricted production access. Representative or redacted cases are enough to start.</p>
             <div className="mt-8">
-              <ButtonLink to="/security" variant="secondary">
-                Read the security overview
-              </ButtonLink>
+              <ButtonLink to="/security" variant="secondary">Read the security overview</ButtonLink>
             </div>
           </Reveal>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -285,7 +246,7 @@ export function SecurityTeaser() {
                 <div className="h-full rounded-xl border border-line bg-surface p-5">
                   <it.Icon size={18} className="text-accent-text" aria-hidden />
                   <h3 className="text-h4 mt-4 text-ink">{it.title}</h3>
-                  <p className="text-caption mt-2 text-muted" dangerouslySetInnerHTML={{ __html: it.body }} />
+                  <p className="text-caption mt-2 text-muted">{it.body}</p>
                 </div>
               </Reveal>
             ))}
@@ -298,60 +259,33 @@ export function SecurityTeaser() {
 
 export function DesignPartnerCta() {
   const { contact } = useSiteContent();
+  const subject = encodeURIComponent('Design-partner evaluation');
+  const body = encodeURIComponent('Workflow we would like evaluated:\nRough monthly volume / spend:\nWhat must never regress:\nData we can share (representative / redacted):\n');
   return (
-    <Section surface="ink" rule={false}>
+    <Section id="design-partners" surface="ink" rule={false}>
       <div className="container-page">
         <div className="grid gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-20">
           <Reveal>
-            <p className="text-eyebrow uppercase text-muted">Design partners</p>
-            <h2 className="text-h1 mt-5 max-w-[15ch] text-ink">Bring one expensive AI workflow.</h2>
-            <p className="text-body-lg mt-6 max-w-[46ch] text-muted">We measure the baseline, test alternatives, replay the workload, and keep the change only if verification passes. If nothing passes, you keep the measurements and we keep the lesson.</p>
+            <p className="text-eyebrow uppercase text-muted">Design-partner evaluation</p>
+            <h2 className="text-h1 mt-5 max-w-[16ch] text-ink">Bring one expensive AI workflow.</h2>
+            <p className="text-body-lg mt-6 max-w-[48ch] text-muted">We agree the data boundary and success criteria first, establish the baseline, test candidates on representative cases and give you the evidence report. If nothing passes, you keep the measurements.</p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <ButtonLink to="/signup" size="lg">
-                Become a design partner
-              </ButtonLink>
-              <ButtonAnchor href={`mailto:${contact.email}`} size="lg" variant="secondary">
-                Talk to the founders
-              </ButtonAnchor>
+              <ButtonAnchor href={`mailto:${contact.email}?subject=${subject}&body=${body}`} size="lg">Apply for a design-partner evaluation</ButtonAnchor>
+              <ButtonLink to="/signup?intent=evaluation" size="lg" variant="secondary">Run an evaluation yourself</ButtonLink>
             </div>
           </Reveal>
           <Reveal delay={0.08}>
             <div className="border-t border-line pt-8 lg:border-l lg:border-t-0 lg:pl-14 lg:pt-0">
-              <p className="text-eyebrow uppercase text-subtle">Where we are</p>
-              <ul className="mt-6 space-y-4">
-                <li className="text-body text-muted">A working platform and desktop engine, in private beta.</li>
-                <li className="text-body text-muted">Internal proof on our own dogfooding benchmark, published with its qualifiers.</li>
-                <li className="text-body text-muted">An affiliated real-workload evaluation prepared and preregistered. Independent validation is the next step, and it has not happened yet.</li>
+              <p className="text-eyebrow uppercase text-subtle">What an evaluation covers</p>
+              <ul className="mt-6 space-y-3">
+                {['One authorized workload and its data boundary', 'Baseline with quality and protected-case requirements', 'Measurable success criteria, agreed up front', 'Experiments, verdicts and the evidence report', 'A recommendation, its limitations, and the next decision'].map((t) => (
+                  <li key={t} className="flex items-start gap-3 text-body text-muted">
+                    <span aria-hidden className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" /> {t}
+                  </li>
+                ))}
               </ul>
             </div>
           </Reveal>
-        </div>
-      </div>
-    </Section>
-  );
-}
-
-export function FinalCta() {
-  const { hero } = useSiteContent();
-  return (
-    <Section className="studio">
-      <div className="container-page">
-        <div className="grid items-end gap-12 lg:grid-cols-[1.3fr_auto]">
-          <Reveal>
-            <h2 className="text-display max-w-[12ch] text-ink">Make AI lighter.</h2>
-            <p className="text-body-lg mt-7 max-w-[40ch] text-muted">Connect the evidence. Find the waste. Test the fix. Verify the savings.</p>
-            <div className="mt-9 flex flex-wrap items-center gap-4">
-              <ButtonLink to={hero.primary_cta.href} size="lg">
-                {hero.primary_cta.label}
-              </ButtonLink>
-              <Link to="/pricing" className="text-button text-muted underline-offset-4 transition-control hover:text-ink hover:underline">
-                See pricing
-              </Link>
-            </div>
-          </Reveal>
-          <div className="hidden justify-end lg:flex">
-            <Zev view="pose-waving" height={190} />
-          </div>
         </div>
       </div>
     </Section>

@@ -9,7 +9,16 @@ import { planPrice, usePlans } from '@/lib/site';
 import { useSession } from '@/lib/session';
 import type { Plan } from '@/lib/types';
 
-export function BillingToggle({ annual, onChange }: { annual: boolean; onChange: (v: boolean) => void }) {
+/** The badge reads the discount from the plans themselves so it can never disagree with the prices. */
+function annualDiscountLabel(plans?: Plan[] | null) {
+  const pcts = [...new Set((plans || []).filter((p) => p.visible && p.monthly_price_cents > 0).map((p) => Number(p.annual_discount_pct) || 0))];
+  const max = pcts.length ? Math.max(...pcts) : 0;
+  if (max <= 0) return null;
+  return pcts.length > 1 ? `up to −${max}%` : `−${max}%`;
+}
+
+export function BillingToggle({ annual, onChange, plans }: { annual: boolean; onChange: (v: boolean) => void; plans?: Plan[] | null }) {
+  const discount = annualDiscountLabel(plans);
   return (
     <div role="group" aria-label="Billing period" className="inline-flex items-center rounded-full border border-line bg-sunken p-1">
       {[
@@ -18,7 +27,7 @@ export function BillingToggle({ annual, onChange }: { annual: boolean; onChange:
       ].map((o) => (
         <button key={String(o.v)} type="button" aria-pressed={annual === o.v} onClick={() => onChange(o.v)} className={cn('text-caption relative h-9 rounded-full px-4 transition-control', annual === o.v ? 'bg-surface text-ink shadow-[0_1px_2px_rgb(15_17_21/0.1)]' : 'text-muted hover:text-ink')}>
           {o.label}
-          {o.v && <span className="ml-2 rounded-full bg-verified-bg px-1.5 py-0.5 font-mono text-[10px] text-verified">−20%</span>}
+          {o.v && discount && <span className="ml-2 rounded-full bg-verified-bg px-1.5 py-0.5 font-mono text-[10px] text-verified">{discount}</span>}
         </button>
       ))}
     </div>
@@ -91,12 +100,12 @@ export function PricingGrid({ heading = true, currentPlanId }: { heading?: boole
             <h2 className="text-h1 mt-5 max-w-[16ch] text-ink">Start light. Scale when Zev earns it.</h2>
             <p className="text-body mt-5 max-w-[48ch] text-muted">Every plan includes Zev credit for analysis and replay. Verified Savings is based on your own replay evidence; ZEVQORA never promises a savings percentage.</p>
           </div>
-          <BillingToggle annual={annual} onChange={setAnnual} />
+          <BillingToggle annual={annual} onChange={setAnnual} plans={plans} />
         </div>
       )}
       {!heading && (
         <div className="mb-6 flex justify-end">
-          <BillingToggle annual={annual} onChange={setAnnual} />
+          <BillingToggle annual={annual} onChange={setAnnual} plans={plans} />
         </div>
       )}
       <div className="mt-10 grid gap-5 lg:grid-cols-3">

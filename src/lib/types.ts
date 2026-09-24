@@ -304,7 +304,7 @@ export interface UsageSummary {
 }
 
 export interface SiteContent {
-  hero?: { announcement: string | null; announcement_href?: string | null; headline: string; subheadline: string; supporting: string; primary_cta: { label: string; href: string }; secondary_cta: { label: string; href: string }; trust_line: string };
+  hero?: { announcement: string | null; announcement_href?: string | null; headline: string; subheadline?: string | null; supporting: string; primary_cta: { label: string; href: string }; secondary_cta: { label: string; href: string }; trust_line: string };
   proof?: { kind: string; cases: number; rejected: { cost_reduction: string; quality: string; quality_floor: string; reason: string }; verified: { cost_reduction: string; quality: string; quality_floor: string; ci95?: string }; qualifier: string };
   status?: { banner: string | null; public_status: string };
   contact?: { email: string };

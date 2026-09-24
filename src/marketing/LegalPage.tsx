@@ -3,11 +3,11 @@ import { Section } from './Sections';
 import { useSiteContent } from '@/lib/site';
 
 const PRIVACY = [
-  ['What we collect', 'Account data (email, name, username, login provider), workspace and project metadata, AI call telemetry sent by connections you create (provider, model, token counts, latency, status, cost, prompt hashes), optional sanitized samples you choose to capture, usage and credit records, and standard server logs.'],
-  ['What we do not collect', 'We do not read your source code from the platform, we do not accept environment variables or credentials, and we strip images, files and tool payloads from any sample before storage. Known secret shapes are redacted.'],
+  ['What we collect', 'Account data (email, name, username, login provider), workspace and project metadata, AI call telemetry sent by connections you create (provider, model, token counts, latency, status, cost, prompt hashes), optional sanitized samples you choose to capture, execution traces you import (including the prompts and outputs they contain), candidate outputs from replays you run, usage and credit records, and standard server logs.'],
+  ['What we do not collect', 'We do not upload your repository: scans run on your device and send only AI call locations and findings. If you ask ZEVQORA to prepare a change, the one file being changed is sent to generate the patch, and the patch is stored with the change. We do not accept environment variables or credentials, and we strip images, files and tool payloads from runtime samples before storage. Known secret shapes are redacted.'],
   ['How we use it', 'To map AI spend, diagnose waste, replay candidates on your samples, verify results, account for usage and provide support. We do not sell data and we do not train models on customer data.'],
   ['Providers', 'Replay experiments send your captured samples to the model provider selected for the candidate through OpenRouter, using ZEVQORA&rsquo;s own credential, solely to produce the candidate output for comparison.'],
-  ['Retention', 'Telemetry is deleted at the end of your plan&rsquo;s retention window or the shorter window you configure per workspace. Account data is retained while the account exists. Contact us to delete an account.'],
+  ['Retention', 'Runtime telemetry is deleted at the end of your plan&rsquo;s retention window or the shorter window you configure per workspace. Imported traces and the evaluations computed from them are kept as evidence until you ask us to delete them. Account data is retained while the account exists. Contact us to delete an account.'],
   ['Security', 'Row-level security, server-enforced roles, hashed connection tokens, strict transport security and a content security policy. See the Security page for the full overview.'],
   ['Your rights', 'You can export reports, revoke connections, remove members and request deletion at any time. Email us for access or deletion requests.'],
 ];
