@@ -3,23 +3,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { ToastProvider } from '@/components/ui/Toast';
-import { fixtureStore, ECONOMICS_PARTIAL, VERIFIED, REJECTED_CHEAPER, INCOMPLETE } from './fixtures/product-store';
+import { fixtureStore, ECONOMICS_PARTIAL, VERIFIED, REJECTED_CHEAPER, INCOMPLETE, FIXTURE_PRODUCT } from './fixtures/product-store';
 
 let store: ReturnType<typeof fixtureStore>;
 vi.mock('@/product/store', () => ({ useProduct: () => store }));
+let role = 'member';
 vi.mock('@/lib/session', () => ({
-  useSession: () => ({ me: { user: { id: 'u', email: 'fixture@example.invalid' }, account: null, workspaces: [] }, activeWorkspace: { id: 'w', name: 'Fixture workspace', role: 'member', plan: 'free' } }),
+  useSession: () => ({ me: { user: { id: 'u', email: 'fixture@example.invalid' }, account: null, workspaces: [] }, activeWorkspace: { id: 'w', name: 'Fixture workspace', role, plan: 'free' } }),
 }));
 
 const { default: EvidenceView } = await import('@/product/views/EvidenceView');
 const { default: SavingsView } = await import('@/product/views/SavingsView');
 const { default: OverviewView } = await import('@/product/views/OverviewView');
 const { default: ConnectionsView } = await import('@/product/views/ConnectionsView');
+const { default: ProjectView } = await import('@/product/views/ProjectView');
 
 const show = (el: React.ReactElement) => render(<ToastProvider><MemoryRouter>{el}</MemoryRouter></ToastProvider>);
 
 beforeEach(() => {
   store = fixtureStore();
+  role = 'member';
 });
 afterEach(() => cleanup());
 
@@ -94,5 +97,34 @@ describe('Permission denial', () => {
     expect(screen.getByText('View only.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Import traces/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Scan/ })).toBeNull();
+  });
+});
+
+describe('Baseline and requirements', () => {
+  it('shows baseline provenance and names its gaps', () => {
+    show(<ProjectView />);
+    expect(screen.getByText('≥ $0.024000 · priced 8 of 12')).toBeTruthy();
+    expect(screen.getByText('imported_external · 8')).toBeTruthy();
+    expect(screen.getByText('Cost unknown on some traces')).toBeTruthy();
+    expect(screen.getByText('12 gradable · 12 with prompt · 2 protected')).toBeTruthy();
+  });
+
+  it('a workload project has no repository controls', () => {
+    store = fixtureStore({ selected: { ...FIXTURE_PRODUCT, root_path: 'workload://support' } });
+    show(<ProjectView />);
+    expect(screen.getByText('Workload')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Scan now/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /Import traces/ })).toBeTruthy();
+  });
+
+  it('shows the frozen floor; only admins can change it', () => {
+    store = fixtureStore({ selected: { ...FIXTURE_PRODUCT, evaluation_requirements: { quality_floor: 0.97, min_samples: 20, require_latency: true, frozen_at: '2026-09-20T00:00:00Z' } } });
+    show(<ProjectView />);
+    expect(screen.getByText('0.97')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Change/ })).toBeNull();
+    cleanup();
+    role = 'admin';
+    show(<ProjectView />);
+    expect(screen.getByRole('button', { name: /Change/ })).toBeTruthy();
   });
 });

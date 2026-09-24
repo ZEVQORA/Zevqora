@@ -108,7 +108,7 @@ function ExperimentBlock({ experiment }: { experiment: Experiment }) {
         <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-subtle">Experiment record</div>
         <StatusChip status={experiment.status} />
       </div>
-      <KeyValue items={[['Samples', String(experiment.sample_size)], ['Baseline cost', money(experiment.baseline_cost_usd, { digits: 4 })], ['Candidate cost', money(experiment.candidate_cost_usd, { digits: 4 })], ['Verified saving', money(experiment.verified_savings_usd, { digits: 4 })], ['Quality', `${score(experiment.candidate_quality)} vs ${score(experiment.baseline_quality)}`], ['Execution-proven', experiment.execution_proven ? 'yes' : 'no'], ['Evidence', experiment.evidence_version]]} />
+      <KeyValue items={[['Samples', String(experiment.sample_size)], ['Baseline cost', money(experiment.baseline_cost_usd, { digits: 4 })], ['Candidate cost', money(experiment.candidate_cost_usd, { digits: 4 })], ['Measured saving (evaluated cases)', money(experiment.verified_savings_usd, { digits: 4 })], ['Quality', `${score(experiment.candidate_quality)} vs ${score(experiment.baseline_quality)}`], ['Execution-proven', experiment.execution_proven ? 'yes' : 'no'], ['Evidence', experiment.evidence_version]]} />
       <ul className="grid gap-1">
         {experiment.gates.map((g) => (
           <li key={g.name} className="flex items-start justify-between gap-2 text-[12px]">

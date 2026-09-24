@@ -101,7 +101,8 @@ function experimentFromEvaluation(e) {
 
 function canonicalVerified(evaluations) {
   const seen = new Map();
-  for (const e of evaluations.filter((x) => x.status === 'VERIFIED')) if (!seen.has(e.candidate_execution_id)) seen.set(e.candidate_execution_id, e);
+  // Same rule as the Savings ledger: only VERIFIED and execution-proven evaluations count.
+  for (const e of evaluations.filter((x) => x.status === 'VERIFIED' && x.execution_proven)) if (!seen.has(e.candidate_execution_id)) seen.set(e.candidate_execution_id, e);
   return [...seen.values()];
 }
 
