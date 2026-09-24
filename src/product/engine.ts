@@ -17,6 +17,7 @@ import type {
   Economics,
   EngineHealth,
   EvaluationRequirements,
+  EvaluationTrial,
   EnginePlatformStatus,
   Evaluation,
   Experiment,
@@ -44,6 +45,8 @@ export interface Engine {
   /** A project with no repository; its evidence is imported traces. */
   createWorkload(input: { name: string; requirements?: EvaluationRequirements }): Promise<Product>;
   setRequirements(productId: string, requirements: EvaluationRequirements): Promise<Product>;
+  /** Update the design-partner evaluation record; confirmBoundary stamps who confirmed the data boundary. */
+  setTrial(productId: string, trial: EvaluationTrial, options?: { confirmBoundary?: boolean }): Promise<Product>;
   scan(productId: string, upload?: ScanUpload): Promise<ScanResult>;
   archiveProduct(productId: string): Promise<void>;
   monitoring(productId: string, enabled: boolean): Promise<Product>;
@@ -99,6 +102,7 @@ export function cloudEngine(workspaceId: string): Engine {
       return api<Product>(`${base}/products`, { method: 'POST', body: { workspace_id: workspaceId, root_path: `${WORKLOAD_PREFIX}${slug}`, name: name.trim(), source: 'browser', evaluation_requirements: requirements || null } });
     },
     setRequirements: (productId, requirements) => api<Product>(`${p(productId)}/requirements`, { method: 'POST', body: { evaluation_requirements: requirements } }),
+    setTrial: (productId, trial, options = {}) => api<Product>(`${p(productId)}/trial`, { method: 'POST', body: { trial, confirm_data_boundary: Boolean(options.confirmBoundary) } }),
     archiveProduct: async (productId) => {
       await api(`${p(productId)}`, { method: 'DELETE' });
     },
@@ -194,6 +198,9 @@ export function localEngine(): Engine {
     },
     setRequirements: async () => {
       throw new EngineError(501, 'Evaluation requirements are enforced by the platform engine; the local engine applies the gates you set per experiment.');
+    },
+    setTrial: async () => {
+      throw new EngineError(501, 'Design-partner evaluation records are kept by the platform engine. Use the web app.');
     },
     scan: (productId) => localRequest<ScanResult>(`${p(productId)}/scan`, { method: 'POST' }),
     archiveProduct: async (productId) => {

@@ -25,6 +25,7 @@ import { executePlan } from '../product/executor.js';
 import { runEvaluation, enforceRequirements, sanitizeRequirements } from '../product/evaluator.js';
 import { unifiedDiff } from '../product/diff.js';
 import { runZev } from '../product/zev.js';
+import { mergeTrial } from '../product/trial.js';
 
 const VERSION = 'platform-engine-1.0';
 const MAX_CALLS = 4000;
@@ -49,7 +50,7 @@ async function rows(admin, table, productId, order = 'created_at') {
 }
 
 function productOut(p) {
-  return { id: p.id, name: p.name, root_path: p.root_path, monitoring_enabled: p.monitoring_enabled, created_at: p.created_at, last_scan_at: p.last_scan_at, source: p.source, workspace_id: p.workspace_id, project_id: p.project_id, files_scanned: p.files_scanned, skipped_sensitive_paths: p.skipped_sensitive_paths, detected_stack: p.detected_stack || [], evaluation_requirements: p.evaluation_requirements || {} };
+  return { id: p.id, name: p.name, root_path: p.root_path, monitoring_enabled: p.monitoring_enabled, created_at: p.created_at, last_scan_at: p.last_scan_at, source: p.source, workspace_id: p.workspace_id, project_id: p.project_id, files_scanned: p.files_scanned, skipped_sensitive_paths: p.skipped_sensitive_paths, detected_stack: p.detected_stack || [], evaluation_requirements: p.evaluation_requirements || {}, evaluation_trial: p.evaluation_trial || null };
 }
 
 function findingOut(f) {
@@ -178,6 +179,22 @@ on('POST', '/api/engine/products', async ({ request }) => {
   const row = { workspace_id: workspaceId, name, root_path: rootPath, source, created_by: user.id };
   if (Object.keys(requirements).length) row.evaluation_requirements = { ...requirements, frozen_at: new Date().toISOString(), frozen_by: user.id };
   const { data, error } = await admin.from('engine_products').insert(row).select('*').single();
+  if (error) throw error;
+  return productOut(data);
+});
+
+/** The design-partner evaluation record for this project. confirm_data_boundary stamps who confirmed it and when. */
+on('POST', '/api/engine/products/:id/trial', async ({ request, params }) => {
+  const { user, admin } = await requireUser(request);
+  const { product } = await loadProduct(admin, user, params.id, 'member');
+  const body = await readJson(request);
+  let trial;
+  try {
+    trial = mergeTrial(product.evaluation_trial, body?.trial || {}, { userId: user.id, confirmBoundary: body?.confirm_data_boundary === true });
+  } catch (error) {
+    throw new ApiError(422, String(error?.message || error), 'VALIDATION');
+  }
+  const { data, error } = await admin.from('engine_products').update({ evaluation_trial: trial }).eq('id', product.id).select('*').single();
   if (error) throw error;
   return productOut(data);
 });

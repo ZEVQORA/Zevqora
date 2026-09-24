@@ -127,6 +127,8 @@ export default function OnboardingPage() {
         const imported = await engine.importTraces(product.id, file.content);
         if (!imported.imported) throw new Error(imported.errors[0] ? `No traces imported: ${imported.errors[0]}` : 'No traces imported. Check the file format in Docs.');
       }
+      // Persist the boundary the user just confirmed as the start of this project's evaluation record.
+      if (!desktop) await engine.setTrial(product.id, { workload: product.name, status: 'active', data_boundary_note: source === 'workload' ? 'Imported traces, stored as exported. Redaction is the importer’s responsibility.' : 'Repository scanned locally; call locations and findings uploaded.' }, { confirmBoundary: true }).catch(() => undefined);
       const [findings, economics] = await Promise.all([engine.findings(product.id), engine.economics(product.id)]);
       traceCount = economics.trace_count;
       const elapsedMs = Date.now() - startedAt.current;

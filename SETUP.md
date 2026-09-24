@@ -19,6 +19,7 @@ supabase/migrations/011_harden_security_definer_rpc_surface.sql   (already live 
 supabase/migrations/012_least_privilege_client_access.sql      (live since 2026-09-24)
 supabase/migrations/013_site_hero_copy.sql                     (publishes the new hero copy: apply with the release)
 supabase/migrations/014_engine_evaluation_requirements.sql     (live since 2026-09-24; additive)
+supabase/migrations/015_engine_evaluation_trial.sql            (live since 2026-09-24; additive)
 ```
 
 Role-switched privilege check (always aborts, safe on production): `supabase/tests/rls_privilege_check.sql`.

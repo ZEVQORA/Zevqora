@@ -16,6 +16,7 @@ vi.mock('@/app/data', () => ({ app: { createWorkspace: (n: string) => createWork
 
 const engine = {
   createWorkload: vi.fn(async (input: { name: string }) => ({ id: 'prod-w', name: input.name, root_path: 'workload://x' })),
+  setTrial: vi.fn(async () => ({})),
   importTraces: vi.fn(async () => ({ imported: 12, rejected: 0, errors: [] as string[] })),
   findings: vi.fn(async () => [] as unknown[]),
   economics: vi.fn(async () => ({ trace_count: 12 })),
@@ -77,6 +78,7 @@ describe('onboarding', () => {
     expect(screen.getByText('Exact reuse · ready to test on your traces')).toBeTruthy();
     expect(engine.createWorkload).toHaveBeenCalledWith({ name: 'support', requirements: { quality_floor: 0.97, min_samples: 10, require_protected_cases: false, require_latency: true } });
     expect(updateMe).toHaveBeenCalledWith(expect.objectContaining({ onboarding: expect.objectContaining({ evidence_source: 'workload', time_to_first_evidence_ms: expect.any(Number) }) }));
+    expect(engine.setTrial).toHaveBeenCalledWith('prod-w', expect.objectContaining({ status: 'active' }), { confirmBoundary: true });
     fireEvent.click(screen.getByRole('button', { name: /Open and test it/ }));
     await waitFor(() => expect(screen.getByText('app overview')).toBeTruthy());
   });

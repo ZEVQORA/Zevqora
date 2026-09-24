@@ -40,6 +40,26 @@ export interface Product {
   detected_stack?: string[];
   /** The team's frozen gate floor (platform engine). */
   evaluation_requirements?: EvaluationRequirements;
+  /** Design-partner evaluation record (platform engine). */
+  evaluation_trial?: EvaluationTrial | null;
+}
+
+export type TrialDecision = 'undecided' | 'adopt_candidate' | 'extend_evaluation' | 'stop';
+export interface EvaluationTrial {
+  customer?: string;
+  workload?: string;
+  fixtures?: 'representative' | 'redacted' | 'synthetic' | 'production_sample';
+  data_boundary_note?: string;
+  data_boundary_confirmed?: { at: string; by: string };
+  success_criteria?: string[];
+  recommendation?: string;
+  limitations?: string[];
+  next_decision?: TrialDecision;
+  next_decision_owner?: string;
+  next_decision_due?: string;
+  status?: 'planned' | 'active' | 'reported' | 'closed';
+  updated_at?: string;
+  updated_by?: string;
 }
 
 export interface EvaluationRequirements {

@@ -9,6 +9,7 @@ const ProductOpportunities = lazy(() => import('@/product/views/OpportunitiesVie
 const ProductExperiments = lazy(() => import('@/product/views/ExperimentsView'));
 const ProductEvidence = lazy(() => import('@/product/views/EvidenceView'));
 const ProductSavings = lazy(() => import('@/product/views/SavingsView'));
+const ProductEvaluation = lazy(() => import('@/product/views/EvaluationView'));
 const ProductChanges = lazy(() => import('@/product/views/ChangesView'));
 const ProductConnections = lazy(() => import('@/product/views/ConnectionsView'));
 const ProductZev = lazy(() => import('@/product/views/ZevView'));
@@ -43,6 +44,7 @@ export default function AppRoutes() {
           <Route path="experiments" element={<ProductExperiments />} />
           <Route path="evidence" element={<ProductEvidence />} />
           <Route path="savings" element={<ProductSavings />} />
+          <Route path="evaluation" element={<ProductEvaluation />} />
           <Route path="changes" element={<ProductChanges />} />
           <Route path="connections" element={<ProductConnections />} />
           <Route path="zev" element={<ProductZev />} />

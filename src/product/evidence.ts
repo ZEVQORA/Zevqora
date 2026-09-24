@@ -246,3 +246,70 @@ export function candidateFor(finding: { category: string; origin: string }, trac
 export function firstSupported<T extends { category: string; origin: string; confidence: number }>(findings: T[], traceCount: number): T | null {
   return [...findings].filter((f) => candidateFor(f, traceCount).strategy).sort((a, b) => b.confidence - a.confidence)[0] || null;
 }
+
+// ---- design-partner evaluation report ---------------------------------------------
+
+export const DECISION_LABEL: Record<string, string> = {
+  undecided: 'Not decided yet',
+  adopt_candidate: 'Adopt the verified candidate',
+  extend_evaluation: 'Extend the evaluation',
+  stop: 'Stop: no change',
+};
+
+export interface TrialReportContext {
+  workspaceName: string;
+  product: { name: string; root_path: string };
+  trial: import('./types').EvaluationTrial | null | undefined;
+  requirements: import('./types').EvaluationRequirements | undefined;
+  baseline: import('./types').BaselineProvenance | undefined;
+  observedCostUsd: number | null | undefined;
+  evaluations: Evaluation[];
+  strategyFor: (e: Evaluation) => string;
+  generatedAt?: string;
+}
+
+/** The whole evaluation on one page: scope, boundary, baseline, criteria, verdicts, decision. */
+export function trialReportMarkdown(ctx: TrialReportContext): string {
+  const t = ctx.trial || {};
+  const rows = canonicalEvaluations(ctx.evaluations);
+  const summary = ledgerSummary(ctx.evaluations);
+  const b = ctx.baseline;
+  const L: string[] = [];
+  L.push(`# Evaluation report — ${ctx.product.name}`, '');
+  L.push(`${t.customer ? `For ${t.customer} · ` : ''}Workspace ${ctx.workspaceName} · generated ${ctx.generatedAt || new Date().toISOString()}`, '');
+  L.push('## Scope', '');
+  L.push(`- **Workload:** ${t.workload || ctx.product.name}`);
+  L.push(`- **Evidence:** ${ctx.product.root_path.startsWith('workload://') ? 'imported execution traces' : 'repository scan and imported execution traces'}`);
+  L.push(`- **Fixtures:** ${t.fixtures ? t.fixtures.replace('_', ' ') : 'not recorded'}`);
+  L.push(`- **Data boundary:** ${t.data_boundary_confirmed ? `confirmed ${t.data_boundary_confirmed.at.slice(0, 10)}` : 'NOT CONFIRMED'}${t.data_boundary_note ? `. ${t.data_boundary_note}` : ''}`);
+  L.push('', '## Baseline', '');
+  if (!b || !b.trace_count) L.push('No baseline: no traces imported.');
+  else {
+    L.push(`- ${b.trace_count} traces; models: ${Object.entries(b.models).map(([k, v]) => `${k} (${v})`).join(', ')}`);
+    L.push(`- Cost: ${ctx.observedCostUsd == null ? 'unknown' : `${b.cost.complete ? '' : '≥ '}$${Number(ctx.observedCostUsd).toFixed(6)}`} (priced ${b.cost.known} of ${b.trace_count})`);
+    L.push(`- Gradable ${b.evaluation_coverage.with_expected_output}, with recorded prompt ${b.evaluation_coverage.with_recorded_prompt}, protected ${b.evaluation_coverage.protected}`);
+    if (b.gaps.length) L.push(`- Gaps: ${b.gaps.join('; ')}`);
+  }
+  L.push('', '## Requirements and success criteria', '');
+  const r = ctx.requirements || {};
+  L.push(`- Quality floor ${r.quality_floor ?? '0.95 (engine default)'} · minimum cases ${r.min_samples ?? '5 (engine default)'} · protected cases ${r.require_protected_cases ? 'required' : 'not required'} · latency ${r.require_latency ? 'required' : 'not required'}`);
+  if (t.success_criteria?.length) for (const c of t.success_criteria) L.push(`- ${c}`);
+  else L.push('- No measurable success criteria recorded.');
+  L.push('', '## Experiments and verdicts', '');
+  if (!rows.length) L.push('No experiments run.');
+  else {
+    L.push('| Evaluated | Candidate | Cases | Quality | Verdict | Measured saving |', '| --- | --- | --- | --- | --- | --- |');
+    for (const e of rows) {
+      const counted = countsAsMeasuredSaving(e);
+      L.push(`| ${(e.completed_at || e.created_at).slice(0, 10)} | ${ctx.strategyFor(e)} | ${e.sample_count} | ${fmtVal(e.baseline_quality)} → ${fmtVal(e.candidate_quality)} | ${e.status} | ${counted ? fmtUsd(-(e.raw_cost_delta_usd as number)) : 'not savings'} |`);
+    }
+  }
+  L.push('', `Measured on evaluated cases: ${summary.measured.savedUsd === null ? 'none' : `${fmtUsd(summary.measured.savedUsd)} across ${summary.measured.evaluatedCases} cases`}. Projected production impact: not modelled. Realized outcome: no post-change evidence.`);
+  L.push('', '## Recommendation', '', t.recommendation || 'None recorded yet.');
+  L.push('', '## Limitations', '');
+  if (t.limitations?.length) for (const l of t.limitations) L.push(`- ${l}`);
+  else L.push('- None recorded. Every result applies only to the evaluated cases under the gates shown.');
+  L.push('', '## Next decision', '', `${DECISION_LABEL[t.next_decision || 'undecided']}${t.next_decision_owner ? ` · owner ${t.next_decision_owner}` : ''}${t.next_decision_due ? ` · due ${t.next_decision_due}` : ''}`);
+  L.push('', 'Deterministic graders; no model judged another model. ZEVQORA never merges or deploys; a person decides.');
+  return L.join('\n') + '\n';
+}

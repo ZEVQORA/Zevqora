@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router';
 import { AnimatePresence, motion } from 'motion/react';
-import { BarChart3, BookOpen, ChevronsUpDown, FileCheck2, FlaskConical, FolderGit2, GitPullRequest, Home, Lightbulb, LogOut, Menu, MessageSquare, Monitor, Plug, Scale, Search, Settings, Shield, Users, X, PanelLeftClose, PanelLeftOpen, ChevronRight, Check, Plus } from 'lucide-react';
+import { BarChart3, BookOpen, ClipboardCheck, ChevronsUpDown, FileCheck2, FlaskConical, FolderGit2, GitPullRequest, Home, Lightbulb, LogOut, Menu, MessageSquare, Monitor, Plug, Scale, Search, Settings, Shield, Users, X, PanelLeftClose, PanelLeftOpen, ChevronRight, Check, Plus } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useSession } from '@/lib/session';
 import { ZevqoraMark } from '@/brand/ZevqoraMark';
@@ -17,6 +17,7 @@ export const NAV: Array<{ to: string; label: string; Icon: typeof Home; end?: bo
   { to: '/app/experiments', label: 'Experiments', Icon: FlaskConical, end: true },
   { to: '/app/evidence', label: 'Evidence', Icon: FileCheck2 },
   { to: '/app/savings', label: 'Savings', Icon: Scale },
+  { to: '/app/evaluation', label: 'Evaluation', Icon: ClipboardCheck },
   { to: '/app/changes', label: 'Changes', Icon: GitPullRequest },
   { to: '/app/connections', label: 'Connections', Icon: Plug },
   { to: '/app/zev', label: 'Ask Zev', Icon: MessageSquare },
@@ -28,7 +29,7 @@ export const NAV: Array<{ to: string; label: string; Icon: typeof Home; end?: bo
 ];
 
 /** Product routes render edge-to-edge (they carry their own toolbar and Evidence Inspector). */
-const PRODUCT_PATHS = new Set(['/app', '/app/project', '/app/opportunities', '/app/experiments', '/app/evidence', '/app/savings', '/app/changes', '/app/connections', '/app/zev']);
+const PRODUCT_PATHS = new Set(['/app', '/app/project', '/app/opportunities', '/app/experiments', '/app/evidence', '/app/savings', '/app/evaluation', '/app/changes', '/app/connections', '/app/zev']);
 export function isProductPath(pathname: string) {
   return PRODUCT_PATHS.has(pathname.replace(/\/+$/, '') || '/app');
 }

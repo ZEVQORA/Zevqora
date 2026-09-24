@@ -128,3 +128,20 @@ describe('Baseline and requirements', () => {
     expect(screen.getByRole('button', { name: /Change/ })).toBeTruthy();
   });
 });
+
+describe('Evaluation view', () => {
+  it('warns when the data boundary is not confirmed and lists every verdict', async () => {
+    const { default: EvaluationView } = await import('@/product/views/EvaluationView');
+    show(<EvaluationView />);
+    expect(screen.getByText('Data boundary not confirmed. Do not import evidence until it is.')).toBeTruthy();
+    expect(screen.getAllByText('not savings')).toHaveLength(2);
+  });
+
+  it('is read-only for viewers', async () => {
+    store = fixtureStore({ canEdit: false, selected: { ...FIXTURE_PRODUCT, evaluation_trial: { customer: 'Acme', status: 'active' } } });
+    const { default: EvaluationView } = await import('@/product/views/EvaluationView');
+    show(<EvaluationView />);
+    expect(screen.queryByRole('button', { name: /Save/ })).toBeNull();
+    expect((screen.getByDisplayValue('Acme') as HTMLInputElement).disabled).toBe(true);
+  });
+});
