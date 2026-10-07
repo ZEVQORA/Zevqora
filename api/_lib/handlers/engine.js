@@ -26,6 +26,7 @@ import { runEvaluation, enforceRequirements, sanitizeRequirements } from '../pro
 import { unifiedDiff } from '../product/diff.js';
 import { runZev } from '../product/zev.js';
 import { mergeTrial } from '../product/trial.js';
+import { projectEngineProduct, zevirEnabled } from '../zevir/store.js';
 
 const VERSION = 'platform-engine-1.0';
 const MAX_CALLS = 4000;
@@ -324,7 +325,19 @@ on('POST', '/api/engine/products/:id/traces/import', async ({ request, params })
     const { error } = await admin.from('engine_findings').insert(signals);
     if (error) throw error;
   }
-  return { imported: fresh.length, rejected: errors.length, errors: errors.slice(0, 5) };
+  // ZevIR shadow projection: observe-only and best-effort. The import above is
+  // already committed; a projection failure is reported, never raised.
+  let zevir = null;
+  try {
+    if (await zevirEnabled(admin, product.workspace_id)) {
+      const out = await projectEngineProduct({ admin, product, userId: user.id, traces: all, prune: true });
+      zevir = { status: out.run.status, run_id: out.run.id };
+    }
+  } catch (error) {
+    console.error('[zevir] shadow projection failed', error?.message || error);
+    zevir = { status: 'failed' };
+  }
+  return { imported: fresh.length, rejected: errors.length, errors: errors.slice(0, 5), ...(zevir ? { zevir } : {}) };
 });
 
 on('DELETE', '/api/engine/products/:id/traces', async ({ request, params }) => {

@@ -8,7 +8,9 @@ import { join, relative } from 'node:path';
 // catch it here instead.
 
 const ROOT = join(__dirname, '..');
-const BROWSER_READABLE = new Set(['projects', 'opportunities', 'experiments', 'evaluation_cases', 'analysis_runs', 'connections', 'site_content', 'plans', 'model_pricing', 'profiles', 'subscriptions', 'credit_balances', 'admin_roles', 'workspaces', 'workspace_members', 'workspace_invites', 'telemetry_events', 'usage_events', 'credit_ledger']);
+const BROWSER_READABLE = new Set(['projects', 'opportunities', 'experiments', 'evaluation_cases', 'analysis_runs', 'connections', 'site_content', 'plans', 'model_pricing', 'profiles', 'subscriptions', 'credit_balances', 'admin_roles', 'workspaces', 'workspace_members', 'workspace_invites', 'telemetry_events', 'usage_events', 'credit_ledger',
+  // 016: member-scoped SELECT on ZevIR graph rows (no raw content). The product UI still reads them through /api/zevir.
+  'zevir_graphs', 'zevir_nodes', 'zevir_edges', 'zevir_evidence_refs']);
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -41,7 +43,7 @@ describe('browser data boundary', () => {
   });
 
   it('keeps the server-only tables out of browser code entirely', () => {
-    const serverOnly = /\b(connection_secrets|desktop_auth_handoffs|admin_audit_log|feature_flags|engine_(?:products|ai_calls|findings|traces|plans|executions|evaluations|implementations))\b/;
+    const serverOnly = /\b(connection_secrets|desktop_auth_handoffs|admin_audit_log|feature_flags|zevir_ingest_runs|engine_(?:products|ai_calls|findings|traces|plans|executions|evaluations|implementations))\b/;
     const offenders = files.filter((f) => new RegExp(`\\.from\\(\\s*['"\`]${serverOnly.source}`).test(f.text)).map((f) => f.path);
     expect(offenders).toEqual([]);
   });
