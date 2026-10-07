@@ -178,6 +178,21 @@ begin
     exception when insufficient_privilege then fails := array_append(fails, 'own workspace zevir_graphs read denied'); end;
   end if;
 
+  -- Verified Optimization (017): server-only tables and functions.
+  if to_regclass('public.evaluation_contracts') is null then
+    notes := array_append(notes, 'optimize checks skipped: migration 017 not applied');
+  else
+    checks := checks + 1;
+    begin execute 'select count(*) from public.evaluation_contracts' into n; fails := array_append(fails, 'evaluation_contracts directly readable');
+    exception when insufficient_privilege then null; end;
+    checks := checks + 1;
+    begin execute 'select count(*) from public.optimization_diagnoses' into n; fails := array_append(fails, 'optimization_diagnoses directly readable');
+    exception when insufficient_privilege then null; end;
+    checks := checks + 1;
+    begin execute 'select public.zevir_product_graph_set($1, $1, 1)' using ws_own; fails := array_append(fails, 'authenticated can execute zevir_product_graph_set');
+    exception when insufficient_privilege then null; end;
+  end if;
+
   -- Any remaining browser write privilege on any public table.
   checks := checks + 1;
   select count(*) into n from pg_class c join pg_namespace s on s.oid = c.relnamespace

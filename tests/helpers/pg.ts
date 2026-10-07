@@ -12,8 +12,9 @@
 import { PGlite, type Transaction } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const MIGRATIONS = join(__dirname, '..', '..', 'supabase', 'migrations');
+const MIGRATIONS = fileURLToPath(new URL('../../supabase/migrations/', import.meta.url));
 export const migration = (name: string) => readFileSync(join(MIGRATIONS, name), 'utf8');
 
 const PLATFORM = `
@@ -39,8 +40,13 @@ create table public.workspaces (
   name text not null,
   slug text not null unique,
   owner_id uuid not null references auth.users(id) on delete cascade,
+  plan_override text,
   created_at timestamptz not null default now()
 );
+-- Billing lookups used by resolveBilling (platform-compute.js), as in 004.
+create table public.plans (id text primary key, name text not null, limits jsonb not null default '{}'::jsonb, features jsonb not null default '[]'::jsonb, is_default boolean not null default false);
+insert into public.plans (id, name, limits, is_default) values ('free', 'Free', '{"credits_usd": 5}', true);
+create function public.workspace_plan(ws uuid) returns text language sql stable as $$ select coalesce((select plan_override from public.workspaces where id = ws), 'free') $$;
 create table public.workspace_members (
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -62,6 +68,15 @@ create table public.feature_flags (
   updated_at timestamptz not null default now()
 );
 
+create table public.model_pricing (
+  model text primary key, provider text not null, input_per_million numeric(12,4) not null, output_per_million numeric(12,4) not null,
+  cached_input_per_million numeric(12,4), tier text not null default 'standard', source text not null default 'public list price',
+  retrieved_at timestamptz not null default now(), active boolean not null default true
+);
+insert into public.model_pricing (model, provider, input_per_million, output_per_million, cached_input_per_million, tier, retrieved_at) values
+  ('openai/gpt-4o', 'openai', 2.50, 10.00, 1.25, 'frontier', '2026-09-01'),
+  ('openai/gpt-4o-mini', 'openai', 0.15, 0.60, 0.075, 'small', '2026-09-01');
+
 create function public.is_workspace_member(ws uuid, uid uuid default auth.uid())
 returns boolean language sql stable security definer set search_path = public as $$
   select case
@@ -82,7 +97,7 @@ grant all on all tables in schema public to service_role;
 alter default privileges in schema public revoke all on tables from anon, authenticated;
 `;
 
-export async function createDb({ zevir = true }: { zevir?: boolean } = {}) {
+export async function createDb({ zevir = true, optimize = true }: { zevir?: boolean; optimize?: boolean } = {}) {
   const db = new PGlite();
   await db.exec(PLATFORM);
   await db.exec(migration('009_product_engine.sql'));
@@ -91,6 +106,7 @@ export async function createDb({ zevir = true }: { zevir?: boolean } = {}) {
   await db.exec(migration('015_engine_evaluation_trial.sql'));
   await db.exec(LEAST_PRIVILEGE);
   if (zevir) await db.exec(migration('016_zevir_part1.sql'));
+  if (zevir && optimize) await db.exec(migration('017_verified_optimization.sql'));
   return db;
 }
 
