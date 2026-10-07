@@ -28,6 +28,18 @@ async function acceptPendingInvites(admin, user) {
   return accepted;
 }
 
+/** Workspace-scoped flags (feature_flags.workspace_overrides), for features that roll out per workspace. */
+const WORKSPACE_FLAGS = ['verified_optimization_vnext'];
+async function workspaceFeatures(admin, workspaceId) {
+  const { data } = await admin.from('feature_flags').select('key,enabled,workspace_overrides').in('key', WORKSPACE_FLAGS);
+  const out = {};
+  for (const f of data || []) {
+    const o = f.workspace_overrides?.[workspaceId];
+    out[f.key] = typeof o === 'boolean' ? o : Boolean(f.enabled);
+  }
+  return out;
+}
+
 async function resolveFlags(admin, planId) {
   const { data: flags } = await admin.from('feature_flags').select('key,enabled,plan_overrides');
   const out = {};
@@ -51,7 +63,7 @@ on('GET', '/api/me', async ({ request }) => {
     if (!m.workspace) continue;
     const { data: planId } = await admin.rpc('workspace_plan', { ws: m.workspace.id });
     const { count: projectCount } = await admin.from('projects').select('id', { count: 'exact', head: true }).eq('workspace_id', m.workspace.id).is('archived_at', null);
-    workspaces.push({ ...m.workspace, role: m.role, plan: planId || 'free', project_count: projectCount || 0 });
+    workspaces.push({ ...m.workspace, role: m.role, plan: planId || 'free', project_count: projectCount || 0, features: await workspaceFeatures(admin, m.workspace.id) });
   }
   workspaces.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   const flags = await resolveFlags(admin, account.plan);

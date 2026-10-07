@@ -20,13 +20,13 @@ import { resolveBilling, creditState, allowedCandidateModels, completeText, clou
 import { deterministicUuid } from '../product/hashing.js';
 import { classifyPath, containsSecretLikeValue, redactSecretLikeValues } from '../product/scanner.js';
 import { parseTraces, diagnoseRuntimeEvidence, economics } from '../product/traces.js';
-import { planExactReuse, planModelSubstitution, executionKeyFor } from '../product/strategies.js';
-import { executePlan } from '../product/executor.js';
+import { planExactReuse, planModelSubstitution } from '../product/strategies.js';
 import { runEvaluation, enforceRequirements, sanitizeRequirements } from '../product/evaluator.js';
 import { unifiedDiff } from '../product/diff.js';
 import { runZev } from '../product/zev.js';
 import { mergeTrial } from '../product/trial.js';
 import { projectEngineProduct, zevirEnabled } from '../zevir/store.js';
+import { runPlanExecution } from '../product/run-plan.js';
 
 const VERSION = 'platform-engine-1.0';
 const MAX_CALLS = 4000;
@@ -391,34 +391,10 @@ on('POST', '/api/engine/products/:id/optimization/plans/:planId/execute', async 
   const body = await readJson(request);
   const { data: plan } = await admin.from('engine_plans').select('*').eq('id', uuid(params.planId, 'plan')).eq('product_id', product.id).maybeSingle();
   if (!plan) throw new ApiError(404, 'Candidate plan not found.', 'NOT_FOUND');
-  if (plan.status === 'BLOCKED') throw new ApiError(422, plan.blocked_reason || 'Plan is BLOCKED and cannot execute.', 'PLAN_BLOCKED');
-  if (!['READY', 'COMPLETED', 'FAILED', 'EXECUTING'].includes(plan.status)) throw new ApiError(422, `Plan status ${plan.status} is not executable.`, 'VALIDATION');
+  // Same checks, same order, same executor as before; shared with the Optimization Run replay.
   const traces = await rows(admin, 'engine_traces', product.id);
-  const key = executionKeyFor(planOut(plan), traces);
-  if (!body?.force_rerun) {
-    const { data: existing } = await admin.from('engine_executions').select('*').eq('execution_key', key).in('status', ['RUNNING', 'SUCCEEDED']).order('created_at', { ascending: false }).limit(1).maybeSingle();
-    if (existing) return executionOut(existing);
-  }
-  const { pricing, allowed } = await pricingAndModels(admin);
-  const billing = await resolveBilling({ admin, user, workspaceId: product.workspace_id, projectId: product.project_id });
-  const complete = async (payload) => completeText({ admin, user, billing, payload, operation: 'replay', extraMeta: { product_id: product.id, plan_id: plan.id, strategy: plan.strategy } });
-
-  const { data: running, error: insertError } = await admin.from('engine_executions').insert({ candidate_plan_id: plan.id, product_id: product.id, workspace_id: product.workspace_id, status: 'RUNNING', execution_key: key, requested_model: plan.candidate_config?.model || null, baseline_trace_ids: plan.sample_scope || [], sample_results: [], started_at: new Date().toISOString() }).select('*').single();
-  if (insertError) throw insertError;
-  await admin.from('engine_plans').update({ status: 'EXECUTING' }).eq('id', plan.id);
-  let result;
-  try {
-    result = await executePlan({ plan: planOut(plan), traces, complete, pricing, allowedModels: allowed });
-  } catch (error) {
-    await admin.from('engine_executions').update({ status: 'FAILED', completed_at: new Date().toISOString(), error_category: 'unknown', error_detail: String(error?.message || error).slice(0, 500) }).eq('id', running.id);
-    await admin.from('engine_plans').update({ status: 'FAILED' }).eq('id', plan.id);
-    throw new ApiError(422, String(error?.message || error), 'EXECUTION_FAILED');
-  }
-  const { spent_usd: _spent, ...fields } = result;
-  const { data: done, error: updateError } = await admin.from('engine_executions').update(fields).eq('id', running.id).select('*').single();
-  if (updateError) throw updateError;
-  await admin.from('engine_plans').update({ status: result.status === 'SUCCEEDED' ? 'COMPLETED' : 'FAILED' }).eq('id', plan.id);
-  return executionOut(done);
+  const { execution } = await runPlanExecution({ admin, user, product, plan, traces, forceRerun: Boolean(body?.force_rerun) });
+  return executionOut(execution);
 });
 
 on('GET', '/api/engine/products/:id/optimization/executions', async ({ request, params }) => {
