@@ -20,7 +20,7 @@ import { latencyAnalysis } from './latency.js';
 import { diagnose } from './diagnose.js';
 import { generateCandidates, EXECUTABLE } from './passes.js';
 import { evaluateUnderContract } from './verdict.js';
-import { DEMO_REQUIREMENTS, DEMO_ROOT } from './demo.js';
+import { DEMO_REQUIREMENTS, DEMO_ROOT, DEMO_V2_REQUIREMENTS, DEMO_V2_ROOT } from './demo.js';
 
 export const FLAG = 'verified_optimization_vnext';
 const MAX_GRAPHS = 200;
@@ -66,7 +66,7 @@ export async function saveDraft(admin, { product, user, requirements }) {
   const contracts = await listContracts(admin, product);
   const draft = contracts.find((c) => c.status === 'draft');
   // First draft: the project floor (014), or for the synthetic demo its suggested contract.
-  const seed = () => (product.root_path === DEMO_ROOT ? normalizeRequirements(DEMO_REQUIREMENTS) : requirementsFromProjectFloor(product.evaluation_requirements || {}));
+  const seed = () => (product.root_path === DEMO_ROOT ? normalizeRequirements(DEMO_REQUIREMENTS) : product.root_path === DEMO_V2_ROOT ? normalizeRequirements(DEMO_V2_REQUIREMENTS) : requirementsFromProjectFloor(product.evaluation_requirements || {}));
   const base = requirements ?? (draft ? draft.requirements : (contracts.find((c) => c.status === 'frozen')?.requirements ?? seed()));
   const normalized = contractErr(() => normalizeRequirements(base));
   const hash = contractHash(product.id, normalized);
@@ -116,12 +116,20 @@ export async function loadRunContext(admin, run) {
 // ---- evidence ---------------------------------------------------------------------
 const TRACE_COLUMNS = 'id,product_id,workspace_id,request_id,timestamp,symbol,workflow,provider,model,requested_model,response_model,input_text,output_text,expected_output,system_prompt,messages,system_prompt_hash,input_tokens,output_tokens,cached_input_tokens,reasoning_tokens,latency_ms,ttft_ms,cost_usd,cost_source,pricing_version,attempt,retry_reason,input_hash,output_hash,protected,metadata,created_at';
 
-/** Bounded evidence window: newest WINDOW_LIMIT traces + the product's latest ZevIR graphs, in two reads. */
-async function loadEvidence(admin, product) {
+/**
+ * Bounded evidence window: newest WINDOW_LIMIT traces + the product's latest
+ * ZevIR graphs, in two reads. The v2 graph read (018) adds content-free node
+ * attributes for the structural diagnoses; without 018 the 017 read is used and
+ * those families simply find nothing. The snapshot hash covers graph hashes
+ * only, so it is the same either way.
+ */
+export async function loadEvidence(admin, product) {
   const traces = must(await admin.from('engine_traces').select(TRACE_COLUMNS).eq('product_id', product.id).order('created_at', { ascending: false }).limit(WINDOW_LIMIT + 1));
   const truncated = traces.length > WINDOW_LIMIT;
   const window = traces.slice(0, WINDOW_LIMIT).sort((a, b) => String(a.id).localeCompare(String(b.id)));
-  const { data: set, error } = await admin.rpc('zevir_product_graph_set', { p_workspace_id: product.workspace_id, p_product_id: product.id, p_max_graphs: MAX_GRAPHS });
+  const args = { p_workspace_id: product.workspace_id, p_product_id: product.id, p_max_graphs: MAX_GRAPHS };
+  let { data: set, error } = await admin.rpc('zevir_product_graph_set_v2', args);
+  if (error && /zevir_product_graph_set_v2|does not exist|42883/.test(`${error.message} ${error.code}`)) ({ data: set, error } = await admin.rpc('zevir_product_graph_set', args));
   if (error) throw error;
   const graphs = (set?.graphs || []).slice().sort((a, b) => String(a.id).localeCompare(String(b.id)));
   return { traces: window, truncated, graphs, graphSummary: { count: graphs.length, hashes: graphs.map((g) => g.graph_hash), truncated: Boolean(set?.truncated), total: set?.total ?? graphs.length } };
@@ -133,7 +141,7 @@ function computeBaseline(evidence, contract) {
   return { snapshot, latency };
 }
 
-async function verifiedEvidence(admin, run, product, contract) {
+export async function verifiedEvidence(admin, run, product, contract) {
   if (!run.baseline_snapshot_id) throw new ApiError(409, 'Build the baseline first.', 'BASELINE_REQUIRED');
   const { data: stored } = await admin.from('performance_snapshots').select('*').eq('id', run.baseline_snapshot_id).maybeSingle();
   if (!stored) throw new ApiError(409, 'Build the baseline first.', 'BASELINE_REQUIRED');
@@ -211,7 +219,7 @@ export async function listDiagnoses(admin, run) {
 }
 
 // ---- candidates ---------------------------------------------------------------------
-async function platformCompute(admin) {
+export async function platformCompute(admin) {
   return openRouterConfigured() && (await cloudComputeEnabled(admin));
 }
 

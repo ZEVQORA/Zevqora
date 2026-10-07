@@ -97,7 +97,7 @@ grant all on all tables in schema public to service_role;
 alter default privileges in schema public revoke all on tables from anon, authenticated;
 `;
 
-export async function createDb({ zevir = true, optimize = true }: { zevir?: boolean; optimize?: boolean } = {}) {
+export async function createDb({ zevir = true, optimize = true, intelligence = true }: { zevir?: boolean; optimize?: boolean; intelligence?: boolean } = {}) {
   const db = new PGlite();
   await db.exec(PLATFORM);
   await db.exec(migration('009_product_engine.sql'));
@@ -107,6 +107,7 @@ export async function createDb({ zevir = true, optimize = true }: { zevir?: bool
   await db.exec(LEAST_PRIVILEGE);
   if (zevir) await db.exec(migration('016_zevir_part1.sql'));
   if (zevir && optimize) await db.exec(migration('017_verified_optimization.sql'));
+  if (zevir && optimize && intelligence) await db.exec(migration('018_optimization_intelligence.sql'));
   return db;
 }
 

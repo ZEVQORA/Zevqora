@@ -114,3 +114,75 @@ export const DEMO_REQUIREMENTS = Object.freeze({
   required_metrics: ['cost', 'latency', 'quality', 'task_success'],
   dataset_version: 'demo-synthetic-v1',
 });
+
+// ---- vNext Part 2B: Optimization Intelligence demo ------------------------------------
+/**
+ * SYNTHETIC DEMO — NOT CUSTOMER DATA.
+ *
+ * The Part 2A triage traces above plus a synthetic refund agent exported as
+ * OpenInference spans (content is hashed by the ZevIR adapter; nothing raw is
+ * stored). By construction the agent:
+ *   - calls `lookup_order` twice with the same arguments and the same result;
+ *   - in two runs repeats [lookup_order → plan] with identical inputs and
+ *     outputs (a no-progress loop);
+ *   - retrieves from `kb_search` twice per run with the same query, getting
+ *     overlapping chunks, ten documents per call;
+ *   - spends most of its time in the first retrieval (a latency hotspot).
+ * Agent and retrieval changes are proposed but cannot be replayed by the
+ * harness (they stay BLOCKED); the triage plans can.
+ */
+export const DEMO_V2_LABEL = 'SYNTHETIC DEMO — NOT CUSTOMER DATA';
+export const DEMO_V2_NAME = `Support triage + refund agent (${DEMO_V2_LABEL})`;
+export const DEMO_V2_ROOT = 'workload://demo-synthetic-optimization-intelligence';
+
+export const DEMO_V2_REQUIREMENTS = Object.freeze({
+  quality_floor: 0.95,
+  min_task_success_rate: 0.95,
+  latency: { require: true, max_p95_ms: null, max_regression_pct: 10 },
+  protected: { require_cases: true, min_cases: 2 },
+  cost: { require_evidence: true, min_coverage: 0.9, require_improvement: true, min_improvement_pct: 0 },
+  evidence: { min_samples: 5, min_latency_samples: 20, min_outcome_coverage: 0.8 },
+  reliability: { max_failure_rate: 0.05, max_retry_rate: null },
+  required_metrics: ['cost', 'latency', 'protected', 'quality', 'reliability', 'task_success'],
+  dataset_version: 'demo-synthetic-v2',
+});
+
+const hex = (n, width) => n.toString(16).padStart(width, '0');
+const at = (base, ms) => new Date(base + ms).toISOString();
+
+/** OpenInference span list for six synthetic refund-agent runs. Deterministic. */
+export function demoAgentSpans() {
+  const spans = [];
+  for (let run = 0; run < 6; run += 1) {
+    const traceId = `d2${hex(run + 1, 30)}`;
+    const t0 = Date.UTC(2026, 8, 2, 10, 0, 0) + run * 3_600_000;
+    let sid = 0;
+    const span = (name, kind, start, end, attributes, parent) => {
+      sid += 1;
+      const id = `${hex(run + 1, 4)}${hex(sid, 12)}`;
+      spans.push({ name, context: { trace_id: traceId, span_id: id }, parent_id: parent, span_kind: kind, start_time: at(t0, start), end_time: at(t0, end), status_code: 'OK', attributes: { openinference: { span: { kind } }, ...attributes } });
+      return id;
+    };
+    const order = `ORDER-${1000 + (run % 3)}`;
+    const docs = (offset) => ({ documents: Array.from({ length: 10 }, (_, i) => ({ document: { id: `kb-${(i + offset) % 14}`, score: Number((0.9 - i * 0.05).toFixed(2)), content: `DEMO SYNTHETIC chunk ${(i + offset) % 14}` } })) });
+    const loop = run % 3 === 0;
+    const end = loop ? 7600 : 5600;
+    const agent = span('refund_agent', 'AGENT', 0, end, { agent: { name: 'refund_agent' }, input: { value: `DEMO SYNTHETIC refund request for ${order}` }, output: { value: 'DEMO SYNTHETIC decision' } }, null);
+    span('kb_search', 'RETRIEVER', 50, 3050, { input: { value: 'DEMO SYNTHETIC refund policy' }, retrieval: docs(0) }, agent);
+    span('lookup_order', 'TOOL', 3100, 3500, { tool: { name: 'lookup_order' }, input: { value: `{"order_id":"${order}"}` }, output: { value: `DEMO SYNTHETIC order ${order} delivered` } }, agent);
+    span('gpt-4o', 'LLM', 3550, 4300, { llm: { model_name: 'gpt-4o', provider: 'openai', token_count: { prompt: 2100, completion: 40 } }, input: { value: `DEMO SYNTHETIC plan for ${order}` }, output: { value: 'DEMO SYNTHETIC next: verify order' } }, agent);
+    let tAt = 4350;
+    if (loop) {
+      // No progress: the same tool call and the same plan step, with identical results.
+      span('lookup_order', 'TOOL', tAt, tAt + 400, { tool: { name: 'lookup_order' }, input: { value: `{"order_id":"${order}"}` }, output: { value: `DEMO SYNTHETIC order ${order} delivered` } }, agent);
+      span('gpt-4o', 'LLM', tAt + 450, tAt + 1200, { llm: { model_name: 'gpt-4o', provider: 'openai', token_count: { prompt: 2100, completion: 40 } }, input: { value: `DEMO SYNTHETIC plan for ${order}` }, output: { value: 'DEMO SYNTHETIC next: verify order' } }, agent);
+      tAt += 1250;
+    } else {
+      span('lookup_order', 'TOOL', tAt, tAt + 400, { tool: { name: 'lookup_order' }, input: { value: `{"order_id":"${order}"}` }, output: { value: `DEMO SYNTHETIC order ${order} delivered` } }, agent);
+      tAt += 450;
+    }
+    span('kb_search', 'RETRIEVER', tAt, tAt + 600, { input: { value: 'DEMO SYNTHETIC refund policy' }, retrieval: docs(4) }, agent);
+    span('gpt-4o', 'LLM', tAt + 650, end - 50, { llm: { model_name: 'gpt-4o', provider: 'openai', token_count: { prompt: 3400, completion: 60 } }, input: { value: `DEMO SYNTHETIC final answer for ${order}` }, output: { value: 'DEMO SYNTHETIC approve' } }, agent);
+  }
+  return { spans };
+}

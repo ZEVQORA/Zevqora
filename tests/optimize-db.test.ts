@@ -153,7 +153,8 @@ describe('bounded ZevIR read', () => {
 
 describe('rollback', () => {
   it('removes everything 017 added and leaves 016 and existing engine rows intact', async () => {
-    const fresh = await createDb();
+    // A database at 017 (018 is rolled back first in production; see 018's own rollback test).
+    const fresh = await createDb({ intelligence: false });
     await fresh.query(`insert into auth.users(id) values ($1)`, [USER_A]);
     await fresh.query(`insert into public.workspaces(id, name, slug, owner_id) values ($1, 'w', 'w', $2)`, [WS_A, USER_A]);
     await fresh.query(`insert into public.engine_products(id, workspace_id, name, root_path) values ($1, $2, 'p', 'workload://p')`, [P_A, WS_A]);

@@ -14,8 +14,13 @@ export function normalizePlan(p) {
   return { ...p, sample_scope: p.sample_scope || [], baseline_config: p.baseline_config || {}, candidate_config: p.candidate_config || {}, required_evidence: p.required_evidence || [] };
 }
 
-/** Returns { execution, reused }. `extra` adds columns to the execution row (e.g. run lineage). */
-export async function runPlanExecution({ admin, user, product, plan, traces, forceRerun = false, extra = {} }) {
+/**
+ * Returns { execution, reused }. `extra` adds columns to the execution row (e.g. run lineage).
+ * `executor` defaults to the engine executor; composed execution plans
+ * (strategy 'execution_plan', vNext Part 2B) pass their own and are refused without it.
+ */
+export async function runPlanExecution({ admin, user, product, plan, traces, forceRerun = false, extra = {}, executor = null }) {
+  if (plan.strategy === 'execution_plan' && !executor) throw new ApiError(422, 'This plan is a composed execution plan; run it from its Optimization Run plan search.', 'PLAN_REQUIRES_PLAN_SEARCH');
   if (plan.status === 'BLOCKED') throw new ApiError(422, plan.blocked_reason || 'Plan is BLOCKED and cannot execute.', 'PLAN_BLOCKED');
   if (!['READY', 'COMPLETED', 'FAILED', 'EXECUTING'].includes(plan.status)) throw new ApiError(422, `Plan status ${plan.status} is not executable.`, 'VALIDATION');
   const normalized = normalizePlan(plan);
@@ -34,7 +39,7 @@ export async function runPlanExecution({ admin, user, product, plan, traces, for
   await admin.from('engine_plans').update({ status: 'EXECUTING' }).eq('id', plan.id);
   let result;
   try {
-    result = await executePlan({ plan: normalized, traces, complete, pricing, allowedModels: allowed });
+    result = await (executor || executePlan)({ plan: normalized, traces, complete, pricing, allowedModels: allowed });
   } catch (error) {
     await admin.from('engine_executions').update({ status: 'FAILED', completed_at: new Date().toISOString(), error_category: 'unknown', error_detail: String(error?.message || error).slice(0, 500) }).eq('id', running.id);
     await admin.from('engine_plans').update({ status: 'FAILED' }).eq('id', plan.id);

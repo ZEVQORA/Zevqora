@@ -310,11 +310,197 @@ function latencyCriticalPath(ctx) {
   ];
 }
 
+// ---- F/G. structural families (vNext Part 2B) ----------------------------------------
+// They fire only on Agent / ToolCall / Retrieval nodes, which engine-only
+// workloads do not have, so the five families above are unaffected. Identity
+// comes from the content-free digests ZevIR stores (arguments, queries,
+// results, document ids); nothing here reads or infers content.
+const attrs = (n) => (n.attributes && typeof n.attributes === 'object' ? n.attributes : {});
+const digest = (d) => (d && typeof d === 'object' && typeof d.sha256 === 'string' ? d.sha256 : null);
+const nodeRef = (g, n) => ({ graph_id: g.id, node_id: n.id, stable_key: n.stable_key, kind: n.kind, name: n.name });
+const evidenceRef = (g, n) => ({ type: 'zevir_node', graph_id: g.id, graph_hash: g.graph_hash, node_id: n.id, stable_key: n.stable_key });
+const timeOf = (n) => (n.started_at ? Date.parse(n.started_at) : Number.POSITIVE_INFINITY);
+const durationOf = (n) => (known(n.duration_ms) ? Number(n.duration_ms) : known(n.latency_ms) ? Number(n.latency_ms) : null);
+
+/** Ordered direct children of a node (CALLS / USES / RETRIEVES), by start time then edge ordinal then key. */
+function childrenOf(g, nodeId) {
+  const byId = new Map(g.nodes.map((n) => [n.id, n]));
+  return (g.edges || [])
+    .filter((e) => e.source_node_id === nodeId && ['CALLS', 'USES', 'RETRIEVES'].includes(e.kind))
+    .map((e) => ({ node: byId.get(e.target_node_id), ordinal: e.ordinal ?? 0 }))
+    .filter((x) => x.node && x.node.kind !== 'Runtime' && x.node.kind !== 'Outcome')
+    .sort((a, b) => timeOf(a.node) - timeOf(b.node) || a.ordinal - b.ordinal || String(a.node.stable_key).localeCompare(String(b.node.stable_key)))
+    .map((x) => x.node);
+}
+
+/** Output digest of a step: tool result, retrieved documents, or the model's Outcome node. */
+function outputDigest(g, n) {
+  const a = attrs(n);
+  if (n.kind === 'ToolCall') return digest(a.result_digest);
+  if (n.kind === 'Retrieval') return digest(a.documents_digest);
+  const outcome = (g.edges || []).find((e) => e.source_node_id === n.id && e.kind === 'PRODUCES');
+  const o = outcome ? g.nodes.find((x) => x.id === outcome.target_node_id) : null;
+  return o ? digest(attrs(o).output_digest) || digest(attrs(n).output_digest) : digest(a.output_digest);
+}
+const inputDigest = (n) => digest(attrs(n).arguments_digest) || digest(attrs(n).query_digest) || digest(attrs(n).input_digest);
+const signature = (n) => `${n.kind}|${n.name || ''}|${inputDigest(n) || '?'}`;
+
+/**
+ * NO PROGRESS, structurally: a window of 1–3 consecutive steps that repeats
+ * immediately with the same signatures (kind, name, input digest) AND the same
+ * output digests. Returns the wasted (repeated) steps. Unknown digests never match.
+ */
+export function noProgressRepeats(g, steps) {
+  const sig = steps.map((n) => (inputDigest(n) && outputDigest(g, n) ? `${signature(n)}=>${outputDigest(g, n)}` : null));
+  const wasted = new Set();
+  for (let w = 1; w <= 3; w += 1) {
+    for (let i = 0; i + 2 * w <= steps.length; i += 1) {
+      let same = true;
+      for (let k = 0; k < w; k += 1) if (!sig[i + k] || sig[i + k] !== sig[i + w + k]) same = false;
+      if (same) for (let k = 0; k < w; k += 1) wasted.add(i + w + k);
+    }
+  }
+  return [...wasted].sort((a, b) => a - b).map((i) => steps[i]);
+}
+
+function agentWorkflow(ctx) {
+  const byAgent = new Map();
+  for (const g of ctx.graphs || []) {
+    for (const agent of g.nodes.filter((n) => n.kind === 'Agent')) {
+      const name = agent.name || attrs(agent).agent_name || 'agent';
+      if (!byAgent.has(name)) byAgent.set(name, []);
+      byAgent.get(name).push({ g, agent, steps: childrenOf(g, agent.id) });
+    }
+  }
+  const out = [];
+  for (const [name, runs] of [...byAgent.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const redundantTool = [];
+    const changedState = [];
+    const repeatedDecisions = [];
+    const loops = [];
+    for (const r of runs) {
+      const seen = new Map();
+      for (const n of r.steps) {
+        const inD = inputDigest(n);
+        if (!inD) continue;
+        const key = `${n.kind}|${n.name || ''}|${inD}`;
+        const prev = seen.get(key);
+        const outD = outputDigest(r.g, n);
+        if (prev && n.kind === 'ToolCall') {
+          // Same tool, same arguments: redundant only if the result is provably unchanged.
+          if (outD && prev.out && outD === prev.out) redundantTool.push({ r, n });
+          else changedState.push({ r, n });
+        }
+        if (prev && n.kind === 'ModelCall' && outD && prev.out === outD) repeatedDecisions.push({ r, n });
+        if (!prev) seen.set(key, { out: outD });
+      }
+      const wasted = noProgressRepeats(r.g, r.steps);
+      if (wasted.length) loops.push({ r, wasted });
+    }
+    const stepCounts = runs.map((r) => r.steps.length);
+    const median = percentile(stepCounts, 50);
+    const excessive = runs.length >= 3 ? runs.filter((r) => r.steps.length > 2 * median) : [];
+    if (!redundantTool.length && !loops.length && !repeatedDecisions.length && !excessive.length) continue;
+    const wastedNodes = [...new Map([...redundantTool, ...repeatedDecisions].map((x) => [x.n.id, x]).concat(loops.flatMap((l) => l.wasted.map((n) => [n.id, { r: l.r, n }])))).values()];
+    const lat = wastedNodes.map((x) => durationOf(x.n)).filter((v) => v !== null);
+    const costs = wastedNodes.map((x) => x.n.cost_usd).filter(known);
+    const refsNodes = [...runs.map((r) => ({ g: r.g, n: r.agent })), ...wastedNodes.map((x) => ({ g: x.r.g, n: x.n }))];
+    const tools = {};
+    for (const x of redundantTool) tools[x.n.name || 'tool'] = (tools[x.n.name || 'tool'] || 0) + 1;
+    const patterns = [...(redundantTool.length ? ['repeated_tool_call'] : []), ...(loops.length ? ['no_progress_loop'] : []), ...(repeatedDecisions.length ? ['repeated_model_decision'] : []), ...(excessive.length ? ['excessive_steps'] : [])];
+    out.push(
+      finish({
+        family: 'agent_workflow',
+        product_id: ctx.product.id,
+        scope: name,
+        symptom: `Agent '${name}': ${redundantTool.length} repeated tool call(s) with unchanged arguments and result, ${loops.reduce((a, l) => a + l.wasted.length, 0)} step(s) in no-progress loops, ${repeatedDecisions.length} repeated identical model decision(s) over ${runs.length} run(s) (median ${median ?? 'unknown'} steps).`,
+        causal_path: ['Agent run', ...patterns.map((p) => p.replace(/_/g, ' ')), 'extra steps executed and paid'],
+        root_cause: 'The agent repeats work whose inputs and results did not change (structural evidence from digests). Whether the repeats are needed for correctness is NOT established; a change must be replayed.',
+        metrics: { runs: runs.length, steps_p50: median, steps_p95: percentile(stepCounts, 95), patterns, repeated_tool_calls: redundantTool.length, changed_state_repeats: changedState.length, no_progress_loops: loops.length, wasted_steps: wastedNodes.length, wasted_known_latency_ms: lat.length ? stableSum(lat) : null, wasted_known_cost_usd: costs.length ? r6(stableSum(costs)) : null, wasted_cost_known_for: costs.length, tools, excessive_runs: excessive.length },
+        affected_nodes: refsNodes.slice(0, MAX_REFS).map((x) => nodeRef(x.g, x.n)),
+        evidence_refs: refsNodes.slice(0, MAX_REFS).map((x) => evidenceRef(x.g, x.n)),
+        confidence: redundantTool.length || loops.length ? 0.8 : 0.6,
+        severity: wastedNodes.length >= runs.length ? 'high' : wastedNodes.length ? 'medium' : 'low',
+        required_additional_evidence: ['an agent replay harness to evaluate a guard or budget (not available: agent changes are proposed, not replayed)', ...(changedState.length ? [`${changedState.length} repeated call(s) changed result: not collapsible`] : [])],
+        falsifier: 'Wrong if a repeated step is needed for correctness (e.g. polling for a state change the digests do not capture), so suppressing it lowers task success.',
+        suggested_optimization_passes: ['agent_workflow', 'cache'],
+        risk_class: 'medium',
+      }),
+    );
+  }
+  return out;
+}
+
+function retrievalRedundancy(ctx) {
+  const byName = new Map();
+  for (const g of ctx.graphs || []) {
+    for (const n of g.nodes.filter((x) => x.kind === 'Retrieval')) {
+      const name = n.name || 'retrieval';
+      if (!byName.has(name)) byName.set(name, []);
+      byName.get(name).push({ g, n });
+    }
+  }
+  const out = [];
+  for (const [name, list] of [...byName.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const repeats = [];
+    let duplicateChunks = 0;
+    const byGraph = new Map();
+    for (const x of list) {
+      if (!byGraph.has(x.g.id)) byGraph.set(x.g.id, []);
+      byGraph.get(x.g.id).push(x);
+    }
+    for (const rows of byGraph.values()) {
+      const ordered = [...rows].sort((a, b) => timeOf(a.n) - timeOf(b.n) || String(a.n.stable_key).localeCompare(String(b.n.stable_key)));
+      const queries = new Set();
+      const docs = new Map();
+      for (const x of ordered) {
+        const q = digest(attrs(x.n).query_digest);
+        if (q && queries.has(q)) repeats.push(x);
+        if (q) queries.add(q);
+        for (const d of attrs(x.n).document_refs || []) {
+          if (!d || !d.id) continue;
+          docs.set(d.id, (docs.get(d.id) || 0) + 1);
+        }
+      }
+      for (const c of docs.values()) if (c > 1) duplicateChunks += c - 1;
+    }
+    const counts = list.map((x) => attrs(x.n).document_count).filter(known).map(Number);
+    const p50k = percentile(counts, 50);
+    const oversized = p50k !== null && p50k >= 8;
+    const lats = list.map((x) => durationOf(x.n)).filter((v) => v !== null);
+    const hotspot = ctx.latency?.hotspots?.find((h) => h.kind === 'Retrieval' && h.name === name) || null;
+    const rerank = (ctx.graphs || []).flatMap((g) => g.nodes.filter((n) => n.kind === 'ModelCall' && n.operation === 'rerank' && byGraph.has(g.id)));
+    if (!repeats.length && !duplicateChunks && !oversized) continue;
+    const refs = [...list, ...repeats].slice(0, MAX_REFS);
+    const signals = [...(repeats.length ? ['repeat_retrieval'] : []), ...(duplicateChunks ? ['duplicate_chunks'] : []), ...(oversized ? ['oversized_top_k'] : []), ...(hotspot && hotspot.mean_share_of_root !== null && hotspot.mean_share_of_root >= 0.4 ? ['retrieval_latency_hotspot'] : []), ...(rerank.length ? ['reranker_present'] : [])];
+    out.push(
+      finish({
+        family: 'retrieval_redundancy',
+        product_id: ctx.product.id,
+        scope: name,
+        symptom: `Retrieval '${name}': ${list.length} call(s), ${repeats.length} repeat(s) of a query already issued in the same task, ${duplicateChunks} duplicated chunk reference(s), median ${p50k ?? 'unknown'} documents per call; p95 ${percentile(lats, 95) ?? 'unknown'} ms.`,
+        causal_path: ['Task', `Retrieval '${name}'`, ...signals.map((s) => s.replace(/_/g, ' ')), 'context assembled and billed'],
+        root_cause: 'The same retrieval is repeated or the same chunks are fetched more than once (structural evidence from query digests and document ids). Whether any chunk is irrelevant is NOT established: that needs an evaluator, not a hash.',
+        metrics: { retrievals: list.length, repeat_retrievals: repeats.length, query_repeat_rate: list.length ? r6(repeats.length / list.length) : null, duplicate_chunk_refs: duplicateChunks, documents_p50: p50k, documents_p95: percentile(counts, 95), signals, latency: { samples: lats.length, p50_ms: percentile(lats, 50), p95_ms: percentile(lats, 95), mean_share_of_root: hotspot ? hotspot.mean_share_of_root : null, critical_path_graphs: hotspot ? hotspot.critical_path_graphs : 0 }, rerank_calls: rerank.length, rerank_p95_ms: percentile(rerank.map(durationOf).filter((v) => v !== null), 95) },
+        affected_nodes: refs.map((x) => nodeRef(x.g, x.n)),
+        evidence_refs: refs.map((x) => evidenceRef(x.g, x.n)),
+        confidence: repeats.length || duplicateChunks ? 0.8 : 0.5,
+        severity: repeats.length >= list.length / 3 || (hotspot?.mean_share_of_root ?? 0) >= 0.4 ? 'high' : 'medium',
+        required_additional_evidence: ['a retrieval replay harness to evaluate a lower top-k or deduplication (not available: retrieval changes are proposed, not replayed)', 'evaluator evidence before any chunk is called irrelevant'],
+        falsifier: 'Wrong if the repeated retrievals return different documents at different times (fresh data) or if removing duplicated chunks lowers graded quality.',
+        suggested_optimization_passes: ['retrieval', 'cache'],
+        risk_class: 'medium',
+      }),
+    );
+  }
+  return out;
+}
+
 /**
  * All diagnoses for one snapshot. ctx = { product, snapshot, traces, graphs,
  * latency, requirements, pricing }. Deterministic: same evidence, same output.
  */
 export function diagnose(ctx) {
   const full = { ...ctx, requirements: normalizeRequirements(ctx.requirements), index: nodeIndex(ctx.graphs || []), pricing: ctx.pricing || new Map() };
-  return [...redundantCall(full), ...retryAmplification(full), ...contextAmplification(full), ...modelOverprovisioning(full), ...latencyCriticalPath(full)];
+  return [...redundantCall(full), ...retryAmplification(full), ...contextAmplification(full), ...modelOverprovisioning(full), ...latencyCriticalPath(full), ...agentWorkflow(full), ...retrievalRedundancy(full)];
 }
