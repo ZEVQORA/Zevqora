@@ -132,6 +132,52 @@ begin
   checks := checks + 1;
   begin perform 1 from public.engine_traces limit 1; fails := array_append(fails, 'engine_traces directly readable (recorded prompts)'); exception when insufficient_privilege then null; end;
 
+  -- ZevIR (016): members read their workspace's graph rows, write nothing,
+  -- cannot see ingest runs or call the server functions. Dynamic SQL so this
+  -- script still runs before 016 is applied.
+  if to_regclass('public.zevir_graphs') is null then
+    notes := array_append(notes, 'zevir checks skipped: migration 016 not applied');
+  else
+    checks := checks + 1;
+    begin
+      execute 'delete from public.zevir_nodes where workspace_id = $1' using ws_own;
+      get diagnostics n = row_count;
+      if n > 0 then fails := array_append(fails, 'authenticated can DELETE zevir_nodes'); end if;
+    exception when insufficient_privilege then null; end;
+
+    checks := checks + 1;
+    begin
+      execute 'insert into public.zevir_graphs(id, workspace_id, schema_version, adapter_version, source_kind, graph_key, status, node_count, edge_count, graph_hash) values (gen_random_uuid(), $1, ''zevir.v0.1'', ''x'', ''otel_genai'', ''rls-check'', ''complete'', 0, 0, repeat(''0'', 64))' using ws_own;
+      fails := array_append(fails, 'authenticated can INSERT zevir_graphs');
+    exception when insufficient_privilege then null; end;
+
+    checks := checks + 1;
+    begin
+      execute 'select count(*) from public.zevir_ingest_runs' into n;
+      fails := array_append(fails, 'zevir_ingest_runs directly readable');
+    exception when insufficient_privilege then null; end;
+
+    checks := checks + 1;
+    begin
+      execute 'select public.zevir_persist_graphs(''[]''::jsonb)';
+      fails := array_append(fails, 'authenticated can execute zevir_persist_graphs');
+    exception when insufficient_privilege then null; end;
+
+    if ws_other is not null then
+      checks := checks + 1;
+      execute 'select count(*) from public.zevir_graphs where workspace_id = $1' into n using ws_other;
+      if n <> 0 then fails := array_append(fails, 'foreign workspace zevir_graphs visible'); end if;
+      checks := checks + 1;
+      execute 'select count(*) from public.zevir_nodes where workspace_id = $1' into n using ws_other;
+      if n <> 0 then fails := array_append(fails, 'foreign workspace zevir_nodes visible'); end if;
+    end if;
+
+    checks := checks + 1;
+    begin
+      execute 'select count(*) from public.zevir_graphs where workspace_id = $1' into n using ws_own;
+    exception when insufficient_privilege then fails := array_append(fails, 'own workspace zevir_graphs read denied'); end;
+  end if;
+
   -- Any remaining browser write privilege on any public table.
   checks := checks + 1;
   select count(*) into n from pg_class c join pg_namespace s on s.oid = c.relnamespace
@@ -174,6 +220,14 @@ begin
   checks := checks + 1;
   begin perform 1 from public.engine_traces limit 1;
   exception when others then fails := array_append(fails, ('service_role cannot read engine_traces: ' || sqlstate)); end;
+  if to_regclass('public.zevir_graphs') is not null then
+    checks := checks + 1;
+    begin execute 'select count(*) from public.zevir_ingest_runs' into n;
+    exception when others then fails := array_append(fails, ('service_role cannot read zevir_ingest_runs: ' || sqlstate)); end;
+    checks := checks + 1;
+    begin execute 'select public.zevir_persist_graphs(''[]''::jsonb)';
+    exception when others then fails := array_append(fails, ('service_role cannot execute zevir_persist_graphs: ' || sqlstate)); end;
+  end if;
 
   perform set_config('role', 'postgres', true);
 
