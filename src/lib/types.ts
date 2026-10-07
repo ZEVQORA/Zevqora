@@ -12,6 +12,8 @@ export interface Workspace {
   role: WorkspaceRole;
   plan: string;
   project_count: number;
+  /** Workspace-scoped feature flags (feature_flags.workspace_overrides). */
+  features?: Record<string, boolean>;
 }
 
 export interface Profile {

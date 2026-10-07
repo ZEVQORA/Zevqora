@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { ArrowRight, Search } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useSession } from '@/lib/session';
-import { NAV } from './AppShell';
+import { NAV, navVisible } from './AppShell';
 import { Kbd } from '@/components/ui/Misc';
 
 interface Command {
@@ -24,7 +24,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const inputRef = useRef<HTMLInputElement>(null);
 
   const commands = useMemo<Command[]>(() => {
-    const list: Command[] = NAV.map((n) => ({ id: `nav:${n.to}`, label: `Go to ${n.label}`, group: 'Navigate', run: () => navigate(n.to) }));
+    const list: Command[] = NAV.filter((n) => navVisible(n, activeWorkspace?.features)).map((n) => ({ id: `nav:${n.to}`, label: `Go to ${n.label}`, group: 'Navigate', run: () => navigate(n.to) }));
     list.push({ id: 'act:connect', label: 'Connect evidence', hint: 'Repository or execution traces', group: 'Actions', run: () => navigate('/app/connections') });
     list.push({ id: 'act:test', label: 'Test an opportunity', group: 'Actions', run: () => navigate('/app/opportunities') });
     list.push({ id: 'act:invite', label: 'Invite a teammate', group: 'Actions', run: () => navigate('/app/team?invite=1') });

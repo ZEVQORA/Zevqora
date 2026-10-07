@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router';
 import { AnimatePresence, motion } from 'motion/react';
-import { BarChart3, BookOpen, ClipboardCheck, ChevronsUpDown, FileCheck2, FlaskConical, FolderGit2, GitPullRequest, Home, Lightbulb, LogOut, Menu, MessageSquare, Monitor, Plug, Scale, Search, Settings, Shield, Users, X, PanelLeftClose, PanelLeftOpen, ChevronRight, Check, Plus } from 'lucide-react';
+import { BarChart3, BookOpen, ClipboardCheck, ChevronsUpDown, FileCheck2, FlaskConical, FolderGit2, Gauge, GitPullRequest, Home, Lightbulb, LogOut, Menu, MessageSquare, Monitor, Plug, Scale, Search, Settings, Shield, Users, X, PanelLeftClose, PanelLeftOpen, ChevronRight, Check, Plus } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useSession } from '@/lib/session';
 import { ZevqoraMark } from '@/brand/ZevqoraMark';
@@ -10,9 +10,11 @@ import { Avatar, Kbd } from '@/components/ui/Misc';
 import { FullPageLoader } from '@/brand/BrandLoader';
 import { CommandPalette } from './CommandPalette';
 
-export const NAV: Array<{ to: string; label: string; Icon: typeof Home; end?: boolean; section?: string }> = [
+export const NAV: Array<{ to: string; label: string; Icon: typeof Home; end?: boolean; section?: string; flag?: string }> = [
   { to: '/app', label: 'Overview', Icon: Home, end: true },
   { to: '/app/project', label: 'Projects', Icon: FolderGit2 },
+  // Shown only to workspaces with the flag on (no global launch).
+  { to: '/app/optimize', label: 'Optimize', Icon: Gauge, flag: 'verified_optimization_vnext' },
   { to: '/app/opportunities', label: 'Opportunities', Icon: Lightbulb, end: true },
   { to: '/app/experiments', label: 'Experiments', Icon: FlaskConical, end: true },
   { to: '/app/evidence', label: 'Evidence', Icon: FileCheck2 },
@@ -28,8 +30,13 @@ export const NAV: Array<{ to: string; label: string; Icon: typeof Home; end?: bo
   { to: '/download', label: 'Desktop app', Icon: Monitor },
 ];
 
+/** A nav item behind a workspace flag is shown only where that flag is on. */
+export function navVisible(item: { flag?: string }, features: Record<string, boolean> | undefined) {
+  return !item.flag || Boolean(features?.[item.flag]);
+}
+
 /** Product routes render edge-to-edge (they carry their own toolbar and Evidence Inspector). */
-const PRODUCT_PATHS = new Set(['/app', '/app/project', '/app/opportunities', '/app/experiments', '/app/evidence', '/app/savings', '/app/evaluation', '/app/changes', '/app/connections', '/app/zev']);
+const PRODUCT_PATHS = new Set(['/app', '/app/project', '/app/optimize', '/app/opportunities', '/app/experiments', '/app/evidence', '/app/savings', '/app/evaluation', '/app/changes', '/app/connections', '/app/zev']);
 export function isProductPath(pathname: string) {
   return PRODUCT_PATHS.has(pathname.replace(/\/+$/, '') || '/app');
 }
@@ -168,7 +175,7 @@ export function AppShell() {
       </div>
       <nav aria-label="Application" className="scrollbar-thin mt-3 flex-1 overflow-y-auto px-2.5">
         <ul className="flex flex-col gap-0.5">
-          {NAV.map((item) => (
+          {NAV.filter((item) => navVisible(item, activeWorkspace.features)).map((item) => (
             <li key={item.to} className={item.section ? 'mt-2 border-t border-line/60 pt-2' : undefined}>
               {item.section && !collapsed && <div className="text-technical px-2.5 pb-1 pt-1 font-medium uppercase tracking-[0.08em] text-subtle">{item.section}</div>}
               <NavLink to={item.to} end={item.end} title={collapsed ? item.label : undefined} className={({ isActive }) => cn('text-caption group flex items-center gap-2.5 rounded-md px-2.5 py-2 transition-control', isActive ? 'bg-surface text-ink shadow-[0_1px_2px_rgb(15_17_21/0.06),inset_0_0_0_1px_rgb(15_17_21/0.04)]' : 'text-muted hover:bg-surface/60 hover:text-ink', collapsed && 'justify-center px-0')}>

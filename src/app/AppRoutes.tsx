@@ -13,6 +13,7 @@ const ProductEvaluation = lazy(() => import('@/product/views/EvaluationView'));
 const ProductChanges = lazy(() => import('@/product/views/ChangesView'));
 const ProductConnections = lazy(() => import('@/product/views/ConnectionsView'));
 const ProductZev = lazy(() => import('@/product/views/ZevView'));
+const ProductOptimize = lazy(() => import('@/product/views/OptimizeView'));
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage'));
 const UsagePage = lazy(() => import('./pages/UsagePage'));
 const TeamPage = lazy(() => import('./pages/TeamPage'));
@@ -48,6 +49,7 @@ export default function AppRoutes() {
           <Route path="changes" element={<ProductChanges />} />
           <Route path="connections" element={<ProductConnections />} />
           <Route path="zev" element={<ProductZev />} />
+          <Route path="optimize" element={<ProductOptimize />} />
         </Route>
         {/* Workspace surfaces: team, billing, settings. */}
         <Route path="usage" element={<UsagePage />} />
