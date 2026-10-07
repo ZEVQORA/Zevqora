@@ -6,6 +6,7 @@ import { useProductDialogs } from '../dialogs/context';
 import { engineErrorMessage } from '../engine';
 import { Button, Card, CardHeader, Empty, Modal, StatusChip, useProductToast } from '../ui';
 import { BaselineCard, RequirementsCard } from './BaselineCards';
+import { ZevirPanel } from './ZevirPanel';
 import { isWorkloadProduct } from '../types';
 import { ms, relativeTime } from '../format';
 
@@ -62,6 +63,7 @@ export default function ProjectView() {
           <Button size="sm" onClick={() => void importTraceFile()}><Upload size={14} /> Import traces</Button>
         </div>
         <BaselineCard />
+        <div className="mt-4"><ZevirPanel /></div>
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <RequirementsCard />
           <Card>
@@ -116,6 +118,7 @@ export default function ProjectView() {
       </div>
 
       <div className="mt-4"><BaselineCard /></div>
+      <div className="mt-4"><ZevirPanel /></div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Card>

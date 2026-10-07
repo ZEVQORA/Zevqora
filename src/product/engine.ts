@@ -30,6 +30,10 @@ import type {
   PushResult,
   ScanResult,
   ScanUpload,
+  ZevirNode,
+  ZevirNodeDetail,
+  ZevirProductView,
+  ZevirRun,
 } from './types';
 import { WORKLOAD_PREFIX } from './types';
 
@@ -69,6 +73,11 @@ export interface Engine {
   recordPrLink(productId: string, implementationId: string, prUrl: string): Promise<Implementation>;
   patch(productId: string, implementationId: string): Promise<{ diff: string; replacement: string | null; target_file: string; branch_name: string }>;
   chat(productId: string | null, messages: { role: 'user' | 'assistant'; content: string }[], model?: string): Promise<AgentResponse>;
+  /** ZevIR (shadow mode): the canonical execution graphs projected from this product's evidence. Platform engine only. */
+  zevir(productId: string): Promise<ZevirProductView>;
+  zevirBuild(productId: string): Promise<{ run: ZevirRun; reused: boolean }>;
+  zevirNodes(graphId: string): Promise<ZevirNode[]>;
+  zevirNode(graphId: string, nodeId: string): Promise<ZevirNodeDetail>;
 }
 
 export class EngineError extends Error {
@@ -126,6 +135,10 @@ export function cloudEngine(workspaceId: string): Engine {
     recordPrLink: (productId, implementationId, prUrl) => api<Implementation>(`${p(productId)}/implementations/${implementationId}/pr-link`, { method: 'POST', body: { pr_url: prUrl } }),
     patch: (productId, implementationId) => api(`${p(productId)}/implementations/${implementationId}/patch`),
     chat: (productId, messages, model) => api<AgentResponse>(`${base}/agent/chat`, { method: 'POST', body: { product_id: productId, workspace_id: workspaceId, messages, model: model || null } }),
+    zevir: (productId) => api<ZevirProductView>(`${p(productId)}/zevir`),
+    zevirBuild: (productId) => api<{ run: ZevirRun; reused: boolean }>(`${p(productId)}/zevir/build`, { method: 'POST', body: {} }),
+    zevirNodes: (graphId) => api<ZevirNode[]>(`/api/zevir/graphs/${graphId}/nodes?limit=500`),
+    zevirNode: (graphId, nodeId) => api<ZevirNodeDetail>(`/api/zevir/graphs/${graphId}/nodes/${nodeId}`),
   };
 }
 
@@ -174,6 +187,10 @@ export async function syncLocalEngineSession(workspaceId: string | null, user: {
   }
   await localRequest('/platform/session', { method: 'POST', body: JSON.stringify({ base_url: window.location.origin, access_token: token, user_id: user?.id || null, email: user?.email || null, workspace_id: workspaceId, project_id: null, plan }) });
   return true;
+}
+
+async function zevirPlatformOnly(): Promise<never> {
+  throw new EngineError(501, 'ZevIR graphs are built by the platform engine. Open this project in the web app.');
 }
 
 export function localEngine(): Engine {
@@ -231,6 +248,10 @@ export function localEngine(): Engine {
       return { diff: impl.diff_text, replacement: null, target_file: impl.target_file, branch_name: impl.branch_name };
     },
     chat: (productId, messages, model) => localRequest<AgentResponse>('/agent/chat', { method: 'POST', body: JSON.stringify({ product_id: productId, messages, model: model || null }) }),
+    zevir: zevirPlatformOnly,
+    zevirBuild: zevirPlatformOnly,
+    zevirNodes: zevirPlatformOnly,
+    zevirNode: zevirPlatformOnly,
   };
 }
 

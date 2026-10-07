@@ -353,3 +353,116 @@ export interface ScanUpload {
   ai_calls: Array<Omit<AICall, 'id'>>;
   findings: Array<Omit<Finding, 'id' | 'evidence_status'>>;
 }
+
+// ---- ZevIR (Part 1, shadow mode) ---------------------------------------------------
+export type ZevirNodeKind = 'Task' | 'ModelCall' | 'Agent' | 'ToolCall' | 'Retrieval' | 'Function' | 'Runtime' | 'Outcome';
+
+export interface ZevirGap {
+  code: string;
+  count: number;
+  sample?: string[];
+}
+
+export interface ZevirGraphSummary {
+  node_counts: Partial<Record<ZevirNodeKind, number>>;
+  edge_counts: Record<string, number>;
+  evidence_refs: number;
+  model_calls: number;
+  /** Unknown cost is counted, never summed as $0: known_total_usd is null when no cost is known. */
+  cost: { known: number; unknown: number; known_total_usd: number | null; complete: boolean };
+  tokens: { input_known: number; input_total: number | null; output_known: number; output_total: number | null };
+}
+
+export interface ZevirGraph {
+  id: string;
+  workspace_id: string;
+  product_id: string | null;
+  schema_version: string;
+  adapter_version: string;
+  source_kind: 'zevqora_engine' | 'otel_genai' | 'openinference';
+  source_version: string | null;
+  graph_key: string;
+  source_trace_id: string | null;
+  root_node_id: string | null;
+  status: 'complete' | 'incomplete';
+  node_count: number;
+  edge_count: number;
+  graph_hash: string;
+  completeness: { gaps: ZevirGap[] };
+  summary: ZevirGraphSummary;
+  capture_started_at: string | null;
+  updated_at: string;
+}
+
+export interface ZevirRun {
+  id: string;
+  source_kind: string;
+  status: 'running' | 'succeeded' | 'partial' | 'failed';
+  received_count: number;
+  accepted_count: number;
+  rejected_count: number;
+  error_code: string | null;
+  error_detail: string | null;
+  result: { counts?: Record<string, number>; pruned?: number };
+  started_at: string;
+  completed_at: string | null;
+}
+
+export interface ZevirProductView {
+  enabled: boolean;
+  shadow: boolean;
+  product_id: string;
+  graphs: ZevirGraph[];
+  latest_run: ZevirRun | null;
+}
+
+export interface ZevirNode {
+  id: string;
+  stable_key: string;
+  kind: ZevirNodeKind;
+  name: string | null;
+  operation: string | null;
+  started_at: string | null;
+  duration_ms: number | null;
+  status: string | null;
+  cost_usd: number | null;
+  cost_source: string | null;
+  latency_ms: number | null;
+  ttft_ms: number | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  cached_input_tokens: number | null;
+  reasoning_tokens: number | null;
+  attributes: Record<string, unknown>;
+}
+
+export interface ZevirEdge {
+  id: string;
+  source_node_id: string;
+  target_node_id: string;
+  kind: string;
+  ordinal: number | null;
+}
+
+export interface ZevirEvidenceRef {
+  id: string;
+  node_id: string | null;
+  source_kind: string;
+  source_id: string | null;
+  source_trace_id: string | null;
+  source_span_id: string | null;
+  source_hash: string;
+  adapter_version: string;
+  schema_version: string;
+  locator: Record<string, unknown>;
+  content_hash: string | null;
+  redaction_state: string;
+  captured_at: string | null;
+}
+
+export interface ZevirNodeDetail {
+  node: ZevirNode;
+  evidence: ZevirEvidenceRef[];
+  outgoing: ZevirEdge[];
+  incoming: ZevirEdge[];
+}
