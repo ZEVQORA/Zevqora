@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zevqora.com/schemas/zevir/v0.1/evidence-ref.schema.json",
+  "title": "ZevIR v0.1 evidence reference",
+  "description": "Where a node came from: the source record, its hash, and the adapter that read it. Points at evidence; never contains raw content.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["node", "source_kind", "source_hash", "adapter_version", "schema_version", "locator", "redaction_state"],
+  "properties": {
+    "node": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+    "source_kind": { "enum": ["zevqora_engine", "otel_genai", "openinference"] },
+    "source_id": { "type": ["string", "null"], "maxLength": 200 },
+    "source_trace_id": { "type": ["string", "null"], "maxLength": 200 },
+    "source_span_id": { "type": ["string", "null"], "maxLength": 200 },
+    "source_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "adapter_version": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "schema_version": { "const": "zevir.v0.1" },
+    "locator": { "type": "object", "maxProperties": 16 },
+    "content_hash": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+    "redaction_state": { "enum": ["not_captured", "hashed_only", "redacted"] },
+    "captured_at": { "type": ["string", "null"] }
+  }
+}

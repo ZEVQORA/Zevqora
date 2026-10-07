@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zevqora.com/schemas/zevir/v0.1/edge.schema.json",
+  "title": "ZevIR v0.1 edge",
+  "description": "A directed relation between two nodes of the same graph, addressed by stable key. Exactly eleven kinds. Cycles are allowed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source", "target", "kind", "attributes"],
+  "properties": {
+    "source": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "target": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "kind": { "enum": ["CALLS", "USES", "DEPENDS_ON", "RETRIEVES", "PROVIDES_CONTEXT", "ROUTES_TO", "SERVED_BY", "REPLACES", "PRODUCES", "EVALUATED_BY", "LOCATED_AT"] },
+    "ordinal": { "type": ["integer", "null"], "minimum": 0 },
+    "attributes": { "type": "object", "maxProperties": 16 }
+  }
+}
