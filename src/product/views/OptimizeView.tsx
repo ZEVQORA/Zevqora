@@ -1,18 +1,15 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FlaskConical, Gauge, Lock, PlayCircle, ShieldCheck } from 'lucide-react';
 import { NoProject, ProductFrame } from '../Frame';
 import { useProduct } from '../store';
 import { useSession } from '@/lib/session';
 import { errorMessage } from '@/lib/api';
-import { Button, Card, CardHeader, Chip, Empty, KeyValue, Note, StatusChip, cn, useAsyncValue, useProductToast } from '../ui';
-import { money, relativeTime } from '../format';
+import { Button, Chip, Empty, KeyValue, Note, StatusChip, cn, useAsyncValue, useProductToast } from '../ui';
+import { relativeTime } from '../format';
+import { msLabel, pctLabel, Step, Tile, unknown, usd } from './optimize-parts';
+import PlanSearchSection from './PlanSearchSection';
 import { optimizeApi, type Candidate, type ContractRequirements, type Diagnosis, type EvaluationContract, type RunEvaluation, type RunReport, type Snapshot } from '../optimize';
 
-// ---- formatting: unknown is shown as unknown, never as 0 ------------------------------
-const unknown = <span className="text-subtle">unknown</span>;
-const usd = (v: number | null | undefined, digits = 4) => (v === null || v === undefined ? unknown : money(v, { digits }));
-const msLabel = (v: number | null | undefined) => (v === null || v === undefined ? unknown : v >= 1000 ? `${(v / 1000).toFixed(2)} s` : `${Math.round(v)} ms`);
-const pctLabel = (v: number | null | undefined) => (v === null || v === undefined ? unknown : `${(v * 100).toFixed(1)}%`);
 const VERDICT_TONE: Record<string, string> = { VERIFIED: 'verified', REJECTED: 'rejected', INCOMPLETE: 'missing' };
 const EXEC_TONE: Record<string, 'verified' | 'warning' | 'neutral'> = { EXECUTABLE: 'verified', NOT_EXECUTABLE: 'neutral', NEEDS_IMPLEMENTATION: 'warning' };
 const EXEC_ORDER: Record<string, number> = { EXECUTABLE: 0, NOT_EXECUTABLE: 1, NEEDS_IMPLEMENTATION: 2 };
@@ -26,29 +23,6 @@ const VOCAB: Array<[string, string]> = [
   ['Projected', 'an expectation, not evidence'],
   ['Realized', 'measured in production after shipping — not measured here'],
 ];
-
-function Step({ n, title, done, children, action, description }: { n: number; title: string; done?: boolean; children: ReactNode; action?: ReactNode; description?: ReactNode }) {
-  return (
-    <Card className="mt-4">
-      <CardHeader
-        title={<span className="flex items-center gap-2"><span className={cn('inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold', done ? 'bg-verified-bg text-verified' : 'bg-ink/5 text-muted')}>{n}</span>{title}</span>}
-        description={description}
-        action={action}
-      />
-      <div className="pcard-body">{children}</div>
-    </Card>
-  );
-}
-
-function Tile({ label, value, hint, tag }: { label: string; value: ReactNode; hint?: ReactNode; tag?: string }) {
-  return (
-    <div className="rounded-xl border border-line p-4">
-      <div className="flex items-center justify-between gap-2"><span className="pmetric-label">{label}</span>{tag && <Chip tone="neutral">{tag}</Chip>}</div>
-      <div className="mt-2 text-[22px] font-semibold leading-tight tracking-[-0.02em] text-ink tnum">{value}</div>
-      {hint && <div className="mt-1.5 text-[12px] text-subtle">{hint}</div>}
-    </div>
-  );
-}
 
 // ---- A/B. contract ------------------------------------------------------------------------
 function ContractEditor({ contract, onSave, onFreeze, busy }: { contract: EvaluationContract; onSave: (r: ContractRequirements) => void; onFreeze: () => void; busy: boolean }) {
@@ -282,6 +256,7 @@ export default function OptimizeView() {
   const cloud = engine.kind === 'cloud';
   // Freezing a contract and loading the demo are admin actions on the server too.
   const isAdmin = activeWorkspace?.role === 'owner' || activeWorkspace?.role === 'admin';
+  const intelligenceWorkspace = Boolean(activeWorkspace?.features?.optimization_intelligence_vnext);
   const status = useAsyncValue(() => optimizeApi.status(productId), [productId], { enabled: Boolean(productId) && cloud });
   const run = status.data?.runs[0] || null;
   const report = useAsyncValue(() => optimizeApi.report(run!.id), [run?.id], { enabled: Boolean(run) });
@@ -305,10 +280,10 @@ export default function OptimizeView() {
     if (!activeWorkspace) return;
     setBusy('demo');
     try {
-      const out = await optimizeApi.loadDemo(activeWorkspace.id);
+      const out = await optimizeApi.loadDemo(activeWorkspace.id, intelligenceWorkspace ? 'intelligence' : undefined);
       await refreshProducts();
       selectProduct(out.product_id);
-      toast({ tone: 'ok', title: 'Demo workload loaded', description: 'DEMO / SYNTHETIC — NOT CUSTOMER DATA.' });
+      toast({ tone: 'ok', title: 'Demo workload loaded', description: intelligenceWorkspace ? 'SYNTHETIC DEMO — NOT CUSTOMER DATA.' : 'DEMO / SYNTHETIC — NOT CUSTOMER DATA.' });
     } catch (error) {
       toast({ tone: 'err', title: 'Could not load the demo', description: errorMessage(error) });
     } finally {
@@ -341,11 +316,12 @@ export default function OptimizeView() {
   if (status.error) return <ProductFrame>{header}<Note tone="error">{status.error}</Note></ProductFrame>;
   if (!status.data?.enabled) return <ProductFrame>{header}<Empty title="Not enabled for this workspace" description="Verified Optimization is rolling out workspace by workspace." /></ProductFrame>;
 
-  const synthetic = selected.name.includes('DEMO / SYNTHETIC');
+  const synthetic = selected.name.includes('DEMO / SYNTHETIC') || selected.name.includes('SYNTHETIC DEMO');
+  const intelligence = Boolean(status.data?.intelligence);
   return (
     <ProductFrame>
       {header}
-      {synthetic && <Note tone="warn">DEMO / SYNTHETIC — NOT CUSTOMER DATA. Every number on this page is invented to demonstrate the product and is not evidence about any real system.</Note>}
+      {synthetic && <Note tone="warn">{selected.name.includes('SYNTHETIC DEMO') ? 'SYNTHETIC DEMO — NOT CUSTOMER DATA' : 'DEMO / SYNTHETIC — NOT CUSTOMER DATA'}. Every number on this page is invented to demonstrate the product and is not evidence about any real system.</Note>}
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-subtle">{VOCAB.map(([k, v]) => <span key={k}><b className="text-muted">{k}</b> — {v}</span>)}</div>
 
       <Step n={1} title="Evaluation Contract" done={Boolean(frozen)} description="Freeze what success means before any result is known. Frozen contracts never change; a change is a new version.">
@@ -381,15 +357,17 @@ export default function OptimizeView() {
         </Step>
       )}
 
-      {r && r.diagnoses.length > 0 && (
-        <Step n={5} title="Candidates" done={r.candidates.length > 0} description="At most three per diagnosis. Only supported candidates can be replayed; none is verified until it is."
+      {r && run && r.baseline && r.diagnoses.length > 0 && intelligence && <PlanSearchSection run={run} productId={selected.id} canEdit={canEdit} first={5} />}
+
+      {r && r.diagnoses.length > 0 && (!intelligence || r.candidates.length > 0) && (
+        <Step n={intelligence ? 11 : 5} title={intelligence ? 'Single-change candidates' : 'Candidates'} done={r.candidates.length > 0} description="At most three per diagnosis. Only supported candidates can be replayed; none is verified until it is."
           action={canEdit && !r.candidates.length ? <Button size="sm" onClick={() => void act('candidates', () => optimizeApi.candidates(run!.id))} loading={busy === 'candidates'}>Generate candidates</Button> : undefined}>
           {r.candidates.length ? <div className="grid gap-3 lg:grid-cols-2">{[...r.candidates].sort((a, b) => EXEC_ORDER[a.executable_status] - EXEC_ORDER[b.executable_status]).map((c) => <CandidateCard key={c.id} c={c} evaluation={evalByPlan.get(c.id)} canEdit={canEdit} busy={busy === c.id} onReplay={() => void act(c.id, () => optimizeApi.replay(run!.id, c.id))} />)}</div> : <p className="text-[12.5px] text-subtle">No candidates yet.</p>}
         </Step>
       )}
 
       {r && r.evaluations.length > 0 && (
-        <Step n={6} title="Verdict and report" done description="Evaluated on replayed cases under the frozen contract. Production results are not yet measured.">
+        <Step n={intelligence ? 12 : 6} title="Verdict and report" done description="Evaluated on replayed cases under the frozen contract. Production results are not yet measured.">
           <div role="tablist" aria-label="Report mode" className="mb-3 inline-flex rounded-lg border border-line p-0.5 text-[12px]">{(['executive', 'developer'] as const).map((m) => <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => setMode(m)} className={cn('rounded-md px-3 py-1.5 capitalize', mode === m ? 'bg-ink text-white' : 'text-muted')}>{m}</button>)}</div>
           {mode === 'executive' ? <Executive report={r} /> : <Developer report={r} />}
         </Step>
