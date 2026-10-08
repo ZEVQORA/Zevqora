@@ -288,7 +288,11 @@ export async function calibrateSearch(admin, { search: s0, user }) {
     const run = must(await admin.from('optimization_runs').select('*').eq('id', search.run_id).single());
     const { contract, product } = await loadRunContext(admin, run);
     const { evidence } = await verifiedEvidence(admin, run, product, contract);
-    if (Date.now() - Date.parse(search.created_at) > search.bounds.max_wall_clock_ms) return { search: await reloadSearch(admin, search.id), budget: await exhaust(admin, search, 'max_wall_clock_ms reached'), done: true, continuation: false, processed: [] };
+    if (Date.now() - Date.parse(search.created_at) > search.bounds.max_wall_clock_ms) {
+      // Write the exhaustion first, then read the search back: the response must show the stopped state.
+      const report = await exhaust(admin, search, 'max_wall_clock_ms reached');
+      return { search: await reloadSearch(admin, search.id), budget: report, done: true, continuation: false, processed: [] };
+    }
     if (search.status === 'generated') search = await updateSearch(admin, search.id, { status: 'calibrating' });
     const evaluation = search.evaluation_set;
     const evalIds = new Set(evaluation.ids);
@@ -296,6 +300,7 @@ export async function calibrateSearch(admin, { search: s0, user }) {
     const grades = baselineGrades(rows);
     const pricing = await loadPricing(admin);
     const processed = [];
+    const spendSkipped = [];
     let budget = null;
 
     for (;;) {
@@ -324,8 +329,11 @@ export async function calibrateSearch(admin, { search: s0, user }) {
       const bound = maxProviderCost(composition, rows.filter((r) => sample.ids.includes(r.id)), pricing);
       const remaining = Number(search.bounds.max_provider_spend_usd) - Number(spend.provider_usd || 0);
       if (bound === null || bound > remaining + 1e-12 || (bound > 0 && spend.provider_spend_measurable === false)) {
-        await updatePlan(admin, plan.id, { replay_state: { ...plan.replay_state, not_calibrated: bound === null ? 'provider cost not estimable' : spend.provider_spend_measurable === false ? 'provider spend became unmeasurable; no further paid replays' : `needs up to ${bound.toFixed(6)} USD; ${remaining.toFixed(6)} USD left in the search budget` } });
-        return { search: await reloadSearch(admin, search.id), budget: await exhaust(admin, fresh, 'max_provider_spend_usd'), done: true, continuation: false, processed };
+        // Paid work that does not fit the spend budget is skipped and listed; free (deterministic) plans continue.
+        const reason = bound === null ? 'provider cost not estimable' : spend.provider_spend_measurable === false ? 'provider spend became unmeasurable; no further paid replays' : `max_provider_spend_usd: needs up to ${bound.toFixed(6)} USD; ${remaining.toFixed(6)} USD left`;
+        await updatePlan(admin, plan.id, { status: 'CALIBRATION_READY', replay_state: { ...plan.replay_state, not_calibrated: reason } });
+        spendSkipped.push({ id: plan.id, name: plan.name, reason });
+        continue;
       }
       await updatePlan(admin, plan.id, { status: 'CALIBRATING', replay_budget: { ...plan.replay_budget, round, sample_size: sample.ids.length, sample_hash: sample.hash } });
       const enginePlan = await materialize(admin, { search, plan, product, evaluationIds: evaluation.ids });
@@ -349,6 +357,7 @@ export async function calibrateSearch(admin, { search: s0, user }) {
       });
       processed.push({ plan_id: plan.id, round, outcome: decision.outcome, next: decision.next });
     }
+    if (spendSkipped.length) budget = budget ? { ...budget, spend_skipped: spendSkipped } : { code: 'SEARCH_BUDGET_EXHAUSTED', stage: 'calibration', reason: 'max_provider_spend_usd', not_calibrated: spendSkipped, spend_skipped: spendSkipped };
     const after = await reloadSearch(admin, search.id);
     return { search: after, budget, done: true, continuation: false, processed };
   });
@@ -365,7 +374,11 @@ export async function replaySearch(admin, { search: s0, user }) {
     const run = must(await admin.from('optimization_runs').select('*').eq('id', search.run_id).single());
     const { contract, product } = await loadRunContext(admin, run);
     const { evidence } = await verifiedEvidence(admin, run, product, contract);
-    if (Date.now() - Date.parse(search.created_at) > search.bounds.max_wall_clock_ms) return { search: await reloadSearch(admin, search.id), budget: await exhaust(admin, search, 'max_wall_clock_ms reached'), done: true, continuation: false, processed: [] };
+    if (Date.now() - Date.parse(search.created_at) > search.bounds.max_wall_clock_ms) {
+      // Write the exhaustion first, then read the search back: the response must show the stopped state.
+      const report = await exhaust(admin, search, 'max_wall_clock_ms reached');
+      return { search: await reloadSearch(admin, search.id), budget: report, done: true, continuation: false, processed: [] };
+    }
     const pending = (await plansOf(admin, search.id)).filter((p) => p.status === 'CALIBRATION_READY' && !p.replay_state?.not_calibrated);
     if (pending.length) throw new ApiError(409, `Finish calibration first: ${pending.length} plan(s) are still waiting for calibration.`, 'CALIBRATION_PENDING');
     if (search.status !== 'replaying') search = await updateSearch(admin, search.id, { status: 'replaying' });
@@ -373,13 +386,14 @@ export async function replaySearch(admin, { search: s0, user }) {
     const rows = evidence.traces.filter((t) => evaluation.ids.includes(t.id));
     const pricing = await loadPricing(admin);
     const processed = [];
+    const spendSkipped = [];
     let budget = null;
     for (;;) {
       if (Date.now() - started > STAGE_SLICE_MS) return { search: await reloadSearch(admin, search.id), done: false, continuation: true, processed };
       const fresh = await reloadSearch(admin, search.id);
       if (fresh.status === 'cancelled') return { search: fresh, done: true, continuation: false, processed, cancelled: true };
       const plans = await plansOf(admin, search.id);
-      const ready = calibrationOrder(plans.filter((p) => p.status === 'FULL_REPLAY_READY' || p.status === 'REPLAYING'));
+      const ready = calibrationOrder(plans.filter((p) => (p.status === 'FULL_REPLAY_READY' && !p.replay_state?.not_replayed) || p.status === 'REPLAYING'));
       const plan = ready.find((p) => p.status === 'REPLAYING') || ready[0];
       if (!plan) break;
       const spend = fresh.spend;
@@ -389,14 +403,17 @@ export async function replaySearch(admin, { search: s0, user }) {
         break;
       }
       if (plan.status !== 'REPLAYING' && spend.replay_samples + evaluation.ids.length > search.bounds.max_replay_samples_total) {
-        return { search: await reloadSearch(admin, search.id), budget: await exhaust(admin, fresh, `max_replay_samples_total = ${search.bounds.max_replay_samples_total}`), done: true, continuation: false, processed };
+        const report = await exhaust(admin, fresh, `max_replay_samples_total = ${search.bounds.max_replay_samples_total}`);
+        return { search: await reloadSearch(admin, search.id), budget: report, done: true, continuation: false, processed };
       }
       const composition = compositionOf(plan);
       const bound = maxProviderCost(composition, rows, pricing);
       const remaining = Number(search.bounds.max_provider_spend_usd) - Number(spend.provider_usd || 0);
       if (bound === null || bound > remaining + 1e-12 || (bound > 0 && spend.provider_spend_measurable === false)) {
-        await updatePlan(admin, plan.id, { replay_state: { ...plan.replay_state, not_replayed: bound === null ? 'provider cost not estimable' : `needs up to ${bound.toFixed(6)} USD; ${remaining.toFixed(6)} USD left in the search budget` } });
-        return { search: await reloadSearch(admin, search.id), budget: await exhaust(admin, fresh, 'max_provider_spend_usd'), done: true, continuation: false, processed };
+        const reason = bound === null ? 'provider cost not estimable' : spend.provider_spend_measurable === false ? 'provider spend became unmeasurable; no further paid replays' : `max_provider_spend_usd: needs up to ${bound.toFixed(6)} USD; ${remaining.toFixed(6)} USD left`;
+        await updatePlan(admin, plan.id, { status: 'FULL_REPLAY_READY', replay_state: { ...plan.replay_state, not_replayed: reason } });
+        spendSkipped.push({ id: plan.id, name: plan.name, reason });
+        continue;
       }
       if (plan.status !== 'REPLAYING') await updatePlan(admin, plan.id, { status: 'REPLAYING', replay_budget: { ...plan.replay_budget, full_replay_samples: evaluation.ids.length } });
       const enginePlan = await materialize(admin, { search, plan, product, evaluationIds: evaluation.ids });
@@ -424,6 +441,7 @@ export async function replaySearch(admin, { search: s0, user }) {
       });
       processed.push({ plan_id: plan.id, verdict });
     }
+    if (spendSkipped.length) budget = budget ? { ...budget, spend_skipped: spendSkipped } : { code: 'SEARCH_BUDGET_EXHAUSTED', stage: 'full_replay', reason: 'max_provider_spend_usd', not_replayed: spendSkipped, spend_skipped: spendSkipped };
     const plans = await plansOf(admin, search.id);
     const after = await finalizeFrontier(admin, await reloadSearch(admin, search.id), plans, { status: 'completed', budget_report: budget });
     return { search: after, budget, done: true, continuation: false, processed };

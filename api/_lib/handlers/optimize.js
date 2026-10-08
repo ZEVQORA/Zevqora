@@ -21,7 +21,9 @@ import { requireUser, requireWorkspaceRole, rateLimit } from '../auth.js';
 import { parseTraces } from '../product/traces.js';
 import { buildBaseline, createRun, freezeContract, generateRunCandidates, listCandidates, listContracts, listDiagnoses, optimizeEnabled, replayCandidate, runDiagnoses, saveDraft, contractOut } from '../optimize/store.js';
 import { buildReport, candidateOut, diagnosisOut, evaluationOut, snapshotOut } from '../optimize/report.js';
-import { DEMO_NAME, DEMO_REQUIREMENTS, DEMO_ROOT, demoTraces } from '../optimize/demo.js';
+import { DEMO_NAME, DEMO_REQUIREMENTS, DEMO_ROOT, DEMO_V2_NAME, DEMO_V2_REQUIREMENTS, DEMO_V2_ROOT, demoAgentSpans, demoTraces } from '../optimize/demo.js';
+import { ingestExternal } from '../zevir/store.js';
+import { intelligenceEnabled } from '../optimize/search-store.js';
 import { DEFAULT_REQUIREMENTS } from '../optimize/contract.js';
 
 async function requireEnabled(admin, workspaceId) {
@@ -62,9 +64,9 @@ on('GET', '/api/optimize/products/:id', async ({ request, params }) => {
   if (!product || product.archived_at) throw new ApiError(404, 'Product not found.', 'NOT_FOUND');
   await requireWorkspaceRole(admin, product.workspace_id, user.id, 'viewer');
   const enabled = await optimizeEnabled(admin, product.workspace_id);
-  if (!enabled) return { enabled: false, product_id: product.id, contracts: [], runs: [], defaults: DEFAULT_REQUIREMENTS };
-  const [contracts, runList] = await Promise.all([listContracts(admin, product), runs(admin, product.id)]);
-  return { enabled: true, product_id: product.id, contracts: contracts.map(contractOut), runs: runList, defaults: DEFAULT_REQUIREMENTS };
+  if (!enabled) return { enabled: false, intelligence: false, product_id: product.id, contracts: [], runs: [], defaults: DEFAULT_REQUIREMENTS };
+  const [contracts, runList, intelligence] = await Promise.all([listContracts(admin, product), runs(admin, product.id), intelligenceEnabled(admin, product.workspace_id)]);
+  return { enabled: true, intelligence, product_id: product.id, contracts: contracts.map(contractOut), runs: runList, defaults: DEFAULT_REQUIREMENTS };
 });
 
 on('POST', '/api/optimize/products/:id/contracts', async ({ request, params }) => {
@@ -140,24 +142,33 @@ on('GET', '/api/optimize/runs/:runId/report', async ({ request, params }) => {
     listCandidates(admin, run),
     admin.from('engine_evaluations').select('*').eq('run_id', run.id).order('created_at', { ascending: true }),
   ]);
-  return buildReport({ run, contract, snapshot, diagnoses, candidates, evaluations: evaluations || [] });
+  // Plan-search verdicts (vNext Part 2B) belong to the search report, not to the single-candidate report.
+  return buildReport({ run, contract, snapshot, diagnoses, candidates, evaluations: (evaluations || []).filter((e) => !e.execution_plan_id) });
 });
 
-/** Loads the synthetic demo workload into a workspace (idempotent). Never customer data. */
+/**
+ * Loads a synthetic demo workload into a workspace (idempotent). Never customer data.
+ * variant 'intelligence' (vNext Part 2B) adds a synthetic refund agent as
+ * OpenInference spans and needs the Optimization Intelligence flag.
+ */
 on('POST', '/api/optimize/demo', async ({ request }) => {
   const { user, admin } = await requireUser(request);
   const body = await readJson(request);
   const workspaceId = uuid(body?.workspace_id, 'workspace');
   await requireWorkspaceRole(admin, workspaceId, user.id, 'admin');
   await requireEnabled(admin, workspaceId);
-  let { data: product } = await admin.from('engine_products').select('*').eq('workspace_id', workspaceId).eq('root_path', DEMO_ROOT).is('archived_at', null).maybeSingle();
+  const v2 = body?.variant === 'intelligence';
+  if (v2 && !(await intelligenceEnabled(admin, workspaceId))) throw new ApiError(403, 'Optimization Intelligence is not enabled for this workspace.', 'INTELLIGENCE_DISABLED');
+  const root = v2 ? DEMO_V2_ROOT : DEMO_ROOT;
+  let { data: product } = await admin.from('engine_products').select('*').eq('workspace_id', workspaceId).eq('root_path', root).is('archived_at', null).maybeSingle();
   if (!product) {
-    const { data, error } = await admin.from('engine_products').insert({ workspace_id: workspaceId, name: DEMO_NAME, root_path: DEMO_ROOT, source: 'browser', created_by: user.id }).select('*').single();
+    const { data, error } = await admin.from('engine_products').insert({ workspace_id: workspaceId, name: v2 ? DEMO_V2_NAME : DEMO_NAME, root_path: root, source: 'browser', created_by: user.id }).select('*').single();
     if (error) throw error;
     product = data;
     const { rows } = parseTraces({ traces: demoTraces() });
     const { error: tErr } = await admin.from('engine_traces').insert(rows.map((t) => ({ ...t, product_id: product.id, workspace_id: workspaceId })));
     if (tErr) throw tErr;
   }
-  return { product_id: product.id, name: product.name, synthetic: true, suggested_requirements: DEMO_REQUIREMENTS };
+  if (v2) await ingestExternal({ admin, envelope: { workspace_id: workspaceId, source_kind: 'openinference', source_version: 'openinference-semconv demo', payload: demoAgentSpans() }, product, userId: user.id, idempotencyKey: `demo-v2-agent-${product.id}` });
+  return { product_id: product.id, name: product.name, synthetic: true, suggested_requirements: v2 ? DEMO_V2_REQUIREMENTS : DEMO_REQUIREMENTS };
 });

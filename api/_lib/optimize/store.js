@@ -274,7 +274,8 @@ export async function generateRunCandidates(admin, { run }) {
 }
 
 export async function listCandidates(admin, run) {
-  return must(await admin.from('engine_plans').select('*').eq('run_id', run.id).order('created_at', { ascending: true }));
+  // Plan-search executions (vNext Part 2B) are materialized as 'execution_plan' rows; they are not Part 2A candidates.
+  return must(await admin.from('engine_plans').select('*').eq('run_id', run.id).order('created_at', { ascending: true })).filter((p) => p.strategy !== 'execution_plan');
 }
 
 // ---- replay + verdict ------------------------------------------------------------------

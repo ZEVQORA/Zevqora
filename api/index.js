@@ -14,6 +14,7 @@ import './_lib/handlers/platform.js';
 import './_lib/handlers/engine.js';
 import './_lib/handlers/zevir.js';
 import './_lib/handlers/optimize.js';
+import './_lib/handlers/optimize-search.js';
 import './_lib/handlers/stripe.js';
 import './_lib/handlers/cron.js';
 import './_lib/handlers/me.js';

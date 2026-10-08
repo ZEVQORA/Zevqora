@@ -75,7 +75,7 @@ const passedAll = (g) => Array.isArray(g) && g.length > 0 && g.every((r) => r.pa
  * Sound bounds for the full replay from a calibration result.
  * baselineGrades: Map(caseId → { score, passed }) for every evaluation case (recorded baseline).
  */
-export function boundsAnalysis({ result, sampleIds, rows, simulation, baselineGrades, requirements, composition }) {
+export function boundsAnalysis({ result, rows, simulation, baselineGrades, requirements, composition }) {
   const req = normalizeRequirements(requirements);
   const sim = new Map(simulation.map((s) => [s.id, s]));
   const sampled = new Map((result.cases || []).map((c) => [c.baseline_trace_id, c]));

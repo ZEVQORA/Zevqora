@@ -29,7 +29,7 @@ async function acceptPendingInvites(admin, user) {
 }
 
 /** Workspace-scoped flags (feature_flags.workspace_overrides), for features that roll out per workspace. */
-const WORKSPACE_FLAGS = ['verified_optimization_vnext'];
+const WORKSPACE_FLAGS = ['verified_optimization_vnext', 'optimization_intelligence_vnext'];
 async function workspaceFeatures(admin, workspaceId) {
   const { data } = await admin.from('feature_flags').select('key,enabled,workspace_overrides').in('key', WORKSPACE_FLAGS);
   const out = {};

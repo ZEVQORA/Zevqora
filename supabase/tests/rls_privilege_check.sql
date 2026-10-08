@@ -20,6 +20,7 @@ declare
   other_uid uuid;
   own_projects int;
   n int;
+  t text;
   ok boolean;
   checks int := 0;
   fails text[] := array[]::text[];
@@ -190,6 +191,23 @@ begin
     exception when insufficient_privilege then null; end;
     checks := checks + 1;
     begin execute 'select public.zevir_product_graph_set($1, $1, 1)' using ws_own; fails := array_append(fails, 'authenticated can execute zevir_product_graph_set');
+    exception when insufficient_privilege then null; end;
+  end if;
+
+  -- Optimization Intelligence (018): server-only tables and functions.
+  if to_regclass('public.execution_plans') is null then
+    notes := array_append(notes, 'optimization intelligence checks skipped: migration 018 not applied');
+  else
+    for t in select unnest(array['plan_searches', 'execution_plans', 'plan_calibrations', 'plan_decisions', 'bad_day_profiles', 'bad_day_results']) loop
+      checks := checks + 1;
+      begin execute format('select count(*) from public.%I', t) into n; fails := array_append(fails, t || ' directly readable');
+      exception when insufficient_privilege then null; end;
+    end loop;
+    checks := checks + 1;
+    begin execute 'select public.plan_search_lock($1, $1, 1)' using ws_own; fails := array_append(fails, 'authenticated can execute plan_search_lock');
+    exception when insufficient_privilege then null; end;
+    checks := checks + 1;
+    begin execute 'select public.zevir_product_graph_set_v2($1, $1, 1)' using ws_own; fails := array_append(fails, 'authenticated can execute zevir_product_graph_set_v2');
     exception when insufficient_privilege then null; end;
   end if;
 

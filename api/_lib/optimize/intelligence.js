@@ -19,14 +19,22 @@ import { POLICIES } from './pareto.js';
 const STAGE = { PROPOSED: 'Proposed', BLOCKED: 'Blocked', NEEDS_EVIDENCE: 'Needs evidence', CONFLICTED: 'Conflicted', PRUNED: 'Pruned', CALIBRATION_READY: 'Waiting for calibration', CALIBRATING: 'Calibrating', CALIBRATION_REJECTED: 'Rejected in calibration', FULL_REPLAY_READY: 'Promoted to full replay', REPLAYING: 'Replaying', REJECTED: 'Rejected', INCOMPLETE: 'Incomplete', VERIFIED: 'Verified (dominated)', PARETO_FRONTIER: 'Verified · Pareto frontier', SELECTED: 'Selected' };
 const pct = (a, b) => (a === null || b === null || a === undefined || b === undefined || Number(a) === 0 ? null : ((Number(b) - Number(a)) / Number(a)) * 100);
 
-function stripEstimate(e) {
+function stripEstimate(e, compact) {
   if (!e || !e.label || e.label === 'NOT ESTIMATED') return e || null;
   const { simulation, signature: _signature, ...rest } = e;
-  return { ...rest, simulated_cases: simulation ? simulation.length : 0, paths: simulation ? simulation.reduce((a, s) => ({ ...a, [s.path]: (a[s.path] || 0) + 1 }), {}) : {} };
+  // In lists only the value and its confidence travel; the plan endpoint returns source, method and assumptions.
+  const effects = compact ? Object.fromEntries(Object.entries(rest).map(([k, v]) => [k, v && typeof v === 'object' && 'unknown' in v ? { value: v.value, unknown: v.unknown, label: v.label, confidence: v.confidence } : v])) : rest;
+  return { ...effects, simulated_cases: simulation ? simulation.length : 0, paths: simulation ? simulation.reduce((a, s) => ({ ...a, [s.path]: (a[s.path] || 0) + 1 }), {}) : {} };
+}
+
+/** Compatibility without the node list (its count stays): the list is in the explanation. */
+function compactCompatibility(c) {
+  const { affected_nodes: nodes, ...rest } = c || {};
+  return { ...rest, affected_node_count: (nodes || []).length };
 }
 
 /** Answers, for one plan, every question a reviewer asks before trusting it. */
-export function explainPlan(plan, { diagnoses = [], calibrations = [], badDays = [], decision = null, search = null }) {
+export function explainPlan(plan, { diagnoses = [], calibrations = [], badDays = [], decision = null, search = null, compact = false }) {
   const byId = new Map(diagnoses.map((d) => [d.id, d]));
   const src = (plan.source_diagnosis_ids || []).map((id) => byId.get(id)).filter(Boolean);
   const cal = [...calibrations].sort((a, b) => a.round - b.round);
@@ -35,7 +43,7 @@ export function explainPlan(plan, { diagnoses = [], calibrations = [], badDays =
   return {
     why_generated: src.length ? src.map((d) => `${d.family} (${d.scope}): ${d.symptom}`) : ['proposed by a pass from the run’s diagnoses'],
     supporting_diagnoses: src.map((d) => ({ id: d.id, family: d.family, scope: d.scope, diagnosis_hash: d.diagnosis_hash, severity: d.severity, confidence: d.confidence })),
-    zevir_nodes_changed: [...new Map(plan.pass_instances.flatMap((p) => p.affected_nodes || []).map((n) => [n.stable_key, n])).values()].slice(0, 20),
+    zevir_nodes_changed: [...new Map(plan.pass_instances.flatMap((p) => p.affected_nodes || []).map((n) => [n.stable_key, n])).values()].slice(0, compact ? 8 : 20).map((n) => ({ node_id: n.node_id, stable_key: n.stable_key, kind: n.kind, name: n.name })),
     passes_composed: plan.pass_instances.map((p) => `${p.label} — ${p.pass}@${p.pass_version} (${p.layer})`),
     composition_order: plan.pass_instances.map((p) => p.label),
     conflicts_checked: plan.compatibility_result.compatible ? (plan.compatibility_result.dependencies.length ? plan.compatibility_result.dependencies.map((d) => `${d.kinds.join(' → ')}: ${d.note}`) : ['independent changes (no shared call site, node or request)']) : plan.conflict_reasons,
@@ -69,14 +77,14 @@ export function planOut(plan, ctx = {}) {
     executable_status: plan.executable_status,
     passes: plan.pass_instances.map((p) => ({ transformation_hash: p.transformation_hash, kind: p.kind, label: p.label, layer: p.layer, scope: p.scope, pass: p.pass, pass_version: p.pass_version, executable_status: p.executable_status, not_executable_reason: p.not_executable_reason, affected_requests: p.affected_trace_count, affected_in_evaluation_set: (p.affected_trace_ids || []).length, settings: p.settings, config: p.config, metadata: p.metadata, risk_class: p.risk_class, required_evidence: p.required_evidence })),
     affected_node_count: new Set(plan.pass_instances.flatMap((p) => (p.affected_nodes || []).map((n) => n.stable_key))).size,
-    estimated_effects: stripEstimate(plan.estimated_effects),
+    estimated_effects: stripEstimate(plan.estimated_effects, ctx.compact),
     calibrated_effects: plan.observed_calibration_effects || null,
     evaluated_effects: plan.replay_state?.metrics || null,
     verified_effects: plan.verified_effects || null,
     risk_class: plan.risk_class,
     implementation_complexity: plan.implementation_complexity,
     rollback_complexity: plan.rollback_complexity,
-    compatibility: plan.compatibility_result,
+    compatibility: ctx.compact ? compactCompatibility(plan.compatibility_result) : plan.compatibility_result,
     conflict_reasons: plan.conflict_reasons,
     missing_evidence: plan.missing_evidence,
     evidence_completeness: plan.missing_evidence.length ? 'incomplete' : 'complete',
@@ -90,6 +98,11 @@ export function planOut(plan, ctx = {}) {
     explanation: explainPlan(plan, ctx),
     bad_day: (ctx.badDays || []).map(badDayOut),
   };
+}
+
+function summarizeCases(cases) {
+  const rows = cases.map(caseOut);
+  return { cases: rows.length, protected: rows.filter((c) => c.protected).length, candidate_passed: rows.filter((c) => c.candidate_passed).length, baseline_passed: rows.filter((c) => c.baseline_passed).length, regressions: rows.filter((c) => c.baseline_passed && !c.candidate_passed).length };
 }
 
 export function badDayOut(r) {
@@ -122,9 +135,17 @@ export function counts(plans, calibrations) {
   };
 }
 
+/**
+ * The decision in force: the one whose plan is currently SELECTED (re-applying
+ * a policy reuses its append-only decision row), else the latest.
+ */
+export function currentDecision(decisions, selectedPlanId) {
+  return decisions.find((d) => selectedPlanId && d.selected_plan_id === selectedPlanId) || decisions[0] || null;
+}
+
 /** The report for one search (executive + developer). */
 export function searchReport({ search, plans, calibrations, decisions, badDays, evaluations, diagnoses }) {
-  const decision = decisions[0] || null;
+  const decision = currentDecision(decisions, plans.find((p) => p.status === 'SELECTED')?.id);
   const calBy = new Map();
   for (const c of calibrations) {
     if (!calBy.has(c.plan_id)) calBy.set(c.plan_id, []);
@@ -135,7 +156,7 @@ export function searchReport({ search, plans, calibrations, decisions, badDays, 
     if (!badBy.has(r.plan_id)) badBy.set(r.plan_id, []);
     badBy.get(r.plan_id).push(r);
   }
-  const out = plans.map((p) => planOut(p, { diagnoses, calibrations: calBy.get(p.id) || [], badDays: badBy.get(p.id) || [], decision, search }));
+  const out = plans.map((p) => planOut(p, { diagnoses, calibrations: calBy.get(p.id) || [], badDays: badBy.get(p.id) || [], decision, search, compact: true }));
   const c = counts(plans, calibrations);
   const selected = decision?.selected_plan_id ? out.find((p) => p.id === decision.selected_plan_id) : null;
   const m = selected?.verified_effects || null;
@@ -187,7 +208,8 @@ export function searchReport({ search, plans, calibrations, decisions, badDays, 
             composition_order: p.passes.map((x) => ({ label: x.label, kind: x.kind, layer: x.layer, scope: x.scope, transformation_hash: x.transformation_hash })),
             config_changes: p.passes.map((x) => ({ label: x.label, settings: x.settings })),
             calibration: (calBy.get(p.id) || []).map((x) => ({ round: x.round, outcome: x.outcome, sample_size: x.sample_size, sample_hash: x.sample_hash, sample_ids: x.sample_ids })),
-            full_replay: ev ? { evaluation_id: ev.id, status: ev.status, sample_count: ev.sample_count, gates: ev.gates, cases: (ev.cases || []).map(caseOut), evidence_version: ev.evidence_version } : null,
+            // Per-case rows are on the plan endpoint; the report carries the counts.
+            full_replay: ev ? { evaluation_id: ev.id, status: ev.status, sample_count: ev.sample_count, gates: ev.gates.map((g) => ({ name: g.name, required: g.required, outcome: g.outcome, reason: g.reason })), case_summary: summarizeCases(ev.cases || []), evidence_version: ev.evidence_version } : null,
             pareto: p.dominance_state,
             bad_day: p.bad_day,
             implementation: p.materializer_hints,
