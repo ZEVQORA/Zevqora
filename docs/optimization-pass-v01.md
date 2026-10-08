@@ -47,3 +47,12 @@ each hash once (unique index).
 - The run replay refuses it (`CANDIDATE_NOT_EXECUTABLE`) and the engine's own
   execute route refuses it (`PLAN_BLOCKED`). Tested: no execution row is created.
 - Nothing is simulated: a candidate the engine cannot run has no verdict.
+
+## v0.2 (vNext Part 2B)
+
+The four passes above keep this candidate route unchanged. For plan search
+every pass also emits canonical **transformations** and declares
+`compatibilityTags()`, `conflictsWith()` and `compositionRules()`; four passes
+were added (Cache, AgentWorkflow, RetrievalOptimization,
+DeterministicReplacement). See `plan-composition.md`, `cache-pass.md`,
+`agent-workflow-pass.md`, `retrieval-pass.md`, `deterministic-replacement-pass.md`.

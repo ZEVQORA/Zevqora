@@ -60,3 +60,16 @@ REJECTED — however much cheaper or faster the candidate was.
 
 The demo workload (`DEMO / SYNTHETIC — NOT CUSTOMER DATA`) walks this whole flow
 in a few minutes and produces one REJECTED and one VERIFIED candidate honestly.
+
+## Optimization Intelligence (vNext Part 2B)
+
+Behind `optimization_intelligence_vnext`, the run continues past single
+candidates: a bounded **plan search** composes compatible changes, prunes
+conflicting, blocked and dominated plans, **calibrates** promising ones on a
+seeded sample, **replays** the best on the whole evaluation set under the same
+frozen contract, computes the **Pareto frontier** of VERIFIED plans, and lets
+the customer state the objective (margin, latency, reliability, balanced or
+custom limits) to select one plan — with every reason, falsifier and rollback
+written down, an optional **Bad-Day Replay**, and the production result still
+NOT YET MEASURED. See `execution-plan-model.md`, `plan-search.md`,
+`calibration-replay.md`, `pareto-frontier.md`, `bad-day-replay.md`.
