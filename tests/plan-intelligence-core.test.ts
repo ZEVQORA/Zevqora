@@ -448,6 +448,11 @@ describe('Pareto frontier', () => {
     const d = applyPolicy({ frontier: f, policy: 'MARGIN_FIRST', params: {}, baseline: {} });
     expect(f.states.find((s: Row) => s.plan_hash === d.selected).frontier_state).toBe('FRONTIER');
     expect(d.explanation.excluded.map((x: Row) => x.name).sort()).toEqual(['b', 'c']);
+    // 'c' has the best p95 but an unknown CPSO: it is INCOMPARABLE, so LATENCY_FIRST must not reach it.
+    const fast = paretoFrontier([vplan('a', { cpso_usd: 0.001, p95_ms: 900 }), vplan('c', { cpso_usd: null, p95_ms: 100 })]);
+    const l = applyPolicy({ frontier: fast, policy: 'LATENCY_FIRST', params: {}, baseline: {} });
+    expect(l.explanation.selected.name).toBe('a');
+    expect(fast.states.find((s: Row) => s.plan_hash === l.selected).frontier_state).toBe('FRONTIER');
   });
 });
 
