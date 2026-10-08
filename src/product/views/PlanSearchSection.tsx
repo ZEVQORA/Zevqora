@@ -7,7 +7,7 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronRight, FlaskConical, Layers, PlayCircle, Scale, Square } from 'lucide-react';
 import { errorMessage } from '@/lib/api';
-import { Button, Chip, KeyValue, Note, StatusChip, cn, useAsyncValue, useProductToast } from '../ui';
+import { Button, Chip, Note, StatusChip, cn, useAsyncValue, useProductToast } from '../ui';
 import { optimizeApi, type BadDayResult, type Decision, type ExecutionPlan, type OptimizationRun, type Policy, type SearchReport } from '../optimize';
 import { ClaimTag, msLabel, num3, pctLabel, Segmented, signedPct, Step, unknown, usd } from './optimize-parts';
 
@@ -16,6 +16,8 @@ const STAGE_TONE: Record<string, 'neutral' | 'accent' | 'verified' | 'rejected' 
   CALIBRATION_REJECTED: 'rejected', FULL_REPLAY_READY: 'accent', REPLAYING: 'accent', REJECTED: 'rejected', INCOMPLETE: 'warning', VERIFIED: 'verified', PARETO_FRONTIER: 'verified', SELECTED: 'verified',
 };
 const RISK_TONE = { low: 'neutral', medium: 'warning', high: 'rejected' } as const;
+const DIMENSION: Record<string, string> = { cpso_usd: 'cost per successful outcome', p95_ms: 'p95 latency', task_success: 'task success', quality: 'quality', failure_rate: 'failure rate', provider_concentration: 'provider concentration', risk: 'risk', implementation_complexity: 'implementation complexity', rollback_complexity: 'rollback complexity' };
+const dims = (keys: string[]) => (keys.length ? keys.map((k) => DIMENSION[k] || k).join(', ') : 'nothing');
 const POLICY_LABEL: Array<[Policy, string]> = [['MARGIN_FIRST', 'Margin first'], ['LATENCY_FIRST', 'Latency first'], ['RELIABILITY_FIRST', 'Reliability first'], ['BALANCED', 'Balanced'], ['CUSTOM_CONSTRAINTS', 'Custom']];
 const SCENARIOS: Array<[string, string, Record<string, number>]> = [
   ['PROVIDER_RATE_LIMIT', 'Provider 429 (20%, retry after 500 ms)', { rate: 0.2, retry_after_ms: 500 }],
@@ -39,6 +41,20 @@ function Counters({ r }: { r: SearchReport }) {
           <dt className="pmetric-label">{k}</dt>
           <dd className={cn('mt-0.5 text-[20px] font-semibold tnum', tone === 'verified' && v > 0 && 'text-verified', tone === 'rejected' && v > 0 && 'text-rejected')}>{v}</dd>
         </div>
+      ))}
+    </dl>
+  );
+}
+
+/** Label / prose pairs: stacked on phones, two columns from sm up. */
+function Facts({ items }: { items: Array<[string, ReactNode]> }) {
+  return (
+    <dl className="grid gap-x-4 gap-y-2 sm:grid-cols-[160px_1fr]">
+      {items.map(([k, v]) => (
+        <Fragment key={k}>
+          <dt className="pmetric-label sm:pt-0.5">{k}</dt>
+          <dd className="text-ink">{v}</dd>
+        </Fragment>
       ))}
     </dl>
   );
@@ -94,7 +110,7 @@ function PlanTable({ plans }: { plans: ExecutionPlan[] }) {
       <div className="max-h-[560px] overflow-auto rounded-xl border border-line">
         <table className="ptable">
           <thead className="sticky top-0 z-10 bg-surface">
-            <tr><th aria-label="Expand" /><th>Plan</th><th>Stage</th><th>Executable</th><th className="right">Affected</th><th className="right">Est. cost change</th><th className="right">Calls removed</th><th>Risk</th><th>Evidence</th><th>Budget</th></tr>
+            <tr><th aria-label="Expand" /><th>Plan</th><th>Stage · executable</th><th className="right">Nodes</th><th className="right">Estimated effect</th><th>Risk</th><th>Evidence · budget</th></tr>
           </thead>
           <tbody>
             {sorted.map((p) => {
@@ -105,17 +121,14 @@ function PlanTable({ plans }: { plans: ExecutionPlan[] }) {
                 <Fragment key={p.id}>
                   <tr className="is-clickable" onClick={() => setOpen(isOpen ? null : p.id)}>
                     <td><button type="button" aria-expanded={isOpen} aria-label={`${isOpen ? 'Hide' : 'Show'} details for ${p.name}`} className="text-subtle" onClick={(ev) => { ev.stopPropagation(); setOpen(isOpen ? null : p.id); }}>{isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</button></td>
-                    <td className="min-w-[240px]"><div className="flex flex-wrap gap-1">{p.passes.map((x) => <span key={x.transformation_hash} className="rounded-md bg-ink/5 px-1.5 py-0.5 text-[11.5px] text-ink">{x.label}<span className="text-subtle"> · {x.scope}</span></span>)}</div></td>
-                    <td>{stageChip(p)}</td>
-                    <td><Chip tone={p.executable_status === 'EXECUTABLE' ? 'accent' : p.executable_status === 'NEEDS_IMPLEMENTATION' ? 'warning' : 'neutral'}>{p.executable_status.replace('_', ' ')}</Chip></td>
-                    <td className="right">{p.affected_node_count} nodes</td>
-                    <td className="right">{p.estimated_effects?.label === 'NOT ESTIMATED' ? <span className="text-subtle">n/a</span> : change === null || change === undefined ? unknown : usd(change, 5)}</td>
-                    <td className="right">{removed ?? <span className="text-subtle">n/a</span>}</td>
+                    <td className="min-w-[200px]"><div className="flex flex-wrap gap-1">{p.passes.map((x) => <span key={x.transformation_hash} className="rounded-md bg-ink/5 px-1.5 py-0.5 text-[11.5px] text-ink">{x.label}<span className="text-subtle"> · {x.scope}</span></span>)}</div></td>
+                    <td><span className="flex flex-wrap gap-1">{stageChip(p)}<Chip tone={p.executable_status === 'EXECUTABLE' ? 'accent' : p.executable_status === 'NEEDS_IMPLEMENTATION' ? 'warning' : 'neutral'}>{p.executable_status.replace('_', ' ')}</Chip></span></td>
+                    <td className="right">{p.affected_node_count}</td>
+                    <td className="right">{p.estimated_effects?.label === 'NOT ESTIMATED' ? <span className="text-subtle">not estimated</span> : <span className="grid">{change === null || change === undefined ? unknown : usd(change, 5)}<span className="text-[11px] text-subtle">{removed ?? 0} call(s) removed</span></span>}</td>
                     <td><Chip tone={RISK_TONE[p.risk_class]}>{p.risk_class}</Chip></td>
-                    <td>{p.evidence_completeness === 'complete' ? <span className="text-muted">complete</span> : <span className="text-warning">missing {p.missing_evidence.length}</span>}</td>
-                    <td className="text-muted">{p.replay_budget.round ? `round ${p.replay_budget.round} · ${p.replay_budget.sample_size} cases` : p.replay_budget.full_replay_samples ? `${p.replay_budget.full_replay_samples} cases` : '—'}</td>
+                    <td className="text-muted"><span className="grid">{p.evidence_completeness === 'complete' ? 'evidence complete' : <span className="text-warning">missing {p.missing_evidence.length}</span>}<span className="text-[11px] text-subtle">{p.replay_budget.round ? `round ${p.replay_budget.round} · ${p.replay_budget.sample_size} cases` : p.replay_budget.full_replay_samples ? `${p.replay_budget.full_replay_samples} cases replayed` : 'no replay budget'}</span></span></td>
                   </tr>
-                  {isOpen && <tr><td /><td colSpan={9} className="bg-ink/[0.02]"><PlanDetail p={p} /></td></tr>}
+                  {isOpen && <tr><td /><td colSpan={6} className="bg-ink/[0.02]"><PlanDetail p={p} /></td></tr>}
                 </Fragment>
               );
             })}
@@ -132,19 +145,17 @@ function CalibrationTable({ plans }: { plans: ExecutionPlan[] }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-line">
       <table className="ptable">
-        <thead><tr><th>Plan</th><th>Outcome</th><th className="right">Rounds</th><th className="right">Sample</th><th className="right">Cost Δ on sample</th><th>Next</th><th>Why</th></tr></thead>
+        <thead><tr><th>Plan</th><th>Outcome</th><th className="right">Round · cases</th><th className="right">Cost Δ</th><th>Next · why</th></tr></thead>
         <tbody>
           {rows.map((p) => {
             const m = p.calibrated_effects!.metrics as { cost_delta_usd?: number | null };
             return (
               <tr key={p.id}>
-                <td className="min-w-[220px]">{p.name}</td>
+                <td><div className="min-w-[160px] max-w-[230px]">{p.name}</div></td>
                 <td><span className="flex flex-wrap gap-1"><ClaimTag kind="CALIBRATED" /><Chip tone={p.calibrated_effects!.outcome === 'FAILED_HARD_GATE' ? 'rejected' : p.calibrated_effects!.outcome === 'PROMISING' ? 'accent' : 'warning'}>{p.calibrated_effects!.outcome.replace(/_/g, ' ')}</Chip></span></td>
-                <td className="right">{p.calibrated_effects!.round}</td>
-                <td className="right">{p.replay_budget.sample_size ?? '—'}</td>
+                <td className="right">{p.calibrated_effects!.round} · {p.replay_budget.sample_size ?? '—'}</td>
                 <td className="right">{usd(m.cost_delta_usd ?? null, 5)}</td>
-                <td className="text-muted">{p.replay_budget.decision?.replace(/_/g, ' ') || '—'}</td>
-                <td className="max-w-[360px] text-muted">{(p.replay_budget.why || []).join('; ')}</td>
+                <td className="text-muted"><div className="max-w-[300px]"><b className="font-medium text-ink">{p.replay_budget.decision?.replace(/_/g, ' ') || '—'}</b> — {(p.replay_budget.why || []).join('; ')}</div></td>
               </tr>
             );
           })}
@@ -160,21 +171,21 @@ function ReplayTable({ plans }: { plans: ExecutionPlan[] }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-line">
       <table className="ptable">
-        <thead><tr><th>Plan</th><th>Verdict</th><th className="right">CPSO</th><th className="right">Known cost</th><th className="right">p95</th><th className="right">Task success</th><th className="right">Quality</th><th className="right">Failures</th><th>Reason</th></tr></thead>
+        <thead><tr><th>Plan</th><th>Verdict</th><th className="right">CPSO</th><th className="right">Cost</th><th className="right">p95</th><th className="right">Success</th><th className="right">Quality</th><th className="right">Fail</th><th>Reason</th></tr></thead>
         <tbody>
           {rows.map((p) => {
             const m = p.evaluated_effects;
             return (
               <tr key={p.id}>
-                <td className="min-w-[220px]">{p.name}</td>
-                <td><span className="flex flex-wrap gap-1"><StatusChip status={p.verdict!} /><ClaimTag kind={p.verdict === 'VERIFIED' ? 'VERIFIED' : 'EVALUATED'} /></span></td>
+                <td><div className="min-w-[160px] max-w-[230px]">{p.name}</div></td>
+                <td><span className="grid justify-items-start gap-0.5"><StatusChip status={p.verdict!} /><span className="text-[11px] text-subtle">{p.verdict === 'VERIFIED' ? 'all gates passed' : 'EVALUATED · not verified'}</span></span></td>
                 <td className="right">{usd(m?.cpso_usd, 5)}</td>
                 <td className="right">{usd(m?.cost_usd, 4)}</td>
                 <td className="right">{msLabel(m?.p95_ms)}</td>
                 <td className="right">{pctLabel(m?.task_success)}</td>
                 <td className="right">{num3(m?.quality)}</td>
                 <td className="right">{pctLabel(m?.failure_rate)}</td>
-                <td className="max-w-[320px] text-rejected">{p.verdict !== 'VERIFIED' ? (p.explanation.why_rejected || []).filter(Boolean).join('; ') : ''}</td>
+                <td className="text-rejected"><div className="max-w-[220px] [overflow-wrap:anywhere]">{p.verdict !== 'VERIFIED' ? (p.explanation.why_rejected || []).filter(Boolean).join('; ') : ''}</div></td>
               </tr>
             );
           })}
@@ -192,8 +203,9 @@ function Scatter({ plans }: { plans: ExecutionPlan[] }) {
   const ys = pts.map((p) => p.verified_effects!.p95_ms!);
   const [x0, x1] = [Math.min(...xs), Math.max(...xs)];
   const [y0, y1] = [Math.min(...ys), Math.max(...ys)];
-  const sx = (v: number) => 36 + ((v - x0) / (x1 - x0 || 1)) * 228;
-  const sy = (v: number) => 132 - ((v - y0) / (y1 - y0 || 1)) * 108;
+  // A dimension on which every plan is equal is drawn through the middle and said in the caption.
+  const sx = (v: number) => (x1 === x0 ? 152 : 44 + ((v - x0) / (x1 - x0)) * 212);
+  const sy = (v: number) => (y1 === y0 ? 78 : 128 - ((v - y0) / (y1 - y0)) * 100);
   return (
     <figure className="rounded-xl border border-line p-3">
       <svg viewBox="0 0 280 160" className="h-auto w-full max-w-[360px]" role="img" aria-label={`Verified plans by cost per successful outcome and p95 latency; ${pts.filter((p) => p.frontier_state === 'FRONTIER').length} on the frontier`}>
@@ -206,7 +218,7 @@ function Scatter({ plans }: { plans: ExecutionPlan[] }) {
           return <circle key={p.id} cx={sx(p.verified_effects!.cpso_usd!)} cy={sy(p.verified_effects!.p95_ms!)} r={front ? 5 : 4} className={front ? 'fill-verified stroke-verified' : 'fill-transparent stroke-subtle'} strokeWidth="1.5"><title>{`${p.name}${front ? ' (frontier)' : ''}`}</title></circle>;
         })}
       </svg>
-      <figcaption className="mt-1 text-[11.5px] text-subtle">Filled: Pareto frontier. Lower-left is cheaper and faster. Overlapping points are plans with equal values.</figcaption>
+      <figcaption className="mt-1 text-[11.5px] text-subtle">Filled: Pareto frontier. Lower-left is cheaper and faster. Overlapping points are plans with equal values.{y1 === y0 ? ` Every verified plan has the same p95 (${msLabel(y0)}).` : ''}{x1 === x0 ? ' Every verified plan has the same cost per successful outcome.' : ''}</figcaption>
     </figure>
   );
 }
@@ -217,14 +229,14 @@ function FrontierTable({ plans }: { plans: ExecutionPlan[] }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-line">
       <table className="ptable">
-        <thead><tr><th>Plan</th><th className="right">CPSO</th><th className="right">Cost</th><th className="right">p95</th><th className="right">Task success</th><th className="right">Quality</th><th className="right">Failures</th><th className="right">Complexity</th><th>Risk</th><th>Verdict</th><th>Frontier</th></tr></thead>
+        <thead><tr><th>Plan</th><th className="right">CPSO</th><th className="right">Cost</th><th className="right">p95</th><th className="right">Task success</th><th className="right">Quality</th><th className="right">Failures</th><th className="right">Complexity</th><th>Risk</th><th>Frontier</th></tr></thead>
         <tbody>
           {rows.map((p) => {
             const m = p.verified_effects!;
             const front = p.frontier_state === 'FRONTIER';
             return (
               <tr key={p.id} className={front ? 'bg-verified-bg/40' : undefined}>
-                <td className="min-w-[220px]">{p.name}{p.status === 'SELECTED' && <Chip tone="ink" className="ml-1.5">SELECTED</Chip>}</td>
+                <td className="min-w-[180px]">{p.name}{p.status === 'SELECTED' && <Chip tone="ink" className="ml-1.5">SELECTED</Chip>}</td>
                 <td className="right">{usd(m.cpso_usd, 5)}</td>
                 <td className="right">{usd(m.cost_usd, 4)}</td>
                 <td className="right">{msLabel(m.p95_ms)}</td>
@@ -233,14 +245,13 @@ function FrontierTable({ plans }: { plans: ExecutionPlan[] }) {
                 <td className="right">{pctLabel(m.failure_rate)}</td>
                 <td className="right">{p.implementation_complexity} / {p.rollback_complexity}</td>
                 <td><Chip tone={RISK_TONE[p.risk_class]}>{p.risk_class}</Chip></td>
-                <td><StatusChip status="VERIFIED" /></td>
                 <td title={p.dominance_state?.frontier_reason}>{front ? <Chip tone="verified">FRONTIER</Chip> : <Chip tone="neutral">{p.frontier_state}</Chip>}</td>
               </tr>
             );
           })}
         </tbody>
       </table>
-      <p className="px-3 py-2 text-[11.5px] text-subtle">Values are VERIFIED on the replayed evaluation set under the frozen contract. Complexity = implementation / rollback. Hover a frontier cell for the dominance reasoning.</p>
+      <p className="px-3 py-2 text-[11.5px] text-subtle">Every row is VERIFIED. Values are measured on the replayed evaluation set under the frozen contract. Complexity = implementation / rollback. Hover a frontier cell for the dominance reasoning.</p>
     </div>
   );
 }
@@ -264,7 +275,7 @@ function BadDay({ results }: { results: BadDayResult[] }) {
               </tbody>
             </table>
           )}
-          <p className="px-3 py-2 text-[12px] text-muted">{r.metrics.statement} <span className="text-subtle">{r.metrics.not_claimed}</span></p>
+          <p className="px-3 py-2 text-[12px] text-muted">{r.metrics.statement}{/production guarantee/.test(r.metrics.statement) ? null : <span className="text-subtle"> {r.metrics.not_claimed}</span>}</p>
         </div>
       ))}
     </div>
@@ -278,24 +289,25 @@ function SelectedPlan({ plan, decision, onBadDay, busy, canEdit }: { plan: Execu
   return (
     <div className="grid gap-4 text-[12.5px]">
       <div className="flex flex-wrap items-center gap-2"><Chip tone="ink">SELECTED</Chip><b className="text-[15px] text-ink">{plan.name}</b><ClaimTag kind="VERIFIED" /></div>
-      <KeyValue items={[
+      <Facts items={[
         ['Business objective', `${decision.policy.replace(/_/g, ' ').toLowerCase()} — ${decision.explanation.rule}`],
         ['Why selected', decision.explanation.why],
         ['Hard gates', decision.explanation.hard_gates],
-        ['Tradeoffs', decision.explanation.tradeoffs.length ? decision.explanation.tradeoffs.map((t) => `vs ${t.versus}: better on ${t.selected_better_on.join(', ') || 'nothing'}; worse on ${t.selected_worse_on.join(', ') || 'nothing'}`).join(' · ') : 'the only frontier plan'],
+        ['Tradeoffs', decision.explanation.tradeoffs.length ? <ul className="grid gap-1">{decision.explanation.tradeoffs.map((t) => <li key={t.versus}>vs <i>{t.versus}</i>: better on {dims(t.selected_better_on)}; worse on {dims(t.selected_worse_on)}</li>)}</ul> : 'the only frontier plan'],
         ['Passes', plan.passes.map((x) => `${x.label} (${x.pass}@${x.pass_version})`).join(' → ')],
         ['Affected path', `${plan.affected_node_count} ZevIR node(s): ${plan.explanation.zevir_nodes_changed.slice(0, 3).map((n) => `${n.kind} ${n.name ?? ''}`).join(', ')}`],
       ]} />
       <div className="overflow-x-auto rounded-xl border border-line">
+        <div className="flex flex-wrap items-center gap-2 px-3 pt-2.5 text-[12px] text-muted"><ClaimTag kind="VERIFIED" />Replay evidence on the evaluation set, same frozen contract</div>
         <table className="ptable">
-          <thead><tr><th>Replay evidence (VERIFIED, evaluation set)</th><th className="right">Baseline</th><th className="right">Plan</th><th className="right">Change</th></tr></thead>
+          <thead><tr><th>Metric</th><th className="right">Baseline</th><th className="right">Plan</th><th className="right">Change</th></tr></thead>
           <tbody>
-            {row('Cost per successful outcome', usd(m.baseline.cpso_usd, 5), usd(m.cpso_usd, 5), signedPct(m.deltas_pct.cost_per_successful_outcome))}
+            {row('Cost / success', usd(m.baseline.cpso_usd, 5), usd(m.cpso_usd, 5), signedPct(m.deltas_pct.cost_per_successful_outcome))}
             {row('Known cost', usd(m.baseline.cost_usd), usd(m.cost_usd), signedPct(m.deltas_pct.cost))}
             {row('p95 latency', msLabel(m.baseline.p95_ms), msLabel(m.p95_ms), signedPct(m.deltas_pct.p95))}
             {row('Task success', pctLabel(m.baseline.task_success), pctLabel(m.task_success), m.task_success !== null && m.baseline.task_success !== null ? `${((m.task_success - m.baseline.task_success) * 100).toFixed(1)} pp` : unknown)}
             {row('Quality', num3(m.baseline.quality), num3(m.quality), m.quality !== null && m.baseline.quality !== null ? (m.quality - m.baseline.quality).toFixed(3) : unknown)}
-            <tr><td>Realized production result</td><td colSpan={3} className="font-medium text-ink">NOT YET MEASURED</td></tr>
+            <tr><td>Realized in production</td><td colSpan={3} className="font-medium text-ink">NOT YET MEASURED</td></tr>
           </tbody>
         </table>
       </div>
@@ -477,7 +489,7 @@ export default function PlanSearchSection({ run, productId, canEdit, first }: { 
 
       {r && r.counts.fully_replayed > 0 && (
         <Step n={n(3)} title="Pareto frontier" done={r.counts.frontier > 0} description="Only VERIFIED plans are compared. A plan is on the frontier when no other is at least as good on every dimension. Unknown is never better or worse.">
-          <div className="grid gap-3 xl:grid-cols-[1fr_auto]">
+          <div className="grid gap-3">
             <FrontierTable plans={r.plans} />
             <Scatter plans={r.plans} />
           </div>

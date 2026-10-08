@@ -94,7 +94,7 @@ describe('Optimization Intelligence view', () => {
     expect(within(step).getByText('Why selected')).toBeTruthy();
     expect(within(step).getAllByText('NOT YET MEASURED').length).toBeGreaterThan(0);
     expect(within(step).getAllByText('BAD-DAY REPLAY').length).toBeGreaterThan(0);
-    expect(within(step).getByText(/Simulation\/replay result ≠ production guarantee/)).toBeTruthy();
+    expect(within(step).getByText(/production guarantee/)).toBeTruthy();
     expect(within(step).getByRole('radiogroup', { name: 'Decision policy' })).toBeTruthy();
     expect(within(step).getByText('What is NOT proven')).toBeTruthy();
   });
