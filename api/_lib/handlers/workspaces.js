@@ -4,6 +4,7 @@ import { loadPlan } from '../supabase.js';
 import { requireUser, requireWorkspaceRole, roleRank, rateLimit } from '../auth.js';
 import { generateInviteToken } from '../tokens.js';
 import { appUrl } from '../stripe.js';
+import { emitProductEvent } from '../analytics/product-events.js';
 
 const MAX_OWNED_WORKSPACES = 5;
 
@@ -37,6 +38,7 @@ on('POST', '/api/workspaces', async ({ request }) => {
   if (error) throw error;
   const { error: memberError } = await admin.from('workspace_members').insert({ workspace_id: ws.id, user_id: user.id, role: 'owner' });
   if (memberError) throw memberError;
+  await emitProductEvent(admin, { event: 'workspace_created', workspaceId: ws.id, userId: user.id, subjectType: 'workspace', subjectId: ws.id, dedupeKey: `workspace_created:${ws.id}` });
   return { workspace: { ...ws, role: 'owner', plan: (await workspacePlan(admin, ws.id)).planId, project_count: 0 } };
 });
 

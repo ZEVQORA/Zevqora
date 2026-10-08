@@ -43,7 +43,7 @@ describe('browser data boundary', () => {
   });
 
   it('keeps the server-only tables out of browser code entirely', () => {
-    const serverOnly = /\b(connection_secrets|desktop_auth_handoffs|admin_audit_log|feature_flags|zevir_ingest_runs|evaluation_contracts|optimization_runs|performance_snapshots|optimization_diagnoses|plan_searches|execution_plans|plan_calibrations|plan_decisions|bad_day_profiles|bad_day_results|engine_(?:products|ai_calls|findings|traces|plans|executions|evaluations|implementations))\b/;
+    const serverOnly = /\b(connection_secrets|desktop_auth_handoffs|admin_audit_log|feature_flags|zevir_ingest_runs|evaluation_contracts|optimization_runs|performance_snapshots|optimization_diagnoses|plan_searches|execution_plans|plan_calibrations|plan_decisions|bad_day_profiles|bad_day_results|site_events|product_events|security_events|evaluation_requests|site_content_revisions|engine_(?:products|ai_calls|findings|traces|plans|executions|evaluations|implementations))\b/;
     const offenders = files.filter((f) => new RegExp(`\\.from\\(\\s*['"\`]${serverOnly.source}`).test(f.text)).map((f) => f.path);
     expect(offenders).toEqual([]);
   });

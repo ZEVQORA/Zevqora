@@ -8,6 +8,9 @@ import { requireUser, requireAdmin, auditAdmin, rateLimit } from '../auth.js';
 import { invalidatePricingCache } from '../pricing.js';
 import { openRouterConfigured } from '../openrouter.js';
 import { stripeConfigured } from '../stripe.js';
+import { safeHref, validateContent } from '../cms.js';
+import { GLOBAL_FLAGS, TARGETING, resetFlagCache } from '../flags.js';
+import { publishRevision, saveDraft } from '../cms-store.js';
 
 async function adminContext(request, opts) {
   const ctx = await requireUser(request);
@@ -20,12 +23,6 @@ function stripHtml(value) {
   return String(value).replace(/[<>]/g, '');
 }
 
-function safeHref(value, name = 'Link') {
-  const v = str(value, { name, max: 300 });
-  if (!v) return '';
-  if (/^(\/[^\s]*|mailto:[^\s@]+@[^\s@]+\.[^\s@]+|https:\/\/[^\s]+)$/.test(v)) return v;
-  throw new ApiError(400, `${name} must be a relative path, https URL or mailto link.`, 'VALIDATION');
-}
 
 // ---------------------------------------------------------------------------
 // Overview
@@ -322,37 +319,6 @@ on('GET', '/api/admin/site-content', async ({ request }) => {
   return { content: data || [] };
 });
 
-function validateContent(key, value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new ApiError(400, 'Content must be an object.', 'VALIDATION');
-  const s = (v, name, max, required = false) => stripHtml(str(v, { name, max, required }));
-  const cta = (v, name) => ({ label: s(v?.label, `${name} label`, 40, true), href: safeHref(v?.href, `${name} link`) || '/' });
-  switch (key) {
-    case 'hero':
-      return {
-        announcement: value.announcement ? s(value.announcement, 'Announcement', 160) : null,
-        announcement_href: value.announcement_href ? safeHref(value.announcement_href, 'Announcement link') : null,
-        headline: s(value.headline, 'Headline', 80, true),
-        subheadline: s(value.subheadline, 'Subheadline', 120, true),
-        supporting: s(value.supporting, 'Supporting text', 400),
-        primary_cta: cta(value.primary_cta, 'Primary CTA'),
-        secondary_cta: cta(value.secondary_cta, 'Secondary CTA'),
-        trust_line: s(value.trust_line, 'Trust line', 120),
-      };
-    case 'proof': {
-      const block = (v, name) => ({ cost_reduction: s(v?.cost_reduction, `${name} cost reduction`, 20, true), quality: s(v?.quality, `${name} quality`, 20, true), quality_floor: s(v?.quality_floor, `${name} floor`, 20, true), reason: s(v?.reason, `${name} reason`, 60), ci95: s(v?.ci95, `${name} CI`, 60) });
-      return { kind: s(value.kind, 'Kind', 80, true), cases: num(value.cases, { name: 'Cases', min: 1, max: 100000, integer: true, required: true }), rejected: block(value.rejected, 'Rejected'), verified: block(value.verified, 'Verified'), qualifier: s(value.qualifier, 'Qualifier', 400, true) };
-    }
-    case 'status':
-      return { banner: value.banner ? s(value.banner, 'Banner', 200) : null, public_status: ['operational', 'degraded', 'maintenance'].includes(value.public_status) ? value.public_status : 'operational' };
-    case 'contact': {
-      const email = s(value.email, 'Email', 120, true);
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ApiError(400, 'Contact email is invalid.', 'VALIDATION');
-      return { email };
-    }
-    default:
-      throw new ApiError(400, 'Unknown content key.', 'VALIDATION');
-  }
-}
 
 on('PUT', '/api/admin/site-content/:key', async ({ request, params }) => {
   const { admin, user } = await adminContext(request);
@@ -360,9 +326,12 @@ on('PUT', '/api/admin/site-content/:key', async ({ request, params }) => {
   const body = await readJson(request);
   const value = validateContent(key, body?.value ?? body);
   const { data: before } = await admin.from('site_content').select('value').eq('key', key).maybeSingle();
-  const { data, error } = await admin.from('site_content').upsert({ key, value, updated_by: user.id, updated_at: new Date().toISOString() }, { onConflict: 'key' }).select('*').single();
+  // A direct save is a draft published at once, so it still lands in the history and can be rolled back.
+  const draft = await saveDraft(admin, { key, value, userId: user.id, note: 'Direct save' });
+  const published = await publishRevision(admin, { revisionId: draft.id, userId: user.id });
+  const { data, error } = await admin.from('site_content').select('*').eq('key', key).single();
   if (error) throw error;
-  await auditAdmin(admin, user.id, 'site_content.update', 'site_content', key, { before: before?.value ?? null, after: value });
+  await auditAdmin(admin, user.id, 'site_content.update', 'site_content', key, { before: before?.value ?? null, after: value, version: published.version });
   return { content: data };
 });
 
@@ -383,6 +352,17 @@ on('PUT', '/api/admin/feature-flags/:key', async ({ request, params }) => {
   if (!before) throw new ApiError(404, 'Unknown flag.', 'NOT_FOUND');
   const row = { updated_by: user.id, updated_at: new Date().toISOString() };
   if (body.enabled !== undefined) row.enabled = Boolean(body.enabled);
+  if (body.targeting !== undefined) {
+    const targeting = body.targeting === null ? null : String(body.targeting);
+    if (targeting !== null && !TARGETING.includes(targeting)) throw new ApiError(400, `Targeting must be one of ${TARGETING.join(', ')}.`, 'VALIDATION');
+    if (GLOBAL_FLAGS.includes(key) && targeting && !['off', 'on'].includes(targeting)) throw new ApiError(400, 'A platform-wide flag can only be off or on.', 'VALIDATION');
+    row.targeting = targeting;
+    if (targeting === 'limited') {
+      row.rollout_percent = num(body.rollout_percent, { name: 'Rollout percent', min: 0, max: 100, integer: true, required: true });
+    } else row.rollout_percent = null;
+    // Pre-019 readers only see `enabled`; keep it truthful for the two absolute modes.
+    if (targeting === 'on' || targeting === 'off') row.enabled = targeting === 'on';
+  }
   if (body.description !== undefined) row.description = stripHtml(str(body.description, { name: 'Description', max: 200 }));
   const cleanOverrides = (input, validate) => {
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw new ApiError(400, 'Overrides must be an object.', 'VALIDATION');
@@ -398,7 +378,9 @@ on('PUT', '/api/admin/feature-flags/:key', async ({ request, params }) => {
   if (body.workspace_overrides !== undefined) row.workspace_overrides = cleanOverrides(body.workspace_overrides, (k) => /^[0-9a-f-]{36}$/i.test(k));
   const { data, error } = await admin.from('feature_flags').update(row).eq('key', key).select('*').single();
   if (error) throw error;
-  await auditAdmin(admin, user.id, 'feature_flag.update', 'feature_flag', key, { before: { enabled: before.enabled, plan_overrides: before.plan_overrides }, after: { enabled: data.enabled, plan_overrides: data.plan_overrides } });
+  const snap = (f) => ({ enabled: f.enabled, targeting: f.targeting ?? null, rollout_percent: f.rollout_percent ?? null, plan_overrides: f.plan_overrides, workspace_overrides: f.workspace_overrides });
+  await auditAdmin(admin, user.id, 'feature_flag.update', 'feature_flag', key, { before: snap(before), after: snap(data) });
+  resetFlagCache();
   return { flag: data };
 });
 

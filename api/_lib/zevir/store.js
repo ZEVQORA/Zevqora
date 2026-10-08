@@ -15,17 +15,14 @@ import { ENGINE_TRACE_COLUMNS, engineTracesToGraphs } from './adapters/engine.js
 import { otelGenAiToGraphs } from './adapters/otel-genai.js';
 import { openInferenceToGraphs } from './adapters/openinference.js';
 import { PayloadError } from './adapters/otlp.js';
+import { flagEnabledForWorkspace } from '../flags.js';
 
 export const FLAG = 'zevir_shadow';
 const STALE_RUN_MS = 5 * 60_000;
 
-/** Shadow mode is on for a workspace when the flag is on, unless a workspace override says otherwise. */
+/** Shadow mode is on for a workspace when the flag resolves on for it (override, then targeting, then `enabled`). */
 export async function zevirEnabled(admin, workspaceId) {
-  const { data } = await admin.from('feature_flags').select('enabled,workspace_overrides').eq('key', FLAG).maybeSingle();
-  if (!data) return false;
-  const override = data.workspace_overrides?.[workspaceId];
-  if (override === true || override === false) return override;
-  return Boolean(data.enabled);
+  return flagEnabledForWorkspace(admin, FLAG, workspaceId);
 }
 
 // ------------------------------------------------------------------ summary

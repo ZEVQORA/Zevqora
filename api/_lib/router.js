@@ -1,4 +1,5 @@
 import { ApiError, json } from './http.js';
+import { classify, recordSecurityEvent } from './analytics/security.js';
 
 const routes = [];
 
@@ -58,12 +59,22 @@ export async function dispatch(request) {
     return json(result ?? { ok: true });
   } catch (error) {
     if (error instanceof ApiError) {
+      await securitySignal(request, error, error.status);
       return json({ error: error.message, code: error.code || null, ...(error.extra ? { details: error.extra } : {}) }, error.status);
     }
     // Never echo provider/database internals. Log server-side with the route only.
     console.error(`[api] ${method} ${url.pathname}`, error?.message || error);
+    await securitySignal(request, error, 500);
     return json({ error: 'Something went wrong on our side. Please retry.', code: 'INTERNAL' }, 500);
   }
+}
+
+/** Security-relevant failures go to security_events (best-effort; the response never waits on a failure). */
+async function securitySignal(request, error, status) {
+  const c = classify(error, status);
+  if (!c) return;
+  const ctx = error?.securityContext || {};
+  await recordSecurityEvent(request, { kind: c.kind, severity: c.severity, status, code: error?.code || (status >= 500 ? 'INTERNAL' : null), actorId: ctx.actorId || null, workspaceId: ctx.workspaceId || null, metadata: ctx.target || {} });
 }
 
 export function resetRoutesForTests() {

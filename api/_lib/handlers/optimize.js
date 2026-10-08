@@ -25,6 +25,7 @@ import { DEMO_NAME, DEMO_REQUIREMENTS, DEMO_ROOT, DEMO_V2_NAME, DEMO_V2_REQUIREM
 import { ingestExternal } from '../zevir/store.js';
 import { intelligenceEnabled } from '../optimize/search-store.js';
 import { DEFAULT_REQUIREMENTS } from '../optimize/contract.js';
+import { emitProductEvent, emitVerdicts } from '../analytics/product-events.js';
 
 async function requireEnabled(admin, workspaceId) {
   if (!(await optimizeEnabled(admin, workspaceId))) throw new ApiError(403, 'Verified Optimization is not enabled for this workspace.', 'OPTIMIZE_DISABLED');
@@ -79,7 +80,9 @@ on('POST', '/api/optimize/products/:id/contracts', async ({ request, params }) =
 on('POST', '/api/optimize/products/:id/contracts/:cid/freeze', async ({ request, params }) => {
   const { user, admin } = await requireUser(request);
   const product = await loadProduct(admin, user, params.id, 'admin');
-  return contractOut(await freezeContract(admin, { product, contractId: uuid(params.cid, 'contract'), user }));
+  const frozen = await freezeContract(admin, { product, contractId: uuid(params.cid, 'contract'), user });
+  await emitProductEvent(admin, { event: 'contract_frozen', workspaceId: product.workspace_id, userId: user.id, subjectType: 'evaluation_contract', subjectId: frozen.id, properties: { version: frozen.version }, dedupeKey: `contract_frozen:${frozen.id}` });
+  return contractOut(frozen);
 });
 
 on('POST', '/api/optimize/products/:id/runs', async ({ request, params }) => {
@@ -94,6 +97,7 @@ on('POST', '/api/optimize/runs/:runId/baseline', async ({ request, params }) => 
   const run = await loadRun(admin, user, params.runId, 'member');
   rateLimit(`optimize-baseline:${user.id}`, { limit: 10, windowMs: 60_000 });
   const out = await buildBaseline(admin, { run, user });
+  await emitProductEvent(admin, { event: 'baseline_created', workspaceId: run.workspace_id, userId: user.id, subjectType: 'performance_snapshot', subjectId: out.snapshot.id, properties: { trace_count: out.snapshot.trace_count, completeness: out.snapshot.completeness, reused: Boolean(out.reused) }, dedupeKey: `baseline_created:${out.snapshot.id}` });
   return { snapshot: snapshotOut(out.snapshot), reused: out.reused };
 });
 
@@ -129,6 +133,10 @@ on('POST', '/api/optimize/runs/:runId/candidates/:planId/replay', async ({ reque
   // The body is read and deliberately ignored: no request can supply or loosen a gate.
   await readJson(request);
   const out = await replayCandidate(admin, { run, planId: uuid(params.planId, 'candidate'), user });
+  if (out.evaluation?.id) {
+    await emitProductEvent(admin, { event: 'full_replay_completed', workspaceId: run.workspace_id, userId: user.id, subjectType: 'evaluation', subjectId: out.evaluation.id, properties: { replayed: 1 }, dedupeKey: `full_replay_completed:evaluation:${out.evaluation.id}` });
+    await emitVerdicts(admin, { workspaceId: run.workspace_id, userId: user.id, stage: 'candidate_replay', items: [{ subjectType: 'evaluation', id: out.evaluation.id, verdict: out.evaluation.status }] });
+  }
   return { evaluation: evaluationOut(out.evaluation), reused: out.reused };
 });
 

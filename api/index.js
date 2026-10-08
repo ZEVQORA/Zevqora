@@ -24,6 +24,9 @@ import './_lib/handlers/telemetry.js';
 import './_lib/handlers/analysis.js';
 import './_lib/handlers/experiments.js';
 import './_lib/handlers/admin.js';
+import './_lib/handlers/admin-v3.js';
+import './_lib/handlers/analytics.js';
+import './_lib/handlers/experience.js';
 
 export const GET = dispatch;
 export const POST = dispatch;

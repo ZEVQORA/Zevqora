@@ -97,7 +97,44 @@ grant all on all tables in schema public to service_role;
 alter default privileges in schema public revoke all on tables from anon, authenticated;
 `;
 
-export async function createDb({ zevir = true, optimize = true, intelligence = true }: { zevir?: boolean; optimize?: boolean; intelligence?: boolean } = {}) {
+// The 004 tables Part 3 (019) builds on, reduced to the columns the routes use.
+export const PLATFORM_V3 = `
+create table public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text, display_name text, username text, avatar_url text,
+  created_at timestamptz not null default now(), last_active_at timestamptz,
+  suspended_at timestamptz, suspended_reason text
+);
+create table public.admin_roles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  role text not null default 'admin' check (role in ('admin', 'superadmin')),
+  granted_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create table public.admin_audit_log (
+  id uuid primary key default gen_random_uuid(),
+  admin_id uuid references auth.users(id) on delete set null,
+  action text not null, target_type text, target_id text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+create table public.site_content (
+  key text primary key check (key ~ '^[a-z][a-z0-9_]{1,40}$'),
+  value jsonb not null default '{}'::jsonb,
+  updated_by uuid references auth.users(id) on delete set null,
+  updated_at timestamptz not null default now()
+);
+insert into public.site_content (key, value) values
+  ('hero', '{"announcement": null, "headline": "Make AI cheaper without guessing.", "subheadline": null, "supporting": "Seeded.", "primary_cta": {"label": "Run an evaluation", "href": "/evaluation"}, "secondary_cta": {"label": "See how it works", "href": "/product"}, "trust_line": "Measure. Replay. Verify. Then optimize."}'::jsonb),
+  ('status', '{"banner": null, "public_status": "operational"}'::jsonb),
+  ('contact', '{"email": "hello@example.invalid"}'::jsonb);
+alter table public.feature_flags add column updated_by uuid references auth.users(id) on delete set null;
+revoke all on public.profiles, public.admin_roles, public.admin_audit_log, public.site_content from anon, authenticated;
+grant select on public.site_content to anon, authenticated;
+grant all on public.profiles, public.admin_roles, public.admin_audit_log, public.site_content to service_role;
+`;
+
+export async function createDb({ zevir = true, optimize = true, intelligence = true, experience = true }: { zevir?: boolean; optimize?: boolean; intelligence?: boolean; experience?: boolean } = {}) {
   const db = new PGlite();
   await db.exec(PLATFORM);
   await db.exec(migration('009_product_engine.sql'));
@@ -108,6 +145,10 @@ export async function createDb({ zevir = true, optimize = true, intelligence = t
   if (zevir) await db.exec(migration('016_zevir_part1.sql'));
   if (zevir && optimize) await db.exec(migration('017_verified_optimization.sql'));
   if (zevir && optimize && intelligence) await db.exec(migration('018_optimization_intelligence.sql'));
+  if (experience) {
+    await db.exec(PLATFORM_V3);
+    await db.exec(migration('019_product_experience.sql'));
+  }
   return db;
 }
 
@@ -157,6 +198,7 @@ class Query implements PromiseLike<Result> {
   private countExact = false;
   private head = false;
   private mode: 'many' | 'single' | 'maybe' = 'many';
+  private conflict: { cols: string; ignore: boolean } | null = null;
 
   constructor(private table: string, private exec: (sql: string, params: unknown[]) => Promise<{ rows: Row[]; affectedRows?: number }>) {}
 
@@ -198,6 +240,28 @@ class Query implements PromiseLike<Result> {
     this.where.push(`${ident(c)}::text = any(${this.p(values.map(String))}::text[])`);
     return this;
   }
+  gte(c: string, v: unknown) {
+    this.where.push(`${ident(c)} >= ${this.p(v)}`);
+    return this;
+  }
+  lte(c: string, v: unknown) {
+    this.where.push(`${ident(c)} <= ${this.p(v)}`);
+    return this;
+  }
+  gt(c: string, v: unknown) {
+    this.where.push(`${ident(c)} > ${this.p(v)}`);
+    return this;
+  }
+  lt(c: string, v: unknown) {
+    this.where.push(`${ident(c)} < ${this.p(v)}`);
+    return this;
+  }
+  upsert(value: Row | Row[], opts: { onConflict?: string; ignoreDuplicates?: boolean } = {}) {
+    this.op = 'insert';
+    this.rows = Array.isArray(value) ? value : [value];
+    this.conflict = { cols: opts.onConflict || 'id', ignore: Boolean(opts.ignoreDuplicates) };
+    return this;
+  }
   is(c: string, v: null) {
     if (v !== null) throw new Error('only is(null) is supported');
     this.where.push(`${ident(c)} is null`);
@@ -231,7 +295,13 @@ class Query implements PromiseLike<Result> {
     if (this.op === 'insert') {
       const keys = [...new Set(this.rows.flatMap((r) => Object.keys(r)))];
       const values = this.rows.map((r) => `(${keys.map((k) => (k in r ? this.p(r[k]) : 'default')).join(', ')})`).join(', ');
-      return `insert into ${t} (${keys.map(ident).join(', ')}) values ${values}${this.returning ? ` returning ${columns(this.returning)}` : ''}`;
+      let onConflict = '';
+      if (this.conflict) {
+        const target = this.conflict.cols.split(',').map((c) => ident(c.trim())).join(', ');
+        const sets = keys.filter((k) => !this.conflict!.cols.split(',').map((c) => c.trim()).includes(k)).map((k) => `${ident(k)} = excluded.${ident(k)}`);
+        onConflict = this.conflict.ignore || !sets.length ? ` on conflict (${target}) do nothing` : ` on conflict (${target}) do update set ${sets.join(', ')}`;
+      }
+      return `insert into ${t} (${keys.map(ident).join(', ')}) values ${values}${onConflict}${this.returning ? ` returning ${columns(this.returning)}` : ''}`;
     }
     if (this.op === 'update') {
       const sets = Object.entries(this.patch).map(([k, v]) => `${ident(k)} = ${this.p(v)}`).join(', ');

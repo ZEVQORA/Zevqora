@@ -23,6 +23,7 @@ import { requireUser, requireWorkspaceRole, rateLimit } from '../auth.js';
 import { LIMITS, NODE_KINDS, EDGE_KINDS, SOURCE_KINDS } from '../zevir/contracts.js';
 import { validateEnvelope } from '../zevir/validate.js';
 import { ingestExternal, projectEngineProduct, runOut, zevirEnabled } from '../zevir/store.js';
+import { emitProductEvent } from '../analytics/product-events.js';
 import { findGraph, findRun, latestRun, listEdges, listEvidence, listGraphs, listNodes, neighborhood, nodeDetail, page } from '../zevir/query.js';
 
 async function loadProduct(admin, user, productId, minRole) {
@@ -103,7 +104,14 @@ on('POST', '/api/zevir/ingest', async ({ request }) => {
   }
   const header = request.headers.get('idempotency-key');
   const idempotencyKey = header ? str(header, { name: 'Idempotency-Key', min: 8, max: 120, pattern: /^[A-Za-z0-9._:-]+$/ }) : null;
-  return ingestExternal({ admin, envelope: { ...body, workspace_id: workspaceId }, product, userId: user.id, idempotencyKey });
+  const out = await ingestExternal({ admin, envelope: { ...body, workspace_id: workspaceId }, product, userId: user.id, idempotencyKey });
+  const runId = out?.run?.id || out?.id;
+  if (runId) {
+    const sourceKind = String(body.source_kind || 'otel').replace(/[^a-z_]/g, '').slice(0, 40) || 'otel';
+    await emitProductEvent(admin, { event: 'trace_imported', workspaceId, userId: user.id, subjectType: 'zevir_ingest_run', subjectId: runId, properties: { source_kind: sourceKind }, dedupeKey: `trace_imported:zevir:${runId}` });
+    await emitProductEvent(admin, { event: 'evidence_connected', workspaceId, userId: user.id, subjectType: 'workspace', subjectId: workspaceId, properties: { source_kind: sourceKind }, dedupeKey: `evidence_connected:${workspaceId}:${sourceKind}` });
+  }
+  return out;
 });
 
 on('GET', '/api/zevir/ingest-runs/:runId', async ({ request, params }) => {

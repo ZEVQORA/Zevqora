@@ -9,6 +9,7 @@
  * so a refresh or retry never pays twice. Cancelled and budget-exhausted
  * searches stop cleanly and say what was and was not evaluated.
  */
+import { flagEnabledForWorkspace } from '../flags.js';
 import { randomUUID } from 'node:crypto';
 import { ApiError } from '../http.js';
 import { deterministicUuid } from '../product/hashing.js';
@@ -39,12 +40,7 @@ const must = ({ data, error }) => {
   return data;
 };
 
-async function flagOn(admin, key, workspaceId) {
-  const { data } = await admin.from('feature_flags').select('enabled,workspace_overrides').eq('key', key).maybeSingle();
-  if (!data) return false;
-  const o = data.workspace_overrides?.[workspaceId];
-  return o === true || o === false ? o : Boolean(data.enabled);
-}
+const flagOn = flagEnabledForWorkspace;
 /** Part 2B needs both its own flag and the Part 2A flag. */
 export async function intelligenceEnabled(admin, workspaceId) {
   return (await flagOn(admin, OPTIMIZE_FLAG, workspaceId)) && (await flagOn(admin, INTELLIGENCE_FLAG, workspaceId));

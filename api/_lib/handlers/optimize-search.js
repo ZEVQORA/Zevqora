@@ -18,6 +18,7 @@
  * Every write is server-side with the service role after a membership check;
  * other workspaces get 404. Requests never carry gate thresholds.
  */
+import { emitProductEvent, emitVerdicts } from '../analytics/product-events.js';
 import { on } from '../router.js';
 import { ApiError, readJson, uuid } from '../http.js';
 import { requireUser, requireWorkspaceRole, rateLimit } from '../auth.js';
@@ -82,12 +83,27 @@ async function report(admin, search) {
   return searchReport({ search, plans, calibrations, decisions, badDays, evaluations, diagnoses });
 }
 
+/** Stage-completion product events; every plan's verdict is recorded once, keyed by plan id. */
+async function stageEvents(admin, { stage, search, user }) {
+  const plans = must(await admin.from('execution_plans').select('id,status,verdict').eq('search_id', search.id));
+  if (stage === 'calibrate') {
+    const rejected = plans.filter((p) => p.status === 'CALIBRATION_REJECTED').length;
+    const calibrated = new Set(must(await admin.from('plan_calibrations').select('plan_id').eq('search_id', search.id)).map((c) => c.plan_id)).size;
+    await emitProductEvent(admin, { event: 'calibration_completed', workspaceId: search.workspace_id, userId: user.id, subjectType: 'plan_search', subjectId: search.id, properties: { calibrated, rejected }, dedupeKey: `calibration_completed:${search.id}` });
+    return;
+  }
+  const judged = plans.filter((p) => p.verdict);
+  await emitProductEvent(admin, { event: 'full_replay_completed', workspaceId: search.workspace_id, userId: user.id, subjectType: 'plan_search', subjectId: search.id, properties: { replayed: judged.length, verified: judged.filter((p) => p.verdict === 'VERIFIED').length, rejected: judged.filter((p) => p.verdict === 'REJECTED').length, incomplete: judged.filter((p) => p.verdict === 'INCOMPLETE').length }, dedupeKey: `full_replay_completed:${search.id}` });
+  await emitVerdicts(admin, { workspaceId: search.workspace_id, userId: user.id, stage: 'full_replay', items: judged.map((p) => ({ subjectType: 'execution_plan', id: p.id, verdict: p.verdict })) });
+}
+
 on('POST', '/api/optimize/runs/:runId/searches', async ({ request, params }) => {
   const { user, admin } = await requireUser(request);
   const run = await loadRun(admin, user, params.runId, 'member');
   rateLimit(`optimize-search:${user.id}`, { limit: 6, windowMs: 60_000 });
   const body = await readJson(request);
   const out = await startSearch(admin, { run, user, bounds: body?.bounds || {}, seed: body?.seed || undefined });
+  await emitProductEvent(admin, { event: 'plan_search_started', workspaceId: run.workspace_id, userId: user.id, subjectType: 'plan_search', subjectId: out.search.id, properties: { generated: out.search.generation?.generated ?? undefined, reused: Boolean(out.reused) }, dedupeKey: `plan_search_started:${out.search.id}` });
   return { search: searchOut(out.search), reused: out.reused };
 });
 
@@ -111,6 +127,7 @@ for (const [stage, fn] of [['calibrate', calibrateSearch], ['replay', replaySear
     // The body is read and ignored: no request can choose samples, gates or budgets mid-search.
     await readJson(request);
     const out = await fn(admin, { search, user });
+    if (out.done && !out.cancelled) await stageEvents(admin, { stage, search, user });
     return { search: searchOut(out.search), done: out.done, continuation: out.continuation, processed: out.processed, budget: out.budget || null, cancelled: Boolean(out.cancelled), in_progress: out.in_progress || null };
   });
 }
@@ -126,6 +143,7 @@ on('POST', '/api/optimize/searches/:id/decision', async ({ request, params }) =>
   const search = await loadSearch(admin, user, params.id, 'member');
   const body = await readJson(request);
   const row = await decide(admin, { search, user, policy: String(body?.policy || ''), params: body?.params || {} });
+  if (row.outcome === 'SELECTED') await emitProductEvent(admin, { event: 'plan_selected', workspaceId: search.workspace_id, userId: user.id, subjectType: 'plan_decision', subjectId: row.id, properties: { policy: row.policy, outcome: row.outcome }, dedupeKey: `plan_selected:${row.id}` });
   return { decision: { id: row.id, policy: row.policy, params: row.policy_params, outcome: row.outcome, selected_plan_id: row.selected_plan_id, explanation: row.explanation, decision_hash: row.decision_hash, frontier_hash: row.frontier_hash } };
 });
 

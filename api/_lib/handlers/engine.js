@@ -27,6 +27,7 @@ import { runZev } from '../product/zev.js';
 import { mergeTrial } from '../product/trial.js';
 import { projectEngineProduct, zevirEnabled } from '../zevir/store.js';
 import { runPlanExecution } from '../product/run-plan.js';
+import { emitProductEvent } from '../analytics/product-events.js';
 
 const VERSION = 'platform-engine-1.0';
 const MAX_CALLS = 4000;
@@ -181,6 +182,7 @@ on('POST', '/api/engine/products', async ({ request }) => {
   if (Object.keys(requirements).length) row.evaluation_requirements = { ...requirements, frozen_at: new Date().toISOString(), frozen_by: user.id };
   const { data, error } = await admin.from('engine_products').insert(row).select('*').single();
   if (error) throw error;
+  await emitProductEvent(admin, { event: 'project_created', workspaceId, userId: user.id, subjectType: 'workload', subjectId: data.id, properties: { source }, dedupeKey: `project_created:${data.id}` });
   return productOut(data);
 });
 
@@ -273,6 +275,7 @@ on('POST', '/api/engine/products/:id/scan', async ({ request, params }) => {
   }
   const { data: updated, error: updateError } = await admin.from('engine_products').update({ files_scanned: filesScanned, skipped_sensitive_paths: skipped, detected_stack: stack, last_scan_at: new Date().toISOString() }).eq('id', product.id).select('*').single();
   if (updateError) throw updateError;
+  await emitProductEvent(admin, { event: 'evidence_connected', workspaceId: product.workspace_id, userId: user.id, subjectType: 'workload', subjectId: product.id, properties: { source_kind: 'repository_scan' }, dedupeKey: `evidence_connected:${product.id}:repository_scan` });
   const storedCalls = await rows(admin, 'engine_ai_calls', product.id, null);
   const storedFindings = await rows(admin, 'engine_findings', product.id);
   return { product: productOut(updated), files_scanned: filesScanned, ai_calls: storedCalls.map(callOut), findings: storedFindings.map(findingOut), detected_stack: stack, skipped_sensitive_paths: skipped };
@@ -336,6 +339,12 @@ on('POST', '/api/engine/products/:id/traces/import', async ({ request, params })
   } catch (error) {
     console.error('[zevir] shadow projection failed', error?.message || error);
     zevir = { status: 'failed' };
+  }
+  if (fresh.length) {
+    // Keyed by the batch's first new request: a retried import adds nothing and records nothing.
+    const key = `trace_imported:${product.id}:${String(fresh[0].request_id).replace(/[^A-Za-z0-9_.:-]/g, '_').slice(0, 60)}`;
+    await emitProductEvent(admin, { event: 'trace_imported', workspaceId: product.workspace_id, userId: user.id, subjectType: 'workload', subjectId: product.id, properties: { imported: fresh.length, rejected: errors.length, source_kind: 'trace_file' }, dedupeKey: key });
+    await emitProductEvent(admin, { event: 'evidence_connected', workspaceId: product.workspace_id, userId: user.id, subjectType: 'workload', subjectId: product.id, properties: { source_kind: 'trace_file' }, dedupeKey: `evidence_connected:${product.id}:trace_file` });
   }
   return { imported: fresh.length, rejected: errors.length, errors: errors.slice(0, 5), ...(zevir ? { zevir } : {}) };
 });

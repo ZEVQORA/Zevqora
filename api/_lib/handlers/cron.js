@@ -1,12 +1,14 @@
 import { on } from '../router.js';
 import { ApiError } from '../http.js';
 import { adminClient } from '../supabase.js';
+import { SECURITY_RETENTION_DAYS } from '../analytics/security.js';
 
 /**
  * Daily maintenance:
  *  1. Reset credit periods that Stripe does not manage (free and admin-assigned plans).
  *  2. Purge telemetry beyond each workspace's retention (plan ceiling, workspace setting).
- *  3. Drop expired desktop handoffs and invites.
+ *  3. Purge website analytics after 400 days and security events after 90 days.
+ *  4. Drop expired desktop handoffs and invites.
  */
 on('GET', '/api/cron/daily', async ({ request }) => {
   const expected = process.env.CRON_SECRET;
@@ -64,9 +66,15 @@ on('GET', '/api/cron/daily', async ({ request }) => {
     purged += count || 0;
   }
 
-  // 3. Expired artefacts.
+  // 3. Analytics and security retention (019): website events 400 days, security events 90 days.
+  const siteCutoff = new Date(now.getTime() - 400 * 24 * 60 * 60 * 1000).toISOString();
+  const securityCutoff = new Date(now.getTime() - SECURITY_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const { count: siteEventsPurged } = await admin.from('site_events').delete({ count: 'exact' }).lt('occurred_at', siteCutoff);
+  const { count: securityEventsPurged } = await admin.from('security_events').delete({ count: 'exact' }).lt('occurred_at', securityCutoff);
+
+  // 4. Expired artefacts.
   await admin.from('desktop_auth_handoffs').delete().lt('expires_at', new Date(now.getTime() - 10 * 60 * 1000).toISOString());
   await admin.from('workspace_invites').delete().is('accepted_at', null).lt('expires_at', now.toISOString());
 
-  return { ok: true, creditResets: resets, telemetryPurged: purged };
+  return { ok: true, creditResets: resets, telemetryPurged: purged, siteEventsPurged: siteEventsPurged || 0, securityEventsPurged: securityEventsPurged || 0 };
 });

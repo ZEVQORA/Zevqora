@@ -3,6 +3,8 @@ import { ApiError, readJson, str } from '../http.js';
 import { accountStateForUser } from '../supabase.js';
 import { requireUser } from '../auth.js';
 import { sha256 } from '../tokens.js';
+import { emitProductEvent } from '../analytics/product-events.js';
+import { WORKSPACE_FLAGS as FLAG_KEYS, workspaceFlags } from '../flags.js';
 
 const USERNAME = /^[A-Za-z0-9._-]{3,30}$/;
 
@@ -28,16 +30,9 @@ async function acceptPendingInvites(admin, user) {
   return accepted;
 }
 
-/** Workspace-scoped flags (feature_flags.workspace_overrides), for features that roll out per workspace. */
-const WORKSPACE_FLAGS = ['verified_optimization_vnext', 'optimization_intelligence_vnext'];
+/** Workspace-scoped flags, resolved server-side (override, then targeting, then enabled). The client only uses them to decide what to show. */
 async function workspaceFeatures(admin, workspaceId) {
-  const { data } = await admin.from('feature_flags').select('key,enabled,workspace_overrides').in('key', WORKSPACE_FLAGS);
-  const out = {};
-  for (const f of data || []) {
-    const o = f.workspace_overrides?.[workspaceId];
-    out[f.key] = typeof o === 'boolean' ? o : Boolean(f.enabled);
-  }
-  return out;
+  return workspaceFlags(admin, workspaceId, FLAG_KEYS);
 }
 
 async function resolveFlags(admin, planId) {
@@ -53,6 +48,8 @@ async function resolveFlags(admin, planId) {
 on('GET', '/api/me', async ({ request }) => {
   const { user, profile, admin } = await requireUser(request);
   await acceptPendingInvites(admin, user);
+  // First authenticated load = signup completed; stamped with the account's creation time, recorded once.
+  await emitProductEvent(admin, { event: 'signup_completed', userId: user.id, subjectType: 'user', subjectId: user.id, properties: { provider: user.app_metadata?.provider || undefined }, dedupeKey: `signup_completed:${user.id}`, at: user.created_at && new Date(user.created_at) <= new Date() ? user.created_at : null });
   const [{ data: memberships }, { data: adminRole }, account] = await Promise.all([
     admin.from('workspace_members').select('role,workspace:workspaces(id,name,slug,owner_id,plan_override,data_retention_days,settings,created_at)').eq('user_id', user.id),
     admin.from('admin_roles').select('role').eq('user_id', user.id).maybeSingle(),

@@ -211,6 +211,23 @@ begin
     exception when insufficient_privilege then null; end;
   end if;
 
+  -- Product experience (019): analytics, security, leads and CMS history are server-only.
+  if to_regclass('public.site_events') is null then
+    notes := array_append(notes, 'product experience checks skipped: migration 019 not applied');
+  else
+    for t in select unnest(array['site_events', 'product_events', 'security_events', 'evaluation_requests', 'site_content_revisions']) loop
+      checks := checks + 1;
+      begin execute format('select count(*) from public.%I', t) into n; fails := array_append(fails, t || ' directly readable');
+      exception when insufficient_privilege then null; end;
+    end loop;
+    checks := checks + 1;
+    begin execute 'select public.analytics_site_summary(now() - interval ''1 day'', now())'; fails := array_append(fails, 'authenticated can execute analytics_site_summary');
+    exception when insufficient_privilege then null; end;
+    checks := checks + 1;
+    begin execute 'select public.cms_publish($1, $1)' using ws_own; fails := array_append(fails, 'authenticated can execute cms_publish');
+    exception when insufficient_privilege then null; end;
+  end if;
+
   -- Any remaining browser write privilege on any public table.
   checks := checks + 1;
   select count(*) into n from pg_class c join pg_namespace s on s.oid = c.relnamespace
