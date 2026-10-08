@@ -2,6 +2,8 @@
  * Shared pieces of the Optimization Run view: numbered steps, metric tiles and
  * formatting where unknown is always shown as unknown, never as 0.
  */
+import { useEffect } from 'react';
+import { useLocation } from 'react-router';
 import type { ReactNode } from 'react';
 import { Card, CardHeader, Chip, cn } from '../ui';
 import { money } from '../format';
@@ -14,9 +16,14 @@ export const signedPct = (v: number | null | undefined) => (v === null || v === 
 export const num3 = (v: number | null | undefined) => (v === null || v === undefined ? unknown : v.toFixed(3));
 
 export function Step({ n, title, done, children, action, description, id }: { n: number; title: string; done?: boolean; children: ReactNode; action?: ReactNode; description?: ReactNode; id?: string }) {
+  const { hash } = useLocation();
+  // Deep links (#step-frontier, …) land after the step's data has loaded, so scroll once it mounts.
+  useEffect(() => {
+    if (id && hash === `#${id}`) document.getElementById(id)?.scrollIntoView?.({ block: 'start' });
+  }, [id, hash]);
   return (
     <Card className="mt-4">
-      <div id={id}>
+      <div id={id} className="scroll-mt-24">
         <CardHeader
           title={<span className="flex items-center gap-2"><span className={cn('inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold', done ? 'bg-verified-bg text-verified' : 'bg-ink/5 text-muted')}>{n}</span>{title}</span>}
           description={description}

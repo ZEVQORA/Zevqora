@@ -64,3 +64,15 @@ export function InlineNotice({ tone = 'info', children, className }: { tone?: 'i
   const cls = tone === 'warning' ? 'border-warning/30 bg-warning-bg text-warning' : tone === 'success' ? 'border-verified/30 bg-verified-bg text-verified' : tone === 'danger' ? 'border-rejected/30 bg-rejected-bg text-rejected' : 'border-accent/25 bg-accent-subtle text-accent-text';
   return <div className={cn('text-caption rounded-md border px-3.5 py-2.5', cls, className)}>{children}</div>;
 }
+
+/** A labelled loading region (announced to screen readers) with skeleton rows. */
+export function LoadingState({ label = 'Loading', rows = 3, className }: { label?: string; rows?: number; className?: string }) {
+  return (
+    <div role="status" aria-live="polite" className={cn('flex flex-col gap-2.5', className)}>
+      <span className="sr-only">{label}…</span>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="skeleton h-9" style={{ width: `${96 - i * 9}%` }} aria-hidden />
+      ))}
+    </div>
+  );
+}

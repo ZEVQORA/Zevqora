@@ -453,7 +453,7 @@ export default function PlanSearchSection({ run, productId, canEdit, first }: { 
 
   return (
     <>
-      <Step n={n(0)} title="Plan search" done={Boolean(r)} description="Bounded, deterministic composition of the passes’ changes. Estimates only prioritise the search; nothing here is evidence."
+      <Step id="step-search" n={n(0)} title="Plan search" done={Boolean(r)} description="Bounded, deterministic composition of the passes’ changes. Estimates only prioritise the search; nothing here is evidence."
         action={canEdit && !current ? <Button size="sm" onClick={() => void act('start', () => optimizeApi.startSearch(run.id), 'Plan search generated')} loading={busy === 'start'}><Layers size={14} /> Start plan search</Button> : canEdit && r && !terminal ? <Button size="sm" variant="ghost" onClick={() => void act('cancel', () => optimizeApi.cancelSearch(current!.id), 'Search cancelled')} loading={busy === 'cancel'}><Square size={13} /> Cancel search</Button> : undefined}>
         {searches.error && <Note tone="error">{searches.error}</Note>}
         {!current && !searches.loading && <p className="text-[12.5px] text-subtle">No plan search yet for this run.</p>}
@@ -472,7 +472,7 @@ export default function PlanSearchSection({ run, productId, canEdit, first }: { 
       </Step>
 
       {r && (
-        <Step n={n(1)} title="Calibration" done={!pendingCalibration && r.counts.calibrated > 0} description="A cheap, seeded, outcome-blind sample per plan. It decides who earns full-replay budget — it is never a verdict (CALIBRATION — NOT VERIFIED)."
+        <Step id="step-calibration" n={n(1)} title="Calibration" done={!pendingCalibration && r.counts.calibrated > 0} description="A cheap, seeded, outcome-blind sample per plan. It decides who earns full-replay budget — it is never a verdict (CALIBRATION — NOT VERIFIED)."
           action={canEdit && !terminal && pendingCalibration ? <Button size="sm" onClick={() => void drive('calibrate')} loading={busy === 'calibrate'}><PlayCircle size={14} /> Run calibration</Button> : undefined}>
           {progress && busy === 'calibrate' && <p role="status" className="mb-2 text-[12.5px] text-muted">{progress}</p>}
           <CalibrationTable plans={r.plans} />
@@ -480,7 +480,7 @@ export default function PlanSearchSection({ run, productId, canEdit, first }: { 
       )}
 
       {r && r.counts.calibrated > 0 && (
-        <Step n={n(2)} title="Full replay" done={r.counts.fully_replayed > 0 && !r.plans.some((p) => p.status === 'FULL_REPLAY_READY' && !p.verdict && r.search.status !== 'completed')} description="Promoted plans replay the whole evaluation set under the SAME frozen Evaluation Contract, through the existing engine and evaluator."
+        <Step id="step-replay" n={n(2)} title="Full replay" done={r.counts.fully_replayed > 0 && !r.plans.some((p) => p.status === 'FULL_REPLAY_READY' && !p.verdict && r.search.status !== 'completed')} description="Promoted plans replay the whole evaluation set under the SAME frozen Evaluation Contract, through the existing engine and evaluator."
           action={canEdit && !terminal && !pendingCalibration ? <Button size="sm" onClick={() => void drive('replay')} loading={busy === 'replay'}><PlayCircle size={14} /> Run full replay</Button> : undefined}>
           {progress && busy === 'replay' && <p role="status" className="mb-2 text-[12.5px] text-muted">{progress}</p>}
           <ReplayTable plans={r.plans} />
@@ -488,7 +488,7 @@ export default function PlanSearchSection({ run, productId, canEdit, first }: { 
       )}
 
       {r && r.counts.fully_replayed > 0 && (
-        <Step n={n(3)} title="Pareto frontier" done={r.counts.frontier > 0} description="Only VERIFIED plans are compared. A plan is on the frontier when no other is at least as good on every dimension. Unknown is never better or worse.">
+        <Step id="step-frontier" n={n(3)} title="Pareto frontier" done={r.counts.frontier > 0} description="Only VERIFIED plans are compared. A plan is on the frontier when no other is at least as good on every dimension. Unknown is never better or worse.">
           <div className="grid gap-3">
             <FrontierTable plans={r.plans} />
             <Scatter plans={r.plans} />
@@ -497,7 +497,7 @@ export default function PlanSearchSection({ run, productId, canEdit, first }: { 
       )}
 
       {r && r.counts.frontier > 0 && (
-        <Step n={n(4)} title="Selected plan" done={Boolean(selected)} description="State the business objective. The policy chooses from the VERIFIED frontier by an explicit rule; it can never reach a plan that failed a gate.">
+        <Step id="step-selected" n={n(4)} title="Selected plan" done={Boolean(selected)} description="State the business objective. The policy chooses from the VERIFIED frontier by an explicit rule; it can never reach a plan that failed a gate.">
           <div className="mb-4 flex flex-wrap items-end gap-2">
             <Segmented label="Decision policy" value={policy} options={POLICY_LABEL} onChange={setPolicy} />
             {policy === 'CUSTOM_CONSTRAINTS' && (
@@ -515,7 +515,7 @@ export default function PlanSearchSection({ run, productId, canEdit, first }: { 
       )}
 
       {r && r.counts.fully_replayed > 0 && (
-        <Step n={n(5)} title="Optimization Intelligence report" done description="Executive: what to ship and what is still unknown. Developer: lineage, gates and reasoning for every evaluated plan.">
+        <Step id="step-report" n={n(5)} title="Optimization Intelligence report" done description="Executive: what to ship and what is still unknown. Developer: lineage, gates and reasoning for every evaluated plan.">
           <div className="mb-3"><Segmented label="Report mode" value={mode} options={[['executive', 'Executive'], ['developer', 'Developer']]} onChange={setMode} /></div>
           {mode === 'executive' ? <Executive r={r} /> : <Developer r={r} />}
         </Step>

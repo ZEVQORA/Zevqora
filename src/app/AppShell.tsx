@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router';
 import { AnimatePresence, motion } from 'motion/react';
-import { BarChart3, BookOpen, ClipboardCheck, ChevronsUpDown, FileCheck2, FlaskConical, FolderGit2, Gauge, GitPullRequest, Home, Lightbulb, LogOut, Menu, MessageSquare, Monitor, Plug, Scale, Search, Settings, Shield, Users, X, PanelLeftClose, PanelLeftOpen, ChevronRight, Check, Plus } from 'lucide-react';
+import { BarChart3, BookOpen, Boxes, ClipboardCheck, ChevronsUpDown, FileCheck2, FlaskConical, FolderGit2, Gauge, GitPullRequest, Home, LayoutDashboard, Lightbulb, LogOut, Menu, MessageSquare, Monitor, Network, Plug, Scale, Search, Settings, Shield, Stethoscope, Users, X, PanelLeftClose, PanelLeftOpen, ChevronRight, Check, Plus } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useSession } from '@/lib/session';
 import { ZevqoraMark } from '@/brand/ZevqoraMark';
@@ -9,23 +9,31 @@ import { ZevqoraLogo } from '@/brand/ZevqoraLogo';
 import { Avatar, Kbd } from '@/components/ui/Misc';
 import { FullPageLoader } from '@/brand/BrandLoader';
 import { CommandPalette } from './CommandPalette';
+import { PresentationModeProvider, usePresentationMode, MODES } from '@/lib/mode';
+import { Popover } from '@/components/ui/Overlay';
+import { experienceApi, type CommandCenter } from '@/product/experience';
+import { Bell, Eye } from 'lucide-react';
 
 export const NAV: Array<{ to: string; label: string; Icon: typeof Home; end?: boolean; section?: string; flag?: string }> = [
-  { to: '/app', label: 'Overview', Icon: Home, end: true },
-  { to: '/app/project', label: 'Projects', Icon: FolderGit2 },
+  { to: '/app', label: 'Command Center', Icon: LayoutDashboard, end: true },
+  { to: '/app/workloads', label: 'Workloads', Icon: Boxes },
   // Shown only to workspaces with the flag on (no global launch).
-  { to: '/app/optimize', label: 'Optimize', Icon: Gauge, flag: 'verified_optimization_vnext' },
-  { to: '/app/opportunities', label: 'Opportunities', Icon: Lightbulb, end: true },
+  { to: '/app/graph', label: 'Execution Graph', Icon: Network, flag: 'zevir_graph_ui' },
+  { to: '/app/diagnoses', label: 'Diagnoses', Icon: Stethoscope },
+  { to: '/app/optimize', label: 'Optimization', Icon: Gauge, flag: 'verified_optimization_vnext' },
   { to: '/app/experiments', label: 'Experiments', Icon: FlaskConical, end: true },
   { to: '/app/evidence', label: 'Evidence', Icon: FileCheck2 },
-  { to: '/app/savings', label: 'Savings', Icon: Scale },
-  { to: '/app/evaluation', label: 'Evaluation', Icon: ClipboardCheck },
   { to: '/app/changes', label: 'Changes', Icon: GitPullRequest },
+  { to: '/app/value', label: 'Value', Icon: Scale },
   { to: '/app/connections', label: 'Connections', Icon: Plug },
-  { to: '/app/zev', label: 'Ask Zev', Icon: MessageSquare },
   { to: '/app/team', label: 'Team', Icon: Users, section: 'Workspace' },
-  { to: '/app/usage', label: 'Usage', Icon: BarChart3 },
   { to: '/app/settings', label: 'Settings', Icon: Settings },
+  { to: '/app/project', label: 'Repository', Icon: FolderGit2, section: 'More' },
+  { to: '/app/opportunities', label: 'Opportunities', Icon: Lightbulb, end: true },
+  { to: '/app/evaluation', label: 'Evaluation', Icon: ClipboardCheck },
+  { to: '/app/savings', label: 'Savings ledger', Icon: BarChart3 },
+  { to: '/app/zev', label: 'Ask Zev', Icon: MessageSquare },
+  { to: '/app/usage', label: 'Usage', Icon: BarChart3 },
   { to: '/app/docs', label: 'Docs', Icon: BookOpen },
   { to: '/download', label: 'Desktop app', Icon: Monitor },
 ];
@@ -36,7 +44,7 @@ export function navVisible(item: { flag?: string }, features: Record<string, boo
 }
 
 /** Product routes render edge-to-edge (they carry their own toolbar and Evidence Inspector). */
-const PRODUCT_PATHS = new Set(['/app', '/app/project', '/app/optimize', '/app/opportunities', '/app/experiments', '/app/evidence', '/app/savings', '/app/evaluation', '/app/changes', '/app/connections', '/app/zev']);
+const PRODUCT_PATHS = new Set(['/app', '/app/overview', '/app/workloads', '/app/graph', '/app/diagnoses', '/app/value', '/app/project', '/app/optimize', '/app/opportunities', '/app/experiments', '/app/evidence', '/app/savings', '/app/evaluation', '/app/changes', '/app/connections', '/app/zev']);
 export function isProductPath(pathname: string) {
   return PRODUCT_PATHS.has(pathname.replace(/\/+$/, '') || '/app');
 }
@@ -115,6 +123,70 @@ function UserMenu() {
 
 const TITLES: Record<string, string> = Object.fromEntries(NAV.map((n) => [n.to, n.label]));
 
+/** Presentation view (CEO / CTO / Developer). Changes emphasis only — never permissions. */
+function ModeMenu() {
+  const { mode, setMode } = usePresentationMode();
+  const current = MODES.find((m) => m.value === mode)!;
+  return (
+    <Popover
+      label="Presentation view"
+      trigger={(t) => (
+        <button type="button" onClick={t.toggle} aria-expanded={t['aria-expanded']} aria-controls={t['aria-controls']} aria-haspopup="dialog" className="text-caption hidden h-8 items-center gap-1.5 rounded-md border border-line/70 bg-surface/70 px-2.5 text-muted transition-control hover:bg-surface hover:text-ink sm:inline-flex">
+          <Eye size={13} aria-hidden /> {current.label} view
+        </button>
+      )}
+    >
+      {(close) => (
+        <div className="w-64">
+          <p className="px-2.5 pb-1.5 pt-1 text-[11px] text-subtle">Changes what is emphasised. Your workspace role still decides what you can see and do.</p>
+          {MODES.map((m) => (
+            <button key={m.value} type="button" aria-pressed={m.value === mode} onClick={() => { setMode(m.value); close(); }} className={cn('flex w-full flex-col rounded-md px-2.5 py-2 text-left transition-control hover:bg-ink/5', m.value === mode && 'bg-ink/5')}>
+              <span className="text-caption font-medium text-ink">{m.label}</span>
+              <span className="text-[11.5px] text-muted">{m.description}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </Popover>
+  );
+}
+
+/** Notifications are the real decision queue: items waiting on a person, loaded when opened. */
+function Notifications({ workspaceId }: { workspaceId: string }) {
+  const [data, setData] = useState<CommandCenter['decision_queue'] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const load = () => {
+    setError(null);
+    experienceApi.commandCenter(workspaceId, 30).then((cc) => setData(cc.decision_queue), (e: Error) => setError(e.message));
+  };
+  return (
+    <Popover
+      label="Needs attention"
+      trigger={(t) => (
+        <button type="button" onClick={() => { if (!t.open) load(); t.toggle(); }} aria-expanded={t['aria-expanded']} aria-controls={t['aria-controls']} aria-label="Needs attention" className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted transition-control hover:bg-ink/5 hover:text-ink">
+          <Bell size={15} aria-hidden />
+        </button>
+      )}
+    >
+      {(close) => (
+        <div className="w-80 max-w-[85vw]">
+          <p className="px-2.5 pb-1 pt-1 text-[11px] font-medium uppercase tracking-[0.06em] text-subtle">Needs attention</p>
+          {error && <p className="px-2.5 py-2 text-[12px] text-rejected">{error}</p>}
+          {!data && !error && <p className="px-2.5 py-2 text-[12px] text-muted">Loading…</p>}
+          {data && !data.length && <p className="px-2.5 py-2 text-[12px] text-muted">Nothing is waiting on you.</p>}
+          {data?.slice(0, 6).map((d, i) => (
+            <button key={i} type="button" onClick={() => { close(); navigate(d.href); }} className="flex w-full flex-col rounded-md px-2.5 py-2 text-left transition-control hover:bg-ink/5">
+              <span className="text-caption font-medium text-ink">{d.title}</span>
+              <span className="text-[11.5px] text-muted">{d.product}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </Popover>
+  );
+}
+
 export function AppShell() {
   const { me, activeWorkspace, status } = useSession();
   const location = useLocation();
@@ -157,7 +229,7 @@ export function AppShell() {
   if (!activeWorkspace) return <FullPageLoader />;
 
   const crumbs = location.pathname.split('/').filter(Boolean).slice(1);
-  const title = TITLES[location.pathname.split('/').slice(0, 3).join('/')] || 'Overview';
+  const title = TITLES[location.pathname.split('/').slice(0, 3).join('/')] || 'Command Center';
   const productRoute = isProductPath(location.pathname);
 
   const sidebar = (
@@ -210,7 +282,7 @@ export function AppShell() {
   );
 
   return (
-    <>
+    <PresentationModeProvider>
         <div className="app-env flex min-h-dvh">
           <div className="sticky top-0 hidden h-dvh shrink-0 lg:block">{sidebar}</div>
           <AnimatePresence>
@@ -241,6 +313,8 @@ export function AppShell() {
                 )}
               </nav>
               <div className="ml-auto flex items-center gap-2">
+                <ModeMenu />
+                <Notifications workspaceId={activeWorkspace.id} />
                 <button type="button" onClick={() => setPaletteOpen(true)} className="text-caption hidden h-8 items-center gap-2 rounded-md border border-line/70 bg-surface/70 px-2.5 text-muted transition-control hover:bg-surface hover:text-ink md:inline-flex" aria-label="Open command palette">
                   <Search size={13} aria-hidden /> Search <Kbd>⌘K</Kbd>
                 </button>
@@ -261,7 +335,7 @@ export function AppShell() {
           </div>
           <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
         </div>
-    </>
+    </PresentationModeProvider>
   );
 }
 

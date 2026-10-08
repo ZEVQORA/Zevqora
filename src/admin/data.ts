@@ -67,6 +67,9 @@ export interface FeatureFlag {
   key: string;
   description: string;
   enabled: boolean;
+  /** 019: off | internal | selected | limited | on; null keeps the pre-019 meaning (enabled + overrides). */
+  targeting?: 'off' | 'internal' | 'selected' | 'limited' | 'on' | null;
+  rollout_percent?: number | null;
   plan_overrides: Record<string, boolean>;
   workspace_overrides: Record<string, boolean>;
   updated_at: string;

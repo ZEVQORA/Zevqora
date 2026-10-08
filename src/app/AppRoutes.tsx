@@ -4,6 +4,11 @@ import { AppShell } from './AppShell';
 
 const ProductLayout = lazy(() => import('@/product/ProductLayout'));
 const ProductOverview = lazy(() => import('@/product/views/OverviewView'));
+const CommandCenter = lazy(() => import('@/product/command/CommandCenterView'));
+const ProductWorkloads = lazy(() => import('@/product/views/WorkloadsView'));
+const ProductDiagnoses = lazy(() => import('@/product/views/DiagnosesView'));
+const ProductValue = lazy(() => import('@/product/views/ValueView'));
+const GraphExplorer = lazy(() => import('@/product/graph/GraphExplorer'));
 const ProductProject = lazy(() => import('@/product/views/ProjectView'));
 const ProductOpportunities = lazy(() => import('@/product/views/OpportunitiesView'));
 const ProductExperiments = lazy(() => import('@/product/views/ExperimentsView'));
@@ -39,7 +44,13 @@ export default function AppRoutes() {
       <Route element={<AppShell />}>
         {/* The product: identical on the web and inside the desktop shell. */}
         <Route element={<ProductLayout />}>
-          <Route index element={<ProductOverview />} />
+          <Route index element={<CommandCenter />} />
+          <Route path="command" element={<Navigate to="/app" replace />} />
+          <Route path="overview" element={<ProductOverview />} />
+          <Route path="workloads" element={<ProductWorkloads />} />
+          <Route path="graph" element={<GraphExplorer />} />
+          <Route path="diagnoses" element={<ProductDiagnoses />} />
+          <Route path="value" element={<ProductValue />} />
           <Route path="project" element={<ProductProject />} />
           <Route path="opportunities" element={<ProductOpportunities />} />
           <Route path="experiments" element={<ProductExperiments />} />

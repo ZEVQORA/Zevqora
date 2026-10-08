@@ -324,7 +324,7 @@ export default function OptimizeView() {
       {synthetic && <Note tone="warn">{selected.name.includes('SYNTHETIC DEMO') ? 'SYNTHETIC DEMO — NOT CUSTOMER DATA' : 'DEMO / SYNTHETIC — NOT CUSTOMER DATA'}. Every number on this page is invented to demonstrate the product and is not evidence about any real system.</Note>}
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-subtle">{VOCAB.map(([k, v]) => <span key={k}><b className="text-muted">{k}</b> — {v}</span>)}</div>
 
-      <Step n={1} title="Evaluation Contract" done={Boolean(frozen)} description="Freeze what success means before any result is known. Frozen contracts never change; a change is a new version.">
+      <Step id="step-contract" n={1} title="Evaluation Contract" done={Boolean(frozen)} description="Freeze what success means before any result is known. Frozen contracts never change; a change is a new version.">
         {frozen && <ContractSummary c={runContract && runContract.id === frozen.id ? runContract : frozen} />}
         {draft ? (
           <div className={frozen ? 'mt-4 border-t border-line pt-4' : ''}>
@@ -336,7 +336,7 @@ export default function OptimizeView() {
         ) : null}
       </Step>
 
-      <Step n={2} title="Verified Performance baseline" done={Boolean(r?.baseline)} description="Computed only from recorded evidence. Unknown stays unknown."
+      <Step id="step-baseline" n={2} title="Verified Performance baseline" done={Boolean(r?.baseline)} description="Computed only from recorded evidence. Unknown stays unknown."
         action={canEdit && frozen && (!run || run.contract_hash !== frozen.contract_hash) ? <Button size="sm" onClick={() => void act('run', () => optimizeApi.startRun(selected.id, frozen.id), 'Optimization Run started')} loading={busy === 'run'}><ShieldCheck size={14} /> Start run</Button> : canEdit && run && !r?.baseline ? <Button size="sm" onClick={() => void act('baseline', () => optimizeApi.baseline(run.id))} loading={busy === 'baseline'}><Gauge size={14} /> Build baseline</Button> : undefined}>
         {!frozen && <p className="text-[12.5px] text-subtle">Freeze a contract first.</p>}
         {frozen && !run && <p className="text-[12.5px] text-subtle">Start a run on contract v{frozen.version}.</p>}
@@ -345,13 +345,13 @@ export default function OptimizeView() {
       </Step>
 
       {r?.baseline && (
-        <Step n={3} title="Latency and execution hotspots" done description="From ZevIR execution graphs. A critical path is only computed where timestamps allow.">
+        <Step id="step-hotspots" n={3} title="Latency and execution hotspots" done description="From ZevIR execution graphs. A critical path is only computed where timestamps allow.">
           <Hotspots s={r.baseline} />
         </Step>
       )}
 
       {r?.baseline && (
-        <Step n={4} title="Diagnoses" done={r.diagnoses.length > 0} description="Deterministic and evidence-based. A diagnosis is not a saving."
+        <Step id="step-diagnoses" n={4} title="Diagnoses" done={r.diagnoses.length > 0} description="Deterministic and evidence-based. A diagnosis is not a saving."
           action={canEdit && !r.diagnoses.length ? <Button size="sm" onClick={() => void act('diagnose', () => optimizeApi.diagnose(run!.id))} loading={busy === 'diagnose'}>Run diagnoses</Button> : undefined}>
           {r.diagnoses.length ? <div className="grid gap-3 lg:grid-cols-2">{r.diagnoses.map((d) => <DiagnosisCard key={d.id} d={d} />)}</div> : <p className="text-[12.5px] text-subtle">No diagnoses yet.</p>}
         </Step>
@@ -360,14 +360,14 @@ export default function OptimizeView() {
       {r && run && r.baseline && r.diagnoses.length > 0 && intelligence && <PlanSearchSection run={run} productId={selected.id} canEdit={canEdit} first={5} />}
 
       {r && r.diagnoses.length > 0 && (!intelligence || r.candidates.length > 0) && (
-        <Step n={intelligence ? 11 : 5} title={intelligence ? 'Single-change candidates' : 'Candidates'} done={r.candidates.length > 0} description="At most three per diagnosis. Only supported candidates can be replayed; none is verified until it is."
+        <Step id="step-candidates" n={intelligence ? 11 : 5} title={intelligence ? 'Single-change candidates' : 'Candidates'} done={r.candidates.length > 0} description="At most three per diagnosis. Only supported candidates can be replayed; none is verified until it is."
           action={canEdit && !r.candidates.length ? <Button size="sm" onClick={() => void act('candidates', () => optimizeApi.candidates(run!.id))} loading={busy === 'candidates'}>Generate candidates</Button> : undefined}>
           {r.candidates.length ? <div className="grid gap-3 lg:grid-cols-2">{[...r.candidates].sort((a, b) => EXEC_ORDER[a.executable_status] - EXEC_ORDER[b.executable_status]).map((c) => <CandidateCard key={c.id} c={c} evaluation={evalByPlan.get(c.id)} canEdit={canEdit} busy={busy === c.id} onReplay={() => void act(c.id, () => optimizeApi.replay(run!.id, c.id))} />)}</div> : <p className="text-[12.5px] text-subtle">No candidates yet.</p>}
         </Step>
       )}
 
       {r && r.evaluations.length > 0 && (
-        <Step n={intelligence ? 12 : 6} title="Verdict and report" done description="Evaluated on replayed cases under the frozen contract. Production results are not yet measured.">
+        <Step id="step-verdict" n={intelligence ? 12 : 6} title="Verdict and report" done description="Evaluated on replayed cases under the frozen contract. Production results are not yet measured.">
           <div role="tablist" aria-label="Report mode" className="mb-3 inline-flex rounded-lg border border-line p-0.5 text-[12px]">{(['executive', 'developer'] as const).map((m) => <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => setMode(m)} className={cn('rounded-md px-3 py-1.5 capitalize', mode === m ? 'bg-ink text-white' : 'text-muted')}>{m}</button>)}</div>
           {mode === 'executive' ? <Executive report={r} /> : <Developer report={r} />}
         </Step>

@@ -370,6 +370,7 @@ export const optimizeApi = {
   startRun: (productId: string, contractId: string) => api<OptimizationRun>(`${P(productId)}/runs`, { method: 'POST', body: { contract_id: contractId } }),
   baseline: (runId: string) => api<{ snapshot: Snapshot; reused: boolean }>(`${R(runId)}/baseline`, { method: 'POST', body: {} }),
   diagnose: (runId: string) => api<Diagnosis[]>(`${R(runId)}/diagnoses`, { method: 'POST', body: {} }),
+  diagnoses: (runId: string) => api<Diagnosis[]>(`${R(runId)}/diagnoses`),
   candidates: (runId: string) => api<{ candidates: Candidate[]; skipped: { pass: string; reasons: string[] }[] }>(`${R(runId)}/candidates`, { method: 'POST', body: {} }),
   replay: (runId: string, candidateId: string) => api<{ evaluation: RunEvaluation; reused: boolean }>(`${R(runId)}/candidates/${candidateId}/replay`, { method: 'POST', body: {} }),
   report: (runId: string) => api<RunReport>(`${R(runId)}/report`),
