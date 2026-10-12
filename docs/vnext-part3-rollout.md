@@ -7,9 +7,14 @@ founder approval. Order matters: 016 → 017 → 018 → 019, then the applicati
 
 * Production migrations end at 015 (check with `list_migrations`). If 016–018
   are not applied, follow `vnext-part2b-rollout.md` first.
-* A staging project (or a Supabase branch) where the same steps are rehearsed.
-  The local gate used PGlite (Postgres 17 in WASM) with Supabase's roles; it has
-  not been run on a real Supabase project.
+* **013 (`site_hero_copy`) is not in production's migration history** (checked
+  2026-10-12). Apply 013 before 019, otherwise 019's guarded hero update does
+  nothing and production keeps the 004 hero until an admin publishes new copy
+  in the CMS. Nothing breaks either way.
+* A staging project (or a Supabase branch) where the same steps are rehearsed —
+  see `staging-runbook.md` and `npm run test:staging`. The local gate used
+  PGlite (Postgres 17 in WASM) with Supabase's roles; it has not been run on a
+  real Supabase project.
 
 ## New server environment variables (Vercel, server-only)
 
@@ -21,6 +26,13 @@ founder approval. Order matters: 016 → 017 → 018 → 019, then the applicati
 | `VERCEL_WEB_ANALYTICS` | optional (`1`) | Shown in System health only; first-party analytics stay the source of truth. |
 
 PostHog is not integrated (it would need a third-party script origin in the CSP).
+Names are listed in `.env.example`; values are generated per environment and
+never shared between staging and production.
+
+Abuse protection: `/api/analytics/collect` and `/api/evaluation-requests` keep
+an in-memory per-instance rate limit; evaluation requests are also limited to
+three per email per 24 h in the database. Before announcing the site, add a
+Vercel WAF rate-limit rule on both paths (and consider a CAPTCHA on the form).
 
 ## Steps
 
@@ -44,9 +56,13 @@ PostHog is not integrated (it would need a third-party script origin in the CSP)
 5. Smoke test as a ZEVQORA admin: `/admin` (command center), `/admin/system`
    (secrets show `configured`), `/admin/content` (draft → preview → publish →
    restore on a low-risk section such as the footer), `/admin/flags`.
-6. Turn on `visitor_intelligence` only after the privacy notice mentions
-   cookieless first-party analytics. `product_analytics` is on by default
-   (first-party, ids and counts only).
+6. Turn on `visitor_intelligence` only after founder/legal sign-off on the
+   updated Privacy notice (`/legal/privacy`, 2026-10-12). The collector keeps a
+   per-tab id in sessionStorage; under the EU ePrivacy rules that may count as
+   storing information on the device, so decide whether EU visitors need consent
+   first. Website events are kept 400 days (13-month year-over-year trends);
+   security events 90 days. `product_analytics` is on by default (first-party,
+   ids and counts only).
 7. Enable `zevir_graph_ui` with targeting `internal`, walk the demo
    (Command Center → Execution Graph → Diagnoses → Optimization), then widen to
    `selected` workspaces.

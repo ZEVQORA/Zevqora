@@ -32,13 +32,13 @@ export default function ProductPage() {
             {product.features.map((f, i) => {
               const Icon = FEATURE_ICONS[i % FEATURE_ICONS.length];
               return (
-                <Reveal key={f.title} delay={Math.min(i * 0.04, 0.2)} className="h-full">
-                  <li className="h-full rounded-[20px] border border-line bg-surface p-6 shadow-[0_1px_2px_rgb(15_17_21/0.04)]">
+                <li key={f.title} className="h-full">
+                  <Reveal delay={Math.min(i * 0.04, 0.2)} className="h-full rounded-[20px] border border-line bg-surface p-6 shadow-[0_1px_2px_rgb(15_17_21/0.04)]">
                     <span className="inline-flex h-10 w-10 items-center justify-center rounded-[12px] bg-accent-subtle text-accent-text"><Icon size={18} aria-hidden /></span>
                     <h2 className="mt-4 text-[1.1rem] font-semibold text-ink">{f.title}</h2>
                     <p className="mt-2 text-[14px] leading-relaxed text-muted">{f.body}</p>
-                  </li>
-                </Reveal>
+                  </Reveal>
+                </li>
               );
             })}
           </ul>

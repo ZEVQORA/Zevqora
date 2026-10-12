@@ -15,7 +15,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run typecheck && npm run lint && npm run test && npm run build",
-    "verify:release": "node scripts/verify-release.mjs"
+    "verify:release": "node scripts/verify-release.mjs",
+    "staging:guard": "node scripts/staging/guard.mjs",
+    "test:staging": "node scripts/staging/guard.mjs && vitest run --config vitest.staging.config.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
@@ -40,6 +42,7 @@
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "axe-core": "^4.10.3",
     "eslint": "^9.35.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",

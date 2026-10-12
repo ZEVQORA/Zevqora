@@ -89,13 +89,13 @@ function Problem() {
         </Reveal>
         <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {PROBLEMS.map((p, i) => (
-            <Reveal key={p.title} delay={Math.min(i * 0.04, 0.16)} className="h-full">
-              <li className="flex h-full flex-col rounded-[18px] border border-line bg-surface p-5 shadow-[0_1px_2px_rgb(15_17_21/0.04)]">
+            <li key={p.title} className="h-full">
+              <Reveal delay={Math.min(i * 0.04, 0.16)} className="flex h-full flex-col rounded-[18px] border border-line bg-surface p-5 shadow-[0_1px_2px_rgb(15_17_21/0.04)]">
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-[12px] bg-accent-subtle text-accent-text"><p.Icon size={17} aria-hidden /></span>
                 <h3 className="mt-4 text-[15px] font-semibold leading-snug text-ink">{p.title}</h3>
                 <p className="mt-2 text-[13.5px] leading-relaxed text-muted">{p.body}</p>
-              </li>
-            </Reveal>
+              </Reveal>
+            </li>
           ))}
         </ul>
       </div>
