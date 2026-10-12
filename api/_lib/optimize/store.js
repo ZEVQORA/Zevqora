@@ -7,6 +7,7 @@
  * to proceed if it changed (EVIDENCE_CHANGED → start a new run), so every
  * diagnosis and candidate is about exactly the baseline the user saw.
  */
+import { fetchPaged } from '../paging.js';
 import { ApiError } from '../http.js';
 import { flagEnabledForWorkspace } from '../flags.js';
 import { deterministicUuid } from '../product/hashing.js';
@@ -111,6 +112,8 @@ export async function loadRunContext(admin, run) {
 }
 
 // ---- evidence ---------------------------------------------------------------------
+/** Upper bound on a product's traces for reads that need all of them (replay). */
+const MAX_PRODUCT_TRACES = 20000;
 const TRACE_COLUMNS = 'id,product_id,workspace_id,request_id,timestamp,symbol,workflow,provider,model,requested_model,response_model,input_text,output_text,expected_output,system_prompt,messages,system_prompt_hash,input_tokens,output_tokens,cached_input_tokens,reasoning_tokens,latency_ms,ttft_ms,cost_usd,cost_source,pricing_version,attempt,retry_reason,input_hash,output_hash,protected,metadata,created_at';
 
 /**
@@ -121,8 +124,10 @@ const TRACE_COLUMNS = 'id,product_id,workspace_id,request_id,timestamp,symbol,wo
  * only, so it is the same either way.
  */
 export async function loadEvidence(admin, product) {
-  const traces = must(await admin.from('engine_traces').select(TRACE_COLUMNS).eq('product_id', product.id).order('created_at', { ascending: false }).limit(WINDOW_LIMIT + 1));
-  const truncated = traces.length > WINDOW_LIMIT;
+  // Paged with an exact count: one response is capped (1000 rows by default) without an error.
+  const page = await fetchPaged((a, b) => admin.from('engine_traces').select(TRACE_COLUMNS, { count: 'exact' }).eq('product_id', product.id).order('created_at', { ascending: false }).order('id', { ascending: true }).range(a, b), { max: WINDOW_LIMIT });
+  const traces = page.rows;
+  const truncated = page.truncated;
   const window = traces.slice(0, WINDOW_LIMIT).sort((a, b) => String(a.id).localeCompare(String(b.id)));
   const args = { p_workspace_id: product.workspace_id, p_product_id: product.id, p_max_graphs: MAX_GRAPHS };
   let { data: set, error } = await admin.rpc('zevir_product_graph_set_v2', args);
@@ -288,7 +293,9 @@ export async function replayCandidate(admin, { run, planId, user }) {
   if (plan.executable_status !== EXECUTABLE) throw new ApiError(422, `This candidate is ${plan.executable_status}: ${plan.lineage?.not_executable_reason || 'it cannot be replayed by the current engine'}`, 'CANDIDATE_NOT_EXECUTABLE');
   if (plan.contract_hash !== run.contract_hash) throw new ApiError(409, 'Candidate was generated under a different contract.', 'RUN_CONTRACT_HASH');
   await verifiedEvidence(admin, run, product, contract);
-  const traces = must(await admin.from('engine_traces').select('*').eq('product_id', product.id));
+  const page = await fetchPaged((a, b) => admin.from('engine_traces').select('*', { count: 'exact' }).eq('product_id', product.id).order('id', { ascending: true }).range(a, b), { max: MAX_PRODUCT_TRACES });
+  if (page.truncated) throw new ApiError(422, `This product has more than ${MAX_PRODUCT_TRACES} traces; replay reads them all and refuses to work from a partial set.`, 'TRACE_SET_TOO_LARGE');
+  const traces = page.rows;
   const { execution } = await runPlanExecution({ admin, user, product, plan, traces, extra: { run_id: run.id, contract_hash: run.contract_hash } });
   const { data: prior } = await admin.from('engine_evaluations').select('*').eq('candidate_execution_id', execution.id).eq('run_id', run.id).eq('contract_hash', run.contract_hash).limit(1).maybeSingle();
   if (prior) return { evaluation: prior, execution, reused: true };

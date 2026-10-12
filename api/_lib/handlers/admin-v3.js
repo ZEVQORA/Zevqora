@@ -32,6 +32,21 @@ import { decideFlag, globalFlag } from '../flags.js';
 import { analyticsSecretConfigured } from '../analytics/site.js';
 import { FUNNEL, TAXONOMY_NAME } from '../analytics/taxonomy.js';
 import { SECURITY_RETENTION_DAYS } from '../analytics/security.js';
+import { fetchPaged } from '../paging.js';
+
+const SECURITY_KINDS = ['auth_failed', 'account_suspended', 'authz_denied', 'cross_workspace_denied', 'admin_denied', 'rate_limited', 'unexpected_error', 'admin_action', 'config_change', 'flag_change', 'cms_publish', 'connection_revoked'];
+
+/** Exact per-kind counts (head requests), never a row fetch that the API row cap could truncate. */
+async function securityCounts(admin, from, to) {
+  const out = {};
+  await Promise.all(SECURITY_KINDS.map(async (kind) => {
+    let q = admin.from('security_events').select('id', { count: 'exact', head: true }).eq('kind', kind).gte('occurred_at', from);
+    if (to) q = q.lt('occurred_at', to);
+    const { count: n, error } = await q;
+    if (!error && n) out[kind] = n;
+  }));
+  return out;
+}
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -98,11 +113,10 @@ on('GET', '/api/admin/command-center', async ({ request }) => {
     siteOn ? admin.rpc('analytics_site_summary', { p_from: since7, p_to: now }) : { data: null },
     admin.rpc('analytics_product_summary', { p_from: since7, p_to: now }),
     admin.from('security_events').select('id,occurred_at,route,status,code,method').eq('kind', 'unexpected_error').order('occurred_at', { ascending: false }).limit(8),
-    admin.from('security_events').select('kind').gte('occurred_at', since7).limit(5000),
+    securityCounts(admin, since7, null),
     admin.from('profiles').select('id,email,display_name,created_at').order('created_at', { ascending: false }).limit(6),
   ]);
-  const byKind = {};
-  for (const r of security.data || []) byKind[r.kind] = (byKind[r.kind] || 0) + 1;
+  const byKind = security;
   return {
     generated_at: now,
     window: { from: since7, to: now, label: 'Last 7 days' },
@@ -169,16 +183,16 @@ on('GET', '/api/admin/analytics/optimization', async ({ request, query }) => {
   const range = parseRange(query);
   const within = (q) => q.gte('created_at', range.from).lt('created_at', range.to);
   const [searches, plans, decisions, evaluations, product] = await Promise.all([
-    within(admin.from('plan_searches').select('id,workspace_id,status,created_at,completed_at,spend')).order('created_at', { ascending: false }).limit(500),
-    within(admin.from('execution_plans').select('verdict,status,frontier_state,executable_status,risk_class')).limit(10000),
-    within(admin.from('plan_decisions').select('policy,outcome,created_at')).limit(2000),
-    within(admin.from('engine_evaluations').select('status,rejection_reason,created_at')).limit(5000),
+    fetchPaged((a, b) => within(admin.from('plan_searches').select('id,workspace_id,status,created_at,completed_at,spend', { count: 'exact' })).order('created_at', { ascending: false }).order('id').range(a, b), { max: 2000 }),
+    fetchPaged((a, b) => within(admin.from('execution_plans').select('id,verdict,status,frontier_state,executable_status,risk_class', { count: 'exact' })).order('id').range(a, b), { max: 20000 }),
+    fetchPaged((a, b) => within(admin.from('plan_decisions').select('id,policy,outcome,created_at', { count: 'exact' })).order('id').range(a, b), { max: 5000 }),
+    fetchPaged((a, b) => within(admin.from('engine_evaluations').select('id,status,rejection_reason,created_at', { count: 'exact' })).order('id').range(a, b), { max: 10000 }),
     admin.rpc('analytics_product_summary', { p_from: range.from, p_to: range.to }),
   ]);
-  const S = must(searches) || [];
-  const P = must(plans) || [];
-  const D = must(decisions) || [];
-  const E = must(evaluations) || [];
+  const S = searches.rows;
+  const P = plans.rows;
+  const D = decisions.rows;
+  const E = evaluations.rows;
   const tally = (rows, key) => rows.reduce((acc, r) => ((acc[r[key] ?? 'none'] = (acc[r[key] ?? 'none'] || 0) + 1), acc), {});
   const reasons = {};
   for (const e of E) if (e.status === 'REJECTED' && e.rejection_reason) {
@@ -189,7 +203,7 @@ on('GET', '/api/admin/analytics/optimization', async ({ request, query }) => {
   const workspacesWithSearch = new Set(S.map((s) => s.workspace_id)).size;
   const verified = P.filter((p) => p.verdict === 'VERIFIED').length;
   return {
-    meta: meta('Engine tables (plan_searches, execution_plans, plan_decisions, engine_evaluations)', range, { truncated: P.length >= 10000 || E.length >= 5000 }),
+    meta: meta('Engine tables (plan_searches, execution_plans, plan_decisions, engine_evaluations)', range, { truncated: searches.truncated || plans.truncated || decisions.truncated || evaluations.truncated }),
     searches: { total: S.length, by_status: tally(S, 'status'), workspaces: workspacesWithSearch, per_workspace: workspacesWithSearch ? Math.round((S.length / workspacesWithSearch) * 100) / 100 : null },
     plans: { total: P.length, by_verdict: tally(P.filter((p) => p.verdict), 'verdict'), by_status: tally(P, 'status'), frontier: P.filter((p) => p.frontier_state === 'FRONTIER').length },
     decisions: { total: D.length, by_policy: tally(D, 'policy'), selected: D.filter((d) => d.outcome === 'SELECTED').length },
@@ -213,10 +227,8 @@ on('GET', '/api/admin/security', async ({ request, query }) => {
     q = q.eq('kind', kind);
   }
   const events = must(await q.order('occurred_at', { ascending: false }).limit(300)) || [];
-  const allKinds = must(await admin.from('security_events').select('kind,severity').gte('occurred_at', range.from).lt('occurred_at', range.to).limit(10000)) || [];
+  const byKind = await securityCounts(admin, range.from, range.to);
   const changes = must(await admin.from('admin_audit_log').select('id,admin_id,action,target_type,target_id,created_at').gte('created_at', range.from).lt('created_at', range.to).order('created_at', { ascending: false }).limit(100)) || [];
-  const byKind = {};
-  for (const r of allKinds) byKind[r.kind] = (byKind[r.kind] || 0) + 1;
   await auditAdmin(admin, user.id, 'security_events.read', 'security_events', null, { range: range.preset, kind: kind || null, rows: events.length });
   return {
     meta: meta('security_events (server boundary) + admin_audit_log', range, { retention_days: SECURITY_RETENTION_DAYS, ip_note: 'Only a truncated prefix (IPv4 /24, IPv6 /48) is stored; never a full address.', read_audited: true }),
@@ -313,7 +325,7 @@ on('GET', '/api/admin/flags/reach', async ({ request }) => {
   const { admin } = await adminContext(request);
   let flags = (await admin.from('feature_flags').select('key,enabled,workspace_overrides,targeting,rollout_percent')).data;
   if (!flags) flags = must(await admin.from('feature_flags').select('key,enabled,workspace_overrides')) || [];
-  const workspaces = must(await admin.from('workspaces').select('id,owner_id').limit(5000)) || [];
+  const { rows: workspaces, truncated: workspacesTruncated } = await fetchPaged((a, b) => admin.from('workspaces').select('id,owner_id', { count: 'exact' }).order('id').range(a, b), { max: 20000 });
   const admins = new Set((must(await admin.from('admin_roles').select('user_id')) || []).map((a) => a.user_id));
   const reach = {};
   for (const f of flags) {
@@ -321,7 +333,7 @@ on('GET', '/api/admin/flags/reach', async ({ request }) => {
     for (const w of workspaces) if (decideFlag(f, { workspaceId: w.id, internal: admins.has(w.owner_id) })) on += 1;
     reach[f.key] = { workspaces_on: on, workspaces_total: workspaces.length, internal_workspaces: workspaces.filter((w) => admins.has(w.owner_id)).length };
   }
-  return { reach };
+  return { reach, truncated: workspacesTruncated };
 });
 
 // ------------------------------------------------------ optimization + ZevIR
@@ -336,7 +348,7 @@ on('GET', '/api/admin/optimization', async ({ request }) => {
   const S = searches.data || [];
   const wsIds = [...new Set(S.map((s) => s.workspace_id).concat((ingest.data || []).map((r) => r.workspace_id)))];
   const names = wsIds.length ? Object.fromEntries((must(await admin.from('workspaces').select('id,name').in('id', wsIds)) || []).map((w) => [w.id, w.name])) : {};
-  const plans = S.length ? must(await admin.from('execution_plans').select('search_id,verdict,frontier_state,status').in('search_id', S.map((s) => s.id)).limit(10000)) || [] : [];
+  const plans = S.length ? (await fetchPaged((a, b) => admin.from('execution_plans').select('id,search_id,verdict,frontier_state,status', { count: 'exact' }).in('search_id', S.map((s) => s.id)).order('id').range(a, b), { max: 20000 })).rows : [];
   return {
     runs,
     zevir: { graphs, ingest_runs: (ingest.data || []).map((r) => ({ ...r, workspace: names[r.workspace_id] || null })), ingest_error: ingest.error ? 'unavailable' : null },

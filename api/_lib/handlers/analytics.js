@@ -83,6 +83,10 @@ on('POST', '/api/evaluation-requests', async ({ request }) => {
     utm_campaign: utm(body?.source?.utm_campaign),
   };
   const admin = db();
+  // The in-memory limiter resets with each serverless instance; this one holds across them.
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count: recent } = await admin.from('evaluation_requests').select('id', { count: 'exact', head: true }).eq('email', email).gte('created_at', since);
+  if ((recent || 0) >= 3) throw new ApiError(429, 'We already have your recent requests. We will reply by email.', 'RATE_LIMITED');
   const { data, error } = await admin.from('evaluation_requests').insert({ name, email, company, role_title: roleTitle, workload, ai_spend_band: band, consent: true, source }).select('id').single();
   if (error) throw error;
   await emitProductEvent(admin, { event: 'evaluation_requested', subjectType: 'evaluation_request', subjectId: data.id, properties: { ai_spend_band: band }, dedupeKey: `evaluation_requested:${data.id}` });

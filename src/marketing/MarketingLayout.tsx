@@ -144,7 +144,7 @@ export function SiteFooter() {
         </div>
         <div className="mt-14 flex flex-col gap-3 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-technical font-mono text-subtle">© {new Date().getFullYear()} ZEVQORA. {content.footer.note}</p>
-          <p className="text-technical font-mono text-subtle">Cookieless, first-party analytics. Do Not Track is respected.</p>
+          <p className="text-technical font-mono text-subtle">First-party analytics without cookies; Do Not Track and GPC are respected. See Privacy.</p>
         </div>
       </div>
     </footer>

@@ -22,13 +22,16 @@ function from(table: string) {
   const filters: Array<(r: Row) => boolean> = [];
   let patch: Row | null = null;
   let inserted: Row[] | null = null;
-  const rows = () => db[table].filter((r) => filters.every((f) => f(r)));
+  let window: [number, number] | null = null;
+  const all = () => db[table].filter((r) => filters.every((f) => f(r)));
+  const rows = () => (window ? all().slice(window[0], window[1] + 1) : all());
   const q = {
     select: () => q,
     eq: (k: string, v: unknown) => (filters.push((r) => r[k] === v), q),
     is: (k: string, v: unknown) => (filters.push((r) => (r[k] ?? null) === v), q),
     order: () => q,
     limit: () => q,
+    range: (a: number, b: number) => ((window = [a, b]), q),
     insert: (value: Row | Row[]) => {
       inserted = (Array.isArray(value) ? value : [value]).map((r) => ({ id: randomUUID(), created_at: new Date().toISOString(), ...r }));
       db[table].push(...inserted);
@@ -44,7 +47,7 @@ function from(table: string) {
     },
     then: (resolve: (v: { data: Row[]; error: null; count: number }) => unknown) => {
       if (patch) for (const r of rows()) Object.assign(r, patch);
-      return Promise.resolve(resolve({ data: rows(), error: null, count: rows().length }));
+      return Promise.resolve(resolve({ data: rows(), error: null, count: all().length }));
     },
   };
   return q;

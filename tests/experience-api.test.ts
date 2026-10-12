@@ -153,6 +153,16 @@ describe('evaluation requests', () => {
     expect(ev).toMatchObject({ user_id: null, subject_id: r.body.id, properties: { ai_spend_band: '10k_50k' } });
   });
 
+  it('limits one email to three requests a day, across server instances (database-backed)', async () => {
+    const base = { name: 'Rate Test', email: 'rate@example.com', company: 'R', workload: 'A long enough workload description.', consent: true };
+    for (let i = 0; i < 3; i += 1) expect((await call('POST', '/api/evaluation-requests', base)).status).toBe(201);
+    const fourth = await call('POST', '/api/evaluation-requests', base);
+    expect(fourth).toMatchObject({ status: 429, body: { code: 'RATE_LIMITED' } });
+    expect((await q(`select count(*)::int n from public.evaluation_requests where email = 'rate@example.com'`))[0].n).toBe(3);
+    await q(`delete from public.evaluation_requests where email = 'rate@example.com'`);
+    await q(`delete from public.product_events where event = 'evaluation_requested' and properties->>'ai_spend_band' = 'unknown'`);
+  });
+
   it('requires consent and a valid email; bots filling the honeypot get a silent success and nothing is stored', async () => {
     const base = { name: 'Bo Example', email: 'bo@example.com', company: 'B', workload: 'A long enough workload description.', consent: true };
     expect((await call('POST', '/api/evaluation-requests', { ...base, consent: false })).status).toBe(400);

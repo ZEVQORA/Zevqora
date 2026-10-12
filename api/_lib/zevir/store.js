@@ -8,6 +8,7 @@
  * the first run instead of writing again; graphs are written atomically by
  * public.zevir_persist_graphs, which no-ops on an unchanged graph hash.
  */
+import { fetchPaged } from '../paging.js';
 import { ApiError } from '../http.js';
 import { ADAPTER_VERSIONS, LIMITS, SCHEMA_VERSION } from './contracts.js';
 import { edgeId, evidenceId, graphId, nodeId, sha256Json } from './hash.js';
@@ -161,9 +162,11 @@ const tally = (outcomes) => outcomes.reduce((acc, o) => ((acc[o.outcome] = (acc[
 export async function projectEngineProduct({ admin, product, userId = null, traces = null, prune = true }) {
   let rows = traces;
   if (!rows) {
-    const { data, error } = await admin.from('engine_traces').select(ENGINE_TRACE_COLUMNS).eq('product_id', product.id).order('created_at', { ascending: true }).limit(LIMITS.maxEngineTraces + 1);
-    if (error) throw error;
-    rows = data || [];
+    // Paged with an exact count: a single response is capped without an error, and a partial
+    // read here would make the prune step below delete graphs of traces that still exist.
+    const page = await fetchPaged((a, b) => admin.from('engine_traces').select(ENGINE_TRACE_COLUMNS, { count: 'exact' }).eq('product_id', product.id).order('created_at', { ascending: true }).order('id', { ascending: true }).range(a, b), { max: LIMITS.maxEngineTraces });
+    if (page.truncated) throw new ApiError(413, `A product projection is bounded to ${LIMITS.maxEngineTraces} traces.`, 'PAYLOAD_TOO_LARGE');
+    rows = page.rows;
   }
   if (rows.length > LIMITS.maxEngineTraces) throw new ApiError(413, `A product projection is bounded to ${LIMITS.maxEngineTraces} traces.`, 'PAYLOAD_TOO_LARGE');
   const { graphs, rejected } = engineTracesToGraphs(rows, { product });

@@ -10,6 +10,7 @@
  * Every write is workspace-scoped and authorized by membership; model spend goes
  * through platform compute (server credential, credit accounting).
  */
+import { fetchPaged } from '../paging.js';
 import { randomUUID } from 'node:crypto';
 import { on } from '../router.js';
 import { ApiError, readJson, str, num, uuid } from '../http.js';
@@ -44,11 +45,16 @@ async function loadProduct(admin, user, productId, minRole = 'member') {
   return { product, role };
 }
 
+/** Every row of a product's table, paged (one response is capped at 1000 rows without an error). */
+const MAX_PRODUCT_ROWS = 20000;
 async function rows(admin, table, productId, order = 'created_at') {
-  const q = admin.from(table).select('*').eq('product_id', productId);
-  const { data, error } = order ? await q.order(order, { ascending: false }) : await q;
-  if (error) throw error;
-  return data || [];
+  const page = await fetchPaged((a, b) => {
+    let q = admin.from(table).select('*', { count: 'exact' }).eq('product_id', productId);
+    if (order) q = q.order(order, { ascending: false });
+    return q.order('id', { ascending: true }).range(a, b);
+  }, { max: MAX_PRODUCT_ROWS });
+  if (page.truncated) throw new ApiError(422, `This product has more than ${MAX_PRODUCT_ROWS} ${table.replace('engine_', '').replace(/_/g, ' ')}; refusing to work from a partial set.`, 'ROW_SET_TOO_LARGE');
+  return page.rows;
 }
 
 function productOut(p) {
@@ -308,7 +314,7 @@ on('POST', '/api/engine/products/:id/traces/import', async ({ request, params })
   const body = await readJson(request, { maxBytes: 3_800_000 });
   const { rows: parsed, errors } = parseTraces({ jsonl: body?.jsonl, traces: body?.traces });
   if (parsed.length > MAX_TRACES_PER_IMPORT) throw new ApiError(413, `Import at most ${MAX_TRACES_PER_IMPORT} traces per request.`, 'PAYLOAD_TOO_LARGE');
-  const { data: existing } = await admin.from('engine_traces').select('request_id').eq('product_id', product.id);
+  const { rows: existing } = await fetchPaged((a, b) => admin.from('engine_traces').select('id,request_id', { count: 'exact' }).eq('product_id', product.id).order('id', { ascending: true }).range(a, b), { max: MAX_PRODUCT_ROWS });
   const seen = new Set((existing || []).map((r) => r.request_id));
   const fresh = [];
   for (const t of parsed) {

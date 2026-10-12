@@ -14,6 +14,7 @@
 import { on } from '../router.js';
 import { uuid } from '../http.js';
 import { requireUser, requireWorkspaceRole } from '../auth.js';
+import { fetchPaged } from '../paging.js';
 
 const TRACE_LIMIT = 5000;
 const DAY = 24 * 60 * 60 * 1000;
@@ -26,6 +27,11 @@ function percentile(sorted, p) {
   return sorted[idx];
 }
 const sortNums = (xs) => xs.filter((x) => typeof x === 'number' && Number.isFinite(x)).sort((a, b) => a - b);
+/** fetchPaged in the { data, error } shape the rest of this handler reads, plus `truncated`. */
+async function paged(build, max) {
+  const r = await fetchPaged(build, { max });
+  return { data: r.rows, error: null, truncated: r.truncated };
+}
 const must = ({ data, error }) => {
   if (error) throw error;
   return data || [];
@@ -183,15 +189,16 @@ on('GET', '/api/workspaces/:id/command-center', async ({ request, params, query 
   const ids = products.map((p) => p.id);
   const none = { data: [] };
   const [traces, runs, contracts, snapshots, searches, plans, decisions, diagnoses, evaluations] = await Promise.all([
-    ids.length ? admin.from('engine_traces').select('product_id,timestamp,created_at,provider,model,workflow,symbol,latency_ms,ttft_ms,cost_usd,attempt').eq('workspace_id', workspaceId).gte('created_at', from).order('created_at', { ascending: false }).limit(TRACE_LIMIT) : none,
+    // Paged: PostgREST caps a single response (1000 rows by default) without saying so.
+    ids.length ? paged((a, b) => admin.from('engine_traces').select('id,product_id,timestamp,created_at,provider,model,workflow,symbol,latency_ms,ttft_ms,cost_usd,attempt', { count: 'exact' }).eq('workspace_id', workspaceId).gte('created_at', from).order('created_at', { ascending: false }).order('id', { ascending: true }).range(a, b), TRACE_LIMIT) : none,
     ids.length ? admin.from('optimization_runs').select('id,product_id,status,contract_id,baseline_snapshot_id,created_at').eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(200) : none,
     ids.length ? admin.from('evaluation_contracts').select('id,product_id,status,version,frozen_at,contract_hash').eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(200) : none,
     ids.length ? admin.from('performance_snapshots').select('*').eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(50) : none,
     ids.length ? admin.from('plan_searches').select('id,product_id,run_id,status,generation,frontier,created_at,completed_at,contract_hash').eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(50) : none,
-    ids.length ? admin.from('execution_plans').select('id,product_id,search_id,name,plan_hash,status,verdict,frontier_state,executable_status,risk_class,implementation_complexity,rollback_complexity,verified_effects,missing_evidence').eq('workspace_id', workspaceId).limit(2000) : none,
+    ids.length ? paged((a, b) => admin.from('execution_plans').select('id,product_id,search_id,name,plan_hash,status,verdict,frontier_state,executable_status,risk_class,implementation_complexity,rollback_complexity,verified_effects,missing_evidence', { count: 'exact' }).eq('workspace_id', workspaceId).order('id', { ascending: true }).range(a, b), 5000) : none,
     ids.length ? admin.from('plan_decisions').select('id,search_id,policy,outcome,selected_plan_id,created_at').eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(100) : none,
     ids.length ? admin.from('optimization_diagnoses').select('id,product_id,run_id,family,severity,symptom,scope,confidence,risk_class,affected_nodes').eq('workspace_id', workspaceId).limit(500) : none,
-    ids.length ? admin.from('engine_evaluations').select('id,product_id,status,created_at').eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(1000) : none,
+    ids.length ? paged((a, b) => admin.from('engine_evaluations').select('id,product_id,status,created_at', { count: 'exact' }).eq('workspace_id', workspaceId).order('created_at', { ascending: false }).order('id', { ascending: true }).range(a, b), 5000) : none,
   ]);
   const T = must(traces);
   const R = must(runs);
@@ -283,7 +290,8 @@ on('GET', '/api/workspaces/:id/command-center', async ({ request, params, query 
     generated_at: to,
     range: { from, to, days },
     synthetic: perProduct.some((p) => p.synthetic),
-    observed: observed(T, { from, to, truncated: T.length >= TRACE_LIMIT }),
+    observed: observed(T, { from, to, truncated: Boolean(traces.truncated) }),
+    limits: { plans_truncated: Boolean(plans.truncated), evaluations_truncated: Boolean(evaluations.truncated) },
     products: perProduct,
     pipeline: {
       workloads: perProduct.length,
