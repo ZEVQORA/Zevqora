@@ -9,7 +9,7 @@ founder approval.
 
 | Item | State |
 |---|---|
-| Local branch | `nero/vnext-part3` — 24 commits not on any remote (ZevIR Part 1 → Part 3.5) |
+| Local branch | `nero/vnext-part3` — 26 commits not on any remote (ZevIR Part 1 → Part 3.5); 36 ahead of `origin/main` (10 are already on `origin/nero/mvp-proof-engine`) |
 | GitHub `ZEVQORA/Zevqora` | **public**; no `nero/vnext-*` branches; `main` = `97079d5` |
 | Supabase production | project ref `czhufhufvwvgyhjuaauo` (`Zevqora`, ACTIVE_HEALTHY) |
 | Production migration history | 003–012, 014, 015 tracked. **013 (`site_hero_copy`) is not in the history.** 016–019 not applied. (001/002 predate tracking.) |
@@ -130,7 +130,7 @@ earlier. A staging project is simply deleted; a development branch is deleted.
 1. Confirm `git status` shows only the founder's own `.gitignore` edit and log
    files, and never stage them (`git add` explicit paths only).
 2. Re-run `npm run typecheck && npm run lint && npm test && npm run build && npm run verify:release`.
-3. `git push -u origin nero/vnext-part3` — publishes all 24 commits, including the
+3. `git push -u origin nero/vnext-part3` — publishes the 26 unpublished commits, including the
    docs under `docs/` (architecture, security model, rollout). No secrets are in the
    diff (scanned 2026-10-12); review the docs for anything not meant to be public.
 4. Open a **draft** PR into `main`; do not merge until staging passes.
