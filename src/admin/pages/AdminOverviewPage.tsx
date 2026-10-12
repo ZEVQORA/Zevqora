@@ -1,68 +1,99 @@
 import { Link } from 'react-router';
-import { admin } from '../data';
+import { AlertTriangle, UserPlus } from 'lucide-react';
 import { useAsync } from '@/lib/useAsync';
-import { PageHeader, Panel, PanelHeader, KeyValue } from '@/components/ui/Panel';
-import { Metric } from '@/components/ui/Metric';
-import { StatusChip } from '@/components/ui/StatusChip';
-import { ErrorState, Skeleton } from '@/components/ui/States';
-import { money, dateTime, shortId, relativeTime } from '@/lib/format';
+import { relativeTime } from '@/lib/format';
+import { Card, CardHeader, StatTile } from '@/components/ui/Card';
+import { ActivityItem } from '@/components/ui/Evidence';
+import { ErrorState, LoadingState, InlineNotice } from '@/components/ui/States';
+import { FunnelChart } from '@/components/charts/Bars';
+import { adminV3 } from '../data-v3';
+import { AdminHeader, StatusPill } from '../shared';
 
+const n = (v: number | null | undefined) => (v === null || v === undefined ? 'unknown' : v.toLocaleString());
+
+/** Admin command center: real counts only; every figure says its window. */
 export default function AdminOverviewPage() {
-  const q = useAsync(() => admin.overview(), []);
-  const o = q.data;
-  if (q.error && !o) return <ErrorState message={q.error} onRetry={() => q.reload()} />;
-  const c = o?.counts || {};
-  const cards: Array<[string, number | null, ((v: number) => string) | undefined, string | undefined]> = [
-    ['Total users', c.users ?? null, undefined, `${c.new_users_30d ?? 0} new in 30d · ${c.suspended_users ?? 0} suspended`],
-    ['Active users (7d)', c.active_users_7d ?? null, undefined, 'signed in within 7 days'],
-    ['Workspaces', c.workspaces ?? null, undefined, `${c.projects ?? 0} active projects`],
-    ['Connected runtimes', c.connections_live ?? null, undefined, `${c.connections_active ?? 0} active tokens · live = seen in 24h`],
-    ['Paid subscriptions', c.subscriptions_paid ?? null, undefined, `${c.subscriptions_stripe ?? 0} managed by Stripe`],
-    ['MRR (Stripe only)', c.mrr_cents !== undefined ? Number(c.mrr_cents) / 100 : null, (v) => money(v), 'from active Stripe subscriptions; admin-assigned plans excluded'],
-    ['Credit used / included', c.credits_used ?? null, (v) => `${money(v)} / ${money(Number(c.credits_included || 0))}`, `${money(Number(c.usage_30d || 0))} consumed in 30d`],
-    ['Provider cost (30d)', c.provider_cost_30d !== undefined ? Number(c.provider_cost_30d) : null, (v) => money(v, { digits: 4 }), 'OpenRouter spend on replays'],
-    ['Analysis runs', c.analysis_runs ?? null, undefined, `${c.analysis_runs_30d ?? 0} in 30d`],
-    ['Experiments', c.experiments ?? null, undefined, `${c.experiments_passed ?? 0} passed · ${c.experiments_failed ?? 0} failed · ${c.experiments_error ?? 0} errors`],
-    ['Telemetry (24h)', c.telemetry_events_24h ?? null, undefined, 'events received'],
-    ['Open opportunities', c.opportunities_open ?? null, undefined, 'across all workspaces'],
-  ];
+  const q = useAsync(() => adminV3.commandCenter(), []);
+  const d = q.data;
   return (
     <>
-      <PageHeader eyebrow="Internal" title="Control centre" description="Company-wide state. Financial figures come only from Stripe; nothing is estimated." />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {cards.map(([label, value, fmt, hint]) => (
-          <Panel key={label} className="p-5">{!o ? <Skeleton className="h-16" /> : <Metric label={label} value={value} format={fmt || ((v) => String(Math.round(v)))} hint={hint} />}</Panel>
-        ))}
-      </div>
-      <div className="mt-4 grid gap-4 xl:grid-cols-3">
-        <Panel>
-          <PanelHeader title="Health" />
-          <div className="px-5 pb-5">
-            {o ? <KeyValue items={[{ k: 'API', v: <StatusChip status="active" label={o.health.api.toUpperCase()} /> }, { k: 'Database', v: <StatusChip status="active" label="OK" /> }, { k: 'Cloud replay', v: <StatusChip status={o.health.cloud_replay === 'configured' ? 'active' : 'not_configured'} label={o.health.cloud_replay.replace('_', ' ').toUpperCase()} /> }, { k: 'Stripe', v: <StatusChip status={o.health.stripe === 'configured' ? 'active' : 'not_configured'} label={o.health.stripe.replace('_', ' ').toUpperCase()} /> }, { k: 'Checked', v: dateTime(o.health.time) }]} /> : <Skeleton className="h-32" />}
+      <AdminHeader title="Command center" description="Accounts, workspaces, optimization activity, leads, errors and security signals from the production database. Counts are exact; the window is the last 7 days unless stated." />
+      {q.error && <ErrorState message={q.error} onRetry={() => void q.reload()} />}
+      {q.loading && !d && <LoadingState label="Loading the admin command center" rows={5} />}
+      {d && (
+        <div className="flex flex-col gap-5">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+            <StatTile label="Users (all time)" value={n(d.counts.users)} />
+            <StatTile label="Signups, 7 days" value={n(d.counts.signups_7d)} tone="accent" />
+            <StatTile label="Active users, 7 days" value={n(d.counts.active_users_7d)} hint="last API activity" />
+            <StatTile label="Workspaces" value={n(d.counts.workspaces)} />
+            <StatTile label="Active workspaces, 7 days" value={n(d.counts.active_workspaces_7d)} hint="with a product event" />
+            <StatTile label="Connected workloads" value={n(d.counts.connected_workloads)} />
+            <StatTile label="Plan searches, 7 days" value={n(d.counts.searches_7d)} />
+            <StatTile label="Evaluations, 7 days" value={n(d.counts.evaluations_7d)} hint="replay verdicts" />
+            <StatTile label="New evaluation requests" value={n(d.counts.evaluation_requests_new)} tone={d.counts.evaluation_requests_new ? 'warning' : 'default'} />
+            <StatTile label="Security events, 7 days" value={Object.values(d.security_7d).reduce((a, b) => a + b, 0).toLocaleString()} />
           </div>
-        </Panel>
-        <Panel>
-          <PanelHeader title="Recent admin actions" action={<Link to="/admin/audit" className="text-caption text-accent-text underline-offset-4 hover:underline">Audit log</Link>} />
-          <ul className="divide-y divide-line px-5">
-            {(o?.recent_audit || []).map((a) => (
-              <li key={a.id} className="py-2.5"><p className="font-mono text-technical text-ink">{a.action}</p><p className="text-technical text-subtle">{a.admin_email || 'system'} · {a.target_type} {a.target_id ? shortId(a.target_id) : ''} · {relativeTime(a.created_at)}</p></li>
-            ))}
-            {o && !o.recent_audit.length && <li className="py-3 text-technical text-subtle">No admin actions yet.</li>}
-          </ul>
-        </Panel>
-        <Panel>
-          <PanelHeader title="Recent errors & runs" />
-          <ul className="divide-y divide-line px-5">
-            {(o?.recent_errors || []).map((e) => (
-              <li key={e.id} className="py-2.5"><div className="flex items-center justify-between gap-2"><span className="font-mono text-technical text-ink">experiment {shortId(e.id)}</span><StatusChip status={e.status} /></div><p className="text-technical mt-0.5 truncate text-subtle">{e.error || e.strategy} · {relativeTime(e.created_at)}</p></li>
-            ))}
-            {(o?.recent_runs || []).slice(0, 5).map((r) => (
-              <li key={r.id} className="py-2.5"><div className="flex items-center justify-between gap-2"><span className="font-mono text-technical text-ink">analysis {shortId(r.id)}</span><StatusChip status={r.status} label={r.status === 'failed' ? 'FAILED' : undefined} /></div><p className="text-technical mt-0.5 text-subtle">{r.events_analyzed} events · {r.opportunities_found} found · {relativeTime(r.created_at)}</p></li>
-            ))}
-            {o && !o.recent_errors.length && !o.recent_runs.length && <li className="py-3 text-technical text-subtle">Nothing yet.</li>}
-          </ul>
-        </Panel>
-      </div>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Card>
+              <CardHeader title="Website conversion, 7 days" description="Sessions → CTA → signup started → evaluation submitted (first-party, cookieless)." action={<Link to="/admin/analytics" className="text-[12.5px] font-medium text-accent-text">Website analytics</Link>} />
+              <div className="px-5 pb-4">
+                {d.website.collecting ? (
+                  d.website.funnel?.sessions ? (
+                    <FunnelChart ariaLabel="Website conversion funnel" steps={[
+                      { key: 's', label: 'Sessions', value: d.website.funnel.sessions },
+                      { key: 'c', label: 'Clicked a CTA', value: d.website.funnel.cta },
+                      { key: 'u', label: 'Started signup', value: d.website.funnel.signup_started },
+                      { key: 'e', label: 'Requested evaluation', value: d.website.funnel.evaluation_submitted },
+                    ]} />
+                  ) : <p className="text-[12.5px] text-muted">No website sessions recorded in the last 7 days.</p>
+                ) : (
+                  <InlineNotice tone="info">Website analytics are off. Turn on the <code>visitor_intelligence</code> flag to record cookieless pageviews.</InlineNotice>
+                )}
+              </div>
+            </Card>
+            <Card>
+              <CardHeader title="System status" action={<Link to="/admin/system" className="text-[12.5px] font-medium text-accent-text">Details</Link>} />
+              <dl className="grid grid-cols-1 gap-x-6 gap-y-2 px-5 pb-4 sm:grid-cols-2">
+                {Object.entries(d.system).filter(([k]) => k !== 'time').map(([k, v]) => (
+                  <div key={k} className="flex items-center justify-between gap-2 border-b border-line py-1.5 text-[12.5px]">
+                    <dt className="text-muted">{k.replace(/_/g, ' ')}</dt>
+                    <dd><StatusPill value={v} /></dd>
+                  </div>
+                ))}
+              </dl>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-3">
+            <Card>
+              <CardHeader title="Recent signups" />
+              <ul className="px-5 pb-3">
+                {d.recent_signups.map((u) => <ActivityItem key={u.id} icon={<UserPlus size={12} />} title={<Link to={`/admin/users/${u.id}`} className="hover:text-accent-text">{u.display_name || u.email || u.id.slice(0, 8)}</Link>} meta={u.email} at={u.created_at} />)}
+                {!d.recent_signups.length && <li className="py-3 text-[12.5px] text-muted">No accounts yet.</li>}
+              </ul>
+            </Card>
+            <Card>
+              <CardHeader title="Recent server errors" description="5xx responses recorded as security events (route only, no payloads)." />
+              <ul className="px-5 pb-3">
+                {d.recent_errors.map((e) => <ActivityItem key={e.id} icon={<AlertTriangle size={12} />} title={<span className="font-mono text-[12px]">{e.method} {e.route}</span>} meta={`${e.status} · ${e.code || 'INTERNAL'}`} at={e.occurred_at} />)}
+                {!d.recent_errors.length && <li className="py-3 text-[12.5px] text-muted">No server errors recorded.</li>}
+              </ul>
+            </Card>
+            <Card>
+              <CardHeader title="Security signals, 7 days" action={<Link to="/admin/security" className="text-[12.5px] font-medium text-accent-text">Security</Link>} />
+              <ul className="px-5 pb-4 text-[12.5px]">
+                {Object.entries(d.security_7d).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+                  <li key={k} className="flex justify-between border-b border-line py-1.5"><span className="text-muted">{k.replace(/_/g, ' ')}</span><span className="font-mono tnum text-ink">{v}</span></li>
+                ))}
+                {!Object.keys(d.security_7d).length && <li className="py-2 text-muted">No security events recorded.</li>}
+              </ul>
+            </Card>
+          </div>
+          <p className="text-[11.5px] text-subtle">Generated {relativeTime(d.generated_at)}. Product events are recorded from migration 019 onward and are not backfilled.</p>
+        </div>
+      )}
     </>
   );
 }

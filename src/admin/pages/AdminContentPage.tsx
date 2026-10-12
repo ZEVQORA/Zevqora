@@ -1,135 +1,255 @@
-import { useEffect, useState } from 'react';
-import { admin } from '../data';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { Eye, History, Plus, Trash2 } from 'lucide-react';
 import { useAsync } from '@/lib/useAsync';
-import { invalidateSiteCaches } from '@/lib/site';
-import { PageHeader, Panel, PanelHeader } from '@/components/ui/Panel';
-import { Button } from '@/components/ui/Button';
-import { Field, Input, Textarea, Select } from '@/components/ui/Field';
-import { ErrorState, Skeleton, InlineNotice } from '@/components/ui/States';
-import { useToast } from '@/components/ui/Toast';
 import { errorMessage } from '@/lib/api';
-import { dateTime } from '@/lib/format';
+import { dateTime, relativeTime } from '@/lib/format';
+import { SiteContentOverride, invalidateSiteCaches } from '@/lib/site';
+import type { SiteContent } from '@/lib/types';
+import { cn } from '@/lib/cn';
+import { Button } from '@/components/ui/Button';
+import { Card, CardHeader } from '@/components/ui/Card';
+import { ConfirmDialog } from '@/components/ui/Dialog';
+import { Field, Input, Select, Textarea } from '@/components/ui/Field';
+import { Drawer } from '@/components/ui/Overlay';
+import { ErrorState, InlineNotice, LoadingState } from '@/components/ui/States';
+import { useToast } from '@/components/ui/Toast';
+import { adminV3, type CmsField, type CmsKeyState, type CmsRevision } from '../data-v3';
+import { AdminHeader } from '../shared';
+
+const HomePage = lazy(() => import('@/marketing/HomePage'));
+const ProductPage = lazy(() => import('@/marketing/ProductPage'));
+const SecurityPage = lazy(() => import('@/marketing/SecurityPage'));
+const EvaluationPage = lazy(() => import('@/marketing/EvaluationPage'));
+const CompanyPage = lazy(() => import('@/marketing/CompanyPage'));
+const PREVIEW: Record<string, React.ComponentType> = { hero: HomePage, home: HomePage, proof: HomePage, status: HomePage, contact: CompanyPage, footer: HomePage, product: ProductPage, security_page: SecurityPage, evaluation_page: EvaluationPage, company_page: CompanyPage };
 
 type Value = Record<string, unknown>;
 
-function useEditor(initial: Value) {
-  const [v, setV] = useState<Value>(initial);
-  useEffect(() => setV(initial), [initial]);
-  const get = (path: string) => path.split('.').reduce<unknown>((acc, k) => (acc && typeof acc === 'object' ? (acc as Value)[k] : undefined), v);
-  const set = (path: string, value: unknown) =>
-    setV((prev) => {
-      const next = JSON.parse(JSON.stringify(prev)) as Value;
-      const keys = path.split('.');
-      let cur: Value = next;
-      keys.slice(0, -1).forEach((k) => {
-        if (!cur[k] || typeof cur[k] !== 'object') cur[k] = {};
-        cur = cur[k] as Value;
-      });
-      cur[keys[keys.length - 1]] = value;
-      return next;
-    });
-  return { v, get, set };
+/** One schema field, rendered as a plain-text control. Content is never HTML. */
+function FieldEditor({ id, spec, value, onChange, label }: { id: string; spec: CmsField; value: unknown; onChange: (v: unknown) => void; label: string }) {
+  const hint = spec.max ? `Up to ${spec.max} characters.` : undefined;
+  switch (spec.type) {
+    case 'text':
+    case 'href':
+    case 'email':
+      return (
+        <Field id={id} label={`${label}${spec.required ? '' : ' (optional)'}`} hint={spec.type === 'href' ? 'A site path (/evaluation), an https:// URL or a mailto: address.' : hint}>
+          <Input id={id} value={typeof value === 'string' ? value : ''} maxLength={spec.max || 300} onChange={(e) => onChange(e.target.value || null)} />
+        </Field>
+      );
+    case 'longtext':
+      return (
+        <Field id={id} label={`${label}${spec.required ? '' : ' (optional)'}`} hint={hint}>
+          <Textarea id={id} value={typeof value === 'string' ? value : ''} maxLength={spec.max} onChange={(e) => onChange(e.target.value || null)} />
+        </Field>
+      );
+    case 'int':
+      return (
+        <Field id={id} label={label}>
+          <Input id={id} type="number" min={spec.min} max={spec.max} value={typeof value === 'number' ? value : ''} onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))} />
+        </Field>
+      );
+    case 'enum':
+      return (
+        <Field id={id} label={label}>
+          <Select id={id} value={String(value ?? spec.values?.[0] ?? '')} onChange={(e) => onChange(e.target.value)}>
+            {spec.values?.map((v) => <option key={v} value={v}>{v}</option>)}
+          </Select>
+        </Field>
+      );
+    case 'cta': {
+      const v = (value as { label?: string; href?: string }) || {};
+      return (
+        <fieldset className="grid gap-3 rounded-md border border-line p-3 sm:grid-cols-2">
+          <legend className="px-1 text-caption font-medium text-ink">{label}</legend>
+          <Field id={`${id}-label`} label="Label"><Input id={`${id}-label`} value={v.label || ''} maxLength={40} onChange={(e) => onChange({ ...v, label: e.target.value })} /></Field>
+          <Field id={`${id}-href`} label="Link"><Input id={`${id}-href`} value={v.href || ''} onChange={(e) => onChange({ ...v, href: e.target.value })} /></Field>
+        </fieldset>
+      );
+    }
+    case 'object': {
+      const v = (value as Value) || {};
+      return (
+        <fieldset className="grid gap-3 rounded-md border border-line p-3 sm:grid-cols-2">
+          <legend className="px-1 text-caption font-medium text-ink">{label}</legend>
+          {Object.entries(spec.fields || {}).map(([k, s]) => <FieldEditor key={k} id={`${id}-${k}`} spec={s} label={s.label || k.replace(/_/g, ' ')} value={v[k]} onChange={(x) => onChange({ ...v, [k]: x })} />)}
+        </fieldset>
+      );
+    }
+    case 'items': {
+      const list = Array.isArray(value) ? (value as Value[]) : [];
+      return (
+        <fieldset className="rounded-md border border-line p-3">
+          <legend className="px-1 text-caption font-medium text-ink">{label} ({list.length}/{spec.max})</legend>
+          <ol className="grid gap-3">
+            {list.map((item, i) => (
+              <li key={i} className="grid gap-2 rounded-md bg-sunken/60 p-3">
+                {Object.entries(spec.fields || {}).map(([k, s]) => <FieldEditor key={k} id={`${id}-${i}-${k}`} spec={s} label={`${k.replace(/_/g, ' ')} ${i + 1}`} value={item[k]} onChange={(x) => onChange(list.map((it, j) => (j === i ? { ...it, [k]: x } : it)))} />)}
+                <Button size="xs" variant="ghost" className="justify-self-start" onClick={() => onChange(list.filter((_, j) => j !== i))}><Trash2 size={12} aria-hidden /> Remove item {i + 1}</Button>
+              </li>
+            ))}
+          </ol>
+          {list.length < (spec.max || 0) && <Button size="xs" variant="secondary" className="mt-2" onClick={() => onChange([...list, Object.fromEntries(Object.keys(spec.fields || {}).map((k) => [k, '']))])}><Plus size={12} aria-hidden /> Add item</Button>}
+        </fieldset>
+      );
+    }
+    case 'strings': {
+      const list = Array.isArray(value) ? (value as string[]) : [];
+      return (
+        <Field id={id} label={`${label} (one per line, up to ${spec.max})`} hint={spec.itemMax ? `Each line up to ${spec.itemMax} characters.` : undefined}>
+          <Textarea id={id} value={list.join('\n')} onChange={(e) => onChange(e.target.value.split('\n').filter((l) => l.trim()).slice(0, spec.max))} />
+        </Field>
+      );
+    }
+    default:
+      return null;
+  }
 }
 
-function TextField({ id, label, path, editor, hint, textarea = false }: { id: string; label: string; path: string; editor: ReturnType<typeof useEditor>; hint?: string; textarea?: boolean }) {
-  const value = editor.get(path);
-  const str = value === null || value === undefined ? '' : String(value);
-  return (
-    <Field id={id} label={label} hint={hint}>
-      {textarea ? <Textarea id={id} value={str} onChange={(e) => editor.set(path, e.target.value)} className="min-h-[72px]" /> : <Input id={id} value={str} onChange={(e) => editor.set(path, e.target.value || null)} />}
-    </Field>
-  );
-}
-
-function Block({ title, description, initial, keyName, updatedAt, onSaved, children }: { title: string; description: string; initial: Value; keyName: string; updatedAt: string; onSaved: () => void; children: (editor: ReturnType<typeof useEditor>) => React.ReactNode }) {
-  const editor = useEditor(initial);
+/**
+ * Website content: draft → preview → publish, with history and restore.
+ * Validation, sanitizing and publishing happen on the server; the browser
+ * only edits a draft. Drafts are never readable by the public site.
+ */
+export default function AdminContentPage() {
+  const q = useAsync(() => adminV3.cms(), []);
   const toast = useToast();
-  const [pending, setPending] = useState(false);
-  const save = async () => {
-    setPending(true);
+  const [key, setKey] = useState<string>('hero');
+  const [value, setValue] = useState<Value | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState(false);
+  const [confirm, setConfirm] = useState<null | { kind: 'publish' | 'discard' | 'restore'; revision?: CmsRevision }>(null);
+  const [viewing, setViewing] = useState<CmsRevision | null>(null);
+
+  const state: CmsKeyState | undefined = q.data?.keys.find((k) => k.key === key);
+  const schema = q.data?.schemas.find((s) => s.key === key);
+  useEffect(() => {
+    if (!state) return;
+    setValue((state.draft?.value as Value) || (state.live?.value as Value) || {});
+    setDirty(false);
+    setError(null);
+    setPreview(false);
+  }, [state?.key, state?.draft?.id, state?.live?.updated_at]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const run = async (label: string, fn: () => Promise<unknown>, ok: string) => {
+    setBusy(label);
+    setError(null);
     try {
-      await admin.saveContent(keyName, editor.v);
+      await fn();
+      toast({ tone: 'success', title: ok });
       invalidateSiteCaches();
-      toast({ tone: 'success', title: `${title} saved` });
-      onSaved();
+      await q.reload(true);
+      return true;
     } catch (e) {
-      toast({ tone: 'error', title: 'Could not save', description: errorMessage(e) });
+      setError(errorMessage(e));
+      return false;
     } finally {
-      setPending(false);
+      setBusy(null);
     }
   };
-  return (
-    <Panel>
-      <PanelHeader title={title} description={`${description} · updated ${dateTime(updatedAt)}`} action={<Button size="sm" onClick={save} loading={pending}>Save</Button>} />
-      <div className="grid gap-4 p-5 lg:grid-cols-2">{children(editor)}</div>
-    </Panel>
-  );
-}
+  const save = () => run('save', () => adminV3.saveDraft(key, value || {}, note || undefined), 'Draft saved').then((ok) => ok && setDirty(false));
+  const Preview = PREVIEW[key] || HomePage;
+  const override = useMemo(() => ({ [key]: value || {} }) as Partial<SiteContent>, [key, value]);
 
-export default function AdminContentPage() {
-  const q = useAsync(() => admin.content(), []);
-  const byKey = Object.fromEntries((q.data?.content || []).map((c) => [c.key, c]));
   return (
     <>
-      <PageHeader eyebrow="Internal" title="Website content" description="Structured, validated fields only. No HTML. Changes are live on the next page load." />
-      <InlineNotice tone="warning" className="mb-4">Claim safety: the proof block must never describe the 42.01% figure as production savings, and the verified figure must keep its confidence-interval qualifier.</InlineNotice>
-      {q.error && <ErrorState message={q.error} onRetry={() => q.reload()} />}
-      {!q.data ? <Skeleton className="h-96 rounded-lg" /> : (
-        <div className="flex flex-col gap-4">
-          {byKey.hero && (
-            <Block title="Hero" description="Announcement, headline and calls to action." initial={byKey.hero.value} keyName="hero" updatedAt={byKey.hero.updated_at} onSaved={() => q.reload(true)}>
-              {(ed) => (
-                <>
-                  <TextField id="h-ann" label="Announcement (optional)" path="announcement" editor={ed} hint="Shown as a pill above the headline. Leave blank to hide." />
-                  <TextField id="h-annh" label="Announcement link" path="announcement_href" editor={ed} />
-                  <TextField id="h-head" label="Headline" path="headline" editor={ed} />
-                  <TextField id="h-sub" label="Subheadline" path="subheadline" editor={ed} />
-                  <div className="lg:col-span-2"><TextField id="h-sup" label="Supporting text" path="supporting" editor={ed} textarea /></div>
-                  <TextField id="h-p1" label="Primary CTA label" path="primary_cta.label" editor={ed} />
-                  <TextField id="h-p2" label="Primary CTA destination" path="primary_cta.href" editor={ed} />
-                  <TextField id="h-s1" label="Secondary CTA label" path="secondary_cta.label" editor={ed} />
-                  <TextField id="h-s2" label="Secondary CTA destination" path="secondary_cta.href" editor={ed} />
-                  <div className="lg:col-span-2"><TextField id="h-tl" label="Trust line" path="trust_line" editor={ed} /></div>
-                </>
-              )}
-            </Block>
-          )}
-          {byKey.proof && (
-            <Block title="Proof block" description="Rejected and verified benchmark figures." initial={byKey.proof.value} keyName="proof" updatedAt={byKey.proof.updated_at} onSaved={() => q.reload(true)}>
-              {(ed) => (
-                <>
-                  <TextField id="p-kind" label="Benchmark kind" path="kind" editor={ed} />
-                  <Field id="p-cases" label="Cases"><Input id="p-cases" type="number" value={String(ed.get('cases') ?? '')} onChange={(e) => ed.set('cases', Number(e.target.value))} /></Field>
-                  <TextField id="p-rc" label="Rejected · cost reduction" path="rejected.cost_reduction" editor={ed} />
-                  <TextField id="p-rq" label="Rejected · quality" path="rejected.quality" editor={ed} />
-                  <TextField id="p-rf" label="Rejected · quality floor" path="rejected.quality_floor" editor={ed} />
-                  <TextField id="p-rr" label="Rejected · reason" path="rejected.reason" editor={ed} />
-                  <TextField id="p-vc" label="Verified · cost reduction" path="verified.cost_reduction" editor={ed} />
-                  <TextField id="p-vq" label="Verified · quality" path="verified.quality" editor={ed} />
-                  <TextField id="p-vf" label="Verified · quality floor" path="verified.quality_floor" editor={ed} />
-                  <TextField id="p-vci" label="Verified · 95% CI" path="verified.ci95" editor={ed} />
-                  <div className="lg:col-span-2"><TextField id="p-q" label="Qualifier" path="qualifier" editor={ed} textarea /></div>
-                </>
-              )}
-            </Block>
-          )}
-          {byKey.status && (
-            <Block title="Status" description="Site banner and public status." initial={byKey.status.value} keyName="status" updatedAt={byKey.status.updated_at} onSaved={() => q.reload(true)}>
-              {(ed) => (
-                <>
-                  <TextField id="s-b" label="Banner (optional)" path="banner" editor={ed} hint="Shown above the site header. Leave blank to hide." />
-                  <Field id="s-ps" label="Public status"><Select id="s-ps" value={String(ed.get('public_status') || 'operational')} onChange={(e) => ed.set('public_status', e.target.value)}><option value="operational">Operational</option><option value="degraded">Degraded</option><option value="maintenance">Maintenance</option></Select></Field>
-                </>
-              )}
-            </Block>
-          )}
-          {byKey.contact && (
-            <Block title="Contact" description="Address used across the site." initial={byKey.contact.value} keyName="contact" updatedAt={byKey.contact.updated_at} onSaved={() => q.reload(true)}>
-              {(ed) => <TextField id="c-e" label="Email" path="email" editor={ed} />}
-            </Block>
-          )}
+      <AdminHeader title="Website content" description="Edit a draft, preview it with the real pages, then publish. Every save, publish, discard and restore is audited; published versions are append-only." />
+      {q.error && <ErrorState message={q.error} onRetry={() => void q.reload()} />}
+      {q.loading && !q.data && <LoadingState label="Loading content" />}
+      {q.data && (
+        <div className="grid min-w-0 gap-4 lg:grid-cols-[240px_1fr]">
+          <nav aria-label="Content sections" className="min-w-0">
+            <ul className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible">
+              {q.data.schemas.map((s) => {
+                const st = q.data!.keys.find((k) => k.key === s.key);
+                return (
+                  <li key={s.key} className="shrink-0">
+                    <button type="button" aria-current={s.key === key ? 'true' : undefined} onClick={() => (!dirty || window.confirm('Discard unsaved edits?')) && setKey(s.key)} className={cn('w-full rounded-md px-3 py-2 text-left transition-control', s.key === key ? 'bg-surface shadow-sm ring-1 ring-line' : 'hover:bg-surface/60')}>
+                      <span className="block text-[13px] font-medium text-ink">{s.label}</span>
+                      <span className="block text-[11px] text-subtle">{st?.live_revision ? `Live v${st.live_revision.version}` : st?.live ? 'Live (pre-history)' : 'Default copy'}{st?.draft ? ` · draft v${st.draft.version}` : ''}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+          <div className="flex min-w-0 flex-col gap-4">
+            {state && schema && value && (
+              <Card>
+                <CardHeader title={schema.label} description={state.draft ? `Editing draft v${state.draft.version} (saved ${relativeTime(state.draft.created_at)}). Not live until published.` : state.live ? 'No open draft: saving creates one from the live copy.' : 'Not in the database yet: the site shows the built-in default. Saving creates the first draft.'} action={
+                  <>
+                    <Button size="sm" variant="secondary" onClick={() => setPreview((v) => !v)} aria-pressed={preview}><Eye size={13} aria-hidden /> {preview ? 'Hide preview' : 'Preview'}</Button>
+                    <Button size="sm" variant="secondary" loading={busy === 'save'} disabled={!dirty} onClick={() => void save()}>Save draft</Button>
+                    <Button size="sm" disabled={!state.draft || dirty || Boolean(busy)} onClick={() => setConfirm({ kind: 'publish' })} title={dirty ? 'Save the draft first' : !state.draft ? 'Nothing to publish' : undefined}>Publish</Button>
+                  </>
+                } />
+                <div className="grid gap-4 px-5 pb-5">
+                  {error && <p role="alert" className="rounded-md border border-rejected/30 bg-rejected-bg px-3 py-2 text-[13px] text-rejected">{error}</p>}
+                  {dirty && <InlineNotice tone="info">Unsaved edits. Save the draft before publishing.</InlineNotice>}
+                  {Object.entries(schema.fields).map(([k, spec]) => <FieldEditor key={`${key}-${k}`} id={`cms-${key}-${k}`} spec={spec} label={spec.label || k.replace(/_/g, ' ')} value={value[k]} onChange={(v) => { setValue((cur) => ({ ...(cur || {}), [k]: v })); setDirty(true); }} />)}
+                  <Field id="cms-note" label="Change note (optional, kept in history)"><Input id="cms-note" value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} /></Field>
+                  {state.draft && <Button size="sm" variant="danger" className="justify-self-start" onClick={() => setConfirm({ kind: 'discard' })}><Trash2 size={13} aria-hidden /> Discard draft</Button>}
+                </div>
+              </Card>
+            )}
+            {preview && value && (
+              <section aria-label="Preview" className="overflow-hidden rounded-lg border-2 border-dashed border-accent/50">
+                <p className="bg-accent-subtle px-4 py-2 text-[12.5px] font-medium text-accent-text">Preview of {dirty ? 'unsaved edits' : 'the draft'} — not published. Forms are disabled. Layout breakpoints follow the browser window, not this panel.</p>
+                <div className="max-h-[80vh] overflow-y-auto bg-canvas">
+                  <SiteContentOverride value={override}>
+                    <Suspense fallback={<LoadingState label="Loading preview" className="p-6" />}>
+                      <Preview />
+                    </Suspense>
+                  </SiteContentOverride>
+                </div>
+              </section>
+            )}
+            {state && (
+              <Card>
+                <CardHeader title={<span className="inline-flex items-center gap-2"><History size={15} aria-hidden /> History</span>} description="Published versions are never edited. Restoring publishes a copy of an older version as a new version." />
+                <ul className="divide-y divide-line px-5 pb-3">
+                  {state.history.map((r) => (
+                    <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                      <div className="min-w-0">
+                        <p className="text-[13px] text-ink">v{r.version} · <span className={cn('font-mono text-[11.5px] uppercase', r.status === 'published' ? 'text-verified' : 'text-subtle')}>{r.status}</span></p>
+                        <p className="text-[11.5px] text-subtle">{r.published_at ? `Published ${dateTime(r.published_at)}` : `Created ${dateTime(r.created_at)}`}{r.note ? ` · ${r.note}` : ''}</p>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <Button size="xs" variant="ghost" onClick={async () => setViewing((await adminV3.revision(r.id)).revision)}>View</Button>
+                        {r.status === 'superseded' && <Button size="xs" variant="secondary" disabled={Boolean(state.draft) || Boolean(busy)} title={state.draft ? 'Publish or discard the open draft first' : undefined} onClick={() => setConfirm({ kind: 'restore', revision: r })}>Restore</Button>}
+                      </div>
+                    </li>
+                  ))}
+                  {!state.history.length && <li className="py-3 text-[12.5px] text-muted">No published history yet.</li>}
+                </ul>
+              </Card>
+            )}
+          </div>
         </div>
       )}
+      <ConfirmDialog
+        open={Boolean(confirm)}
+        onClose={() => setConfirm(null)}
+        loading={Boolean(busy)}
+        tone={confirm?.kind === 'discard' ? 'danger' : 'primary'}
+        title={confirm?.kind === 'publish' ? `Publish draft v${state?.draft?.version} to the live website?` : confirm?.kind === 'discard' ? 'Discard this draft?' : `Restore v${confirm?.revision?.version}?`}
+        description={confirm?.kind === 'publish' ? 'Visitors see it on their next page load. The current live version stays in history and can be restored.' : confirm?.kind === 'discard' ? 'The draft is closed and cannot be reopened. The live site is unchanged.' : 'A copy of that version is published as a new version. The current live version stays in history.'}
+        confirmLabel={confirm?.kind === 'publish' ? 'Publish' : confirm?.kind === 'discard' ? 'Discard draft' : 'Restore and publish'}
+        onConfirm={async () => {
+          const c = confirm;
+          if (!c || !state) return;
+          if (c.kind === 'publish' && state.draft) await run('publish', () => adminV3.publish(key, state.draft!.id), `Published v${state.draft.version}`);
+          if (c.kind === 'discard') await run('discard', () => adminV3.discardDraft(key), 'Draft discarded');
+          if (c.kind === 'restore' && c.revision) await run('restore', () => adminV3.rollback(key, c.revision!.id), `Restored v${c.revision.version}`);
+          setConfirm(null);
+        }}
+      />
+      <Drawer open={Boolean(viewing)} onClose={() => setViewing(null)} title={viewing ? `${viewing.key} · v${viewing.version}` : ''} description={viewing ? `${viewing.status}${viewing.published_at ? ` · published ${dateTime(viewing.published_at)}` : ''}` : undefined}>
+        <pre className="whitespace-pre-wrap break-words rounded-md bg-sunken p-3 font-mono text-[11.5px] text-ink">{viewing ? JSON.stringify(viewing.value, null, 2) : ''}</pre>
+      </Drawer>
     </>
   );
 }

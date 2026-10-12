@@ -144,7 +144,7 @@ export default function ExperimentsView() {
                     </tbody>
                   </table>
                 </div>
-                <div className="px-5 pb-4 text-[11.5px] text-subtle">Cost source: {execution?.cost_source || 'n/a'}{execution?.pricing_version ? ` · pricing ${execution.pricing_version}` : ''} · evidence {current.evidence_version} · {current.verification_source === 'EXECUTION_EVALUATION' ? 'execution-proven' : 'legacy evidence'}</div>
+                <div className="break-all px-5 pb-4 text-[11.5px] text-subtle">Cost source: {execution?.cost_source || 'n/a'}{execution?.pricing_version ? ` · pricing ${execution.pricing_version}` : ''} · evidence {current.evidence_version} · {current.verification_source === 'EXECUTION_EVALUATION' ? 'execution-proven' : 'legacy evidence'}</div>
               </Card>
 
               <Card>

@@ -15,6 +15,12 @@ const AdminFlagsPage = lazy(() => import('./pages/AdminFlagsPage'));
 const AdminModelPricingPage = lazy(() => import('./pages/AdminModelPricingPage'));
 const AdminAuditPage = lazy(() => import('./pages/AdminAuditPage'));
 const AdminAdminsPage = lazy(() => import('./pages/AdminAdminsPage'));
+const AdminAnalyticsPage = lazy(() => import('./pages/AdminAnalyticsPage'));
+const AdminProductAnalyticsPage = lazy(() => import('./pages/AdminProductAnalyticsPage'));
+const AdminOptimizationPage = lazy(() => import('./pages/AdminOptimizationPage'));
+const AdminEvaluationsPage = lazy(() => import('./pages/AdminEvaluationsPage'));
+const AdminSecurityPage = lazy(() => import('./pages/AdminSecurityPage'));
+const AdminSystemPage = lazy(() => import('./pages/AdminSystemPage'));
 
 /** Non-admins get a 404, never a hint that the route exists. The server enforces the same rule on every API. */
 export default function AdminRoutes() {
@@ -35,6 +41,12 @@ export default function AdminRoutes() {
         <Route path="model-pricing" element={<AdminModelPricingPage />} />
         <Route path="audit" element={<AdminAuditPage />} />
         <Route path="admins" element={<AdminAdminsPage />} />
+        <Route path="analytics" element={<AdminAnalyticsPage />} />
+        <Route path="product-analytics" element={<AdminProductAnalyticsPage />} />
+        <Route path="optimization" element={<AdminOptimizationPage />} />
+        <Route path="evaluations" element={<AdminEvaluationsPage />} />
+        <Route path="security" element={<AdminSecurityPage />} />
+        <Route path="system" element={<AdminSystemPage />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>
     </Routes>

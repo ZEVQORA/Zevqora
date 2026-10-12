@@ -75,9 +75,9 @@ function DiagnosisDetail({ d, plans, workspaceId }: { d: Diagnosis; plans: Execu
         </li>
         <li>
           <h3 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-subtle">2 · Source evidence</h3>
-          <ul className="mt-1.5 flex flex-wrap gap-1.5">
+          <ul className="mt-1.5 flex min-w-0 flex-wrap gap-1.5">
             {d.evidence_refs.slice(0, 16).map((r, i) => (
-              <li key={i} className="rounded-sm border border-line bg-sunken px-1.5 py-0.5 font-mono text-[11px] text-ink">{r.type}{r.request_id ? ` ${r.request_id}` : r.stable_key ? ` ${r.stable_key}` : r.id ? ` ${r.id.slice(0, 8)}` : ''}</li>
+              <li key={i} className="max-w-full break-all rounded-sm border border-line bg-sunken px-1.5 py-0.5 font-mono text-[11px] text-ink">{r.type}{r.request_id ? ` ${r.request_id}` : r.stable_key ? ` ${r.stable_key}` : r.id ? ` ${r.id.slice(0, 8)}` : ''}</li>
             ))}
           </ul>
           <p className="mt-1.5 text-[11.5px] text-subtle">Hashes and identifiers only; prompts and outputs are not stored.</p>

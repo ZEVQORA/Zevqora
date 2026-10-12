@@ -4,7 +4,9 @@
  * report. Every number carries its claim label (ESTIMATED / CALIBRATED /
  * EVALUATED / VERIFIED / BAD-DAY REPLAY); unknown is shown as unknown.
  */
-import { Fragment, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useSession } from '@/lib/session';
+import { trackProductView } from '@/lib/analytics';
 import { ChevronDown, ChevronRight, FlaskConical, Layers, PlayCircle, Scale, Square } from 'lucide-react';
 import { errorMessage } from '@/lib/api';
 import { Button, Chip, Note, StatusChip, cn, useAsyncValue, useProductToast } from '../ui';
@@ -403,6 +405,26 @@ export default function PlanSearchSection({ run, productId, canEdit, first }: { 
   const [policy, setPolicy] = useState<Policy>('MARGIN_FIRST');
   const [custom, setCustom] = useState<{ max_p95_ms: string; max_risk: string; objective: string }>({ max_p95_ms: '', max_risk: '', objective: 'MARGIN_FIRST' });
   const r = report.data;
+  const { activeWorkspace } = useSession();
+  const wsId = activeWorkspace?.id;
+  const frontierCount = r?.counts.frontier ?? 0;
+  // View events for the activation funnel: recorded once per user, search and day (server-deduplicated).
+  useEffect(() => {
+    if (wsId && current?.id && frontierCount > 0) trackProductView('pareto_viewed', wsId, current.id, { frontier: frontierCount, surface: 'optimize' });
+  }, [wsId, current?.id, frontierCount]);
+  // "Report opened" = the report step was actually on screen, not merely loaded.
+  useEffect(() => {
+    const el = document.getElementById('step-report');
+    if (!wsId || !current?.id || !r || !el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        trackProductView('report_opened', wsId, `${current.id}:${mode}`, { view: mode, surface: 'optimize' });
+        io.disconnect();
+      }
+    }, { threshold: 0.25 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [wsId, current?.id, mode, r]);
   const reload = () => {
     searches.reload();
     report.reload();

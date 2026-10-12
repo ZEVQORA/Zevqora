@@ -94,7 +94,7 @@ export function ChartContainer({ title, description, unit, source, range, update
         )}
       </figcaption>
       {showTable && table && (
-        <div className="scrollbar-thin mt-2 max-h-64 overflow-auto">
+        <div className="scrollbar-thin relative mt-2 max-h-64 overflow-auto">
           <table className="w-full border-collapse text-[12px]">
             <caption className="sr-only">{title} — data</caption>
             <thead>

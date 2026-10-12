@@ -37,7 +37,7 @@ export function DataTable<T>({ columns, rows, rowKey, caption, captionHidden = f
   }, [rows, sort, columns]);
 
   return (
-    <div className={cn('scrollbar-thin max-w-full overflow-x-auto', className)}>
+    <div className={cn('scrollbar-thin relative max-w-full overflow-x-auto', className)}>
       <table className="w-full border-collapse text-left" style={minWidth ? { minWidth } : undefined}>
         <caption className={cn('pb-2 text-left text-[12px] text-subtle', captionHidden && 'sr-only')}>{caption}</caption>
         <thead>
