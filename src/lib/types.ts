@@ -310,4 +310,11 @@ export interface SiteContent {
   proof?: { kind: string; cases: number; rejected: { cost_reduction: string; quality: string; quality_floor: string; reason: string }; verified: { cost_reduction: string; quality: string; quality_floor: string; ci95?: string }; qualifier: string };
   status?: { banner: string | null; public_status: string };
   contact?: { email: string };
+  // vNext Part 3 CMS sections (validated server-side in api/_lib/cms.js).
+  home?: { problem_title: string | null; problem_body: string | null; loop_title: string | null; loop_body: string | null; audiences: Array<{ title: string; body: string }>; integration_note: string | null; cta_title: string | null; cta_body: string | null };
+  product?: { title: string; intro: string | null; features: Array<{ title: string; body: string }> };
+  security_page?: { title: string; intro: string | null; points: Array<{ title: string; body: string }> };
+  evaluation_page?: { title: string; intro: string | null; what_you_get: string[]; response_note: string | null };
+  company_page?: { title: string; intro: string | null; mission: string | null; principles: Array<{ title: string; body: string }> };
+  footer?: { tagline: string | null; note: string | null };
 }

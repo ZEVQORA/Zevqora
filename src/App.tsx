@@ -4,8 +4,13 @@ import { FullPageLoader } from '@/brand/BrandLoader';
 import { useSession } from '@/lib/session';
 import { MarketingLayout } from '@/marketing/MarketingLayout';
 import { AccountStateScreen } from '@/auth/AccountStateScreen';
+import { installCtaTracking, isWebsitePath, track } from '@/lib/analytics';
 
 const HomePage = lazy(() => import('@/marketing/HomePage'));
+const ProductPage = lazy(() => import('@/marketing/ProductPage'));
+const TechnologyPage = lazy(() => import('@/marketing/TechnologyPage'));
+const EvaluationPage = lazy(() => import('@/marketing/EvaluationPage'));
+const CompanyPage = lazy(() => import('@/marketing/CompanyPage'));
 const PricingPage = lazy(() => import('@/marketing/PricingPage'));
 const SecurityPage = lazy(() => import('@/marketing/SecurityPage'));
 const TeamPage = lazy(() => import('@/marketing/TeamPage'));
@@ -37,6 +42,19 @@ function ScrollToTop() {
   return null;
 }
 
+/**
+ * First-party, cookieless website analytics: a pageview per website route and
+ * clicks on elements marked data-cta. Product and admin screens are never sent.
+ */
+function WebsiteAnalytics() {
+  const { pathname } = useLocation();
+  useEffect(() => installCtaTracking(), []);
+  useEffect(() => {
+    if (isWebsitePath(pathname)) track('pageview', { path: pathname });
+  }, [pathname]);
+  return null;
+}
+
 export function RequireAuth({ children }: { children: React.ReactElement }) {
   const { status, me, meError, meErrorCode } = useSession();
   const location = useLocation();
@@ -53,10 +71,15 @@ export function App() {
   return (
     <>
       <ScrollToTop />
+      <WebsiteAnalytics />
       <Suspense fallback={<FullPageLoader />}>
         <Routes>
           <Route element={<MarketingLayout />}>
             <Route index element={<HomePage />} />
+            <Route path="product" element={<ProductPage />} />
+            <Route path="technology" element={<TechnologyPage />} />
+            <Route path="evaluation" element={<EvaluationPage />} />
+            <Route path="company" element={<CompanyPage />} />
             <Route path="pricing" element={<PricingPage />} />
             <Route path="security" element={<SecurityPage />} />
             <Route path="team" element={<TeamPage />} />

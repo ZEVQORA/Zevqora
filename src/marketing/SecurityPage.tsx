@@ -1,25 +1,29 @@
-import { useEffect } from 'react';
 import { Check, X } from 'lucide-react';
 import { Section, Reveal } from './Sections';
+import { PageHero } from './PageHero';
+import { useSeo } from '@/lib/seo';
 import { useSiteContent } from '@/lib/site';
 import { Code } from '@/components/ui/Misc';
 
 export default function SecurityPage() {
-  const { contact } = useSiteContent();
-  useEffect(() => {
-    document.title = 'Security — ZEVQORA';
-  }, []);
+  const { contact, security_page: page } = useSiteContent();
+  useSeo({ title: 'Security — ZEVQORA', description: page.intro || 'Metadata-first evidence, provenance, tenant isolation, human approval and no blind production changes.', path: '/security' });
   const reads = ['Provider and model per call', 'Input, output and cached token counts', 'Latency and status (ok, error, timeout)', 'Provider-reported cost, or a labelled estimate', 'A hash of the prompt for repeat detection', 'Opt-in, sanitized request and response samples'];
   const never = ['Your source code (the desktop engine scans it locally)', 'Environment variables or credentials', 'Images, files or tool payloads inside prompts', 'Anything from a revoked connection'];
   return (
     <>
-      <Section rule={false} className="studio pt-14 lg:pt-20">
+      <PageHero eyebrow="Security" title={page.title} intro={page.intro} />
+      <Section rule={false}>
         <div className="container-page">
-          <Reveal>
-            <p className="text-eyebrow uppercase text-muted">Security</p>
-            <h1 className="text-display mt-5 max-w-[14ch] text-ink">Least privilege, by construction.</h1>
-            <p className="text-body-lg mt-6 max-w-[56ch] text-muted">ZEVQORA is designed to be handed a real production workload. Everything below is how the system is built today, not a roadmap.</p>
-          </Reveal>
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {page.points.map((pt) => (
+              <li key={pt.title} className="rounded-[18px] border border-line bg-surface p-5 shadow-[0_1px_2px_rgb(15_17_21/0.04)]">
+                <h2 className="text-[15px] font-semibold text-ink">{pt.title}</h2>
+                <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">{pt.body}</p>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-10 text-eyebrow uppercase text-subtle">How it is built today</p>
         </div>
       </Section>
       <Section surface="sunken">

@@ -1,3 +1,4 @@
+import { track } from '@/lib/analytics';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router';
 import { AuthShell, OAuthButtons, OrDivider } from './AuthShell';
@@ -29,6 +30,7 @@ export default function SignupPage() {
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    track('signup_started', { path: '/signup' });
     setPending(true);
     setError(null);
     const fd = new FormData(e.currentTarget);
@@ -56,6 +58,7 @@ export default function SignupPage() {
   }
 
   async function oauth(provider: 'google' | 'github') {
+    track('signup_started', { path: '/signup' });
     setOauthPending(provider);
     setError(null);
     try {

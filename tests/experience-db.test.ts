@@ -187,6 +187,38 @@ describe('aggregates', () => {
   });
 });
 
+describe('homepage copy (guarded like 013)', () => {
+  const COPY_013 = {
+    announcement: null, announcement_href: null, headline: 'Make AI cheaper without guessing.', subheadline: null,
+    supporting: 'ZEVQORA connects code, runtime and workload evidence, finds expensive AI execution patterns, tests alternatives against the same representative workload, and shows you which change is safe to ship.',
+    primary_cta: { label: 'Run an evaluation', href: '/signup?intent=evaluation' }, secondary_cta: { label: 'See how it works', href: '/#how-it-works' }, trust_line: 'Measure. Replay. Verify. Then optimize.',
+  };
+
+  it('replaces 013 copy with the Part 3 copy as version 2, and rollback puts 013 copy back', async () => {
+    const fresh = await createDb({ experience: false });
+    await fresh.exec(PLATFORM_V3);
+    await fresh.query(`update public.site_content set value = $1 where key = 'hero'`, [JSON.stringify(COPY_013)]);
+    await fresh.exec(migration('019_product_experience.sql'));
+    const live = (await fresh.query<{ v: Record<string, any> }>(`select value v from public.site_content where key = 'hero'`)).rows[0].v; // eslint-disable-line @typescript-eslint/no-explicit-any
+    expect(live.primary_cta).toEqual({ label: 'Evaluate your AI workload', href: '/evaluation' });
+    const revs = (await fresh.query<{ version: number; status: string }>(`select version, status from public.site_content_revisions where key = 'hero' order by version`)).rows;
+    expect(revs).toEqual([{ version: 1, status: 'superseded' }, { version: 2, status: 'published' }]);
+    await fresh.exec(rollback);
+    const back = (await fresh.query<{ v: Record<string, any> }>(`select value v from public.site_content where key = 'hero'`)).rows[0].v; // eslint-disable-line @typescript-eslint/no-explicit-any
+    expect(back).toEqual(COPY_013);
+  }, 60_000);
+
+  it('leaves a hero edited from /admin alone', async () => {
+    const fresh = await createDb({ experience: false });
+    await fresh.exec(PLATFORM_V3);
+    const edited = { ...COPY_013, primary_cta: { label: 'Book a call', href: '/contact' } };
+    await fresh.query(`update public.site_content set value = $1 where key = 'hero'`, [JSON.stringify(edited)]);
+    await fresh.exec(migration('019_product_experience.sql'));
+    expect((await fresh.query<{ v: unknown }>(`select value v from public.site_content where key = 'hero'`)).rows[0].v).toEqual(edited);
+    expect((await fresh.query<{ n: number }>(`select count(*)::int n from public.site_content_revisions where key = 'hero'`)).rows[0].n).toBe(1);
+  }, 60_000);
+});
+
 describe('rollback', () => {
   it('removes 019 completely, leaves published content alone, and can be re-applied', async () => {
     const fresh = await createDb();

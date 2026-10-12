@@ -240,6 +240,10 @@
   input, select, textarea {
     font: inherit;
   }
+  /* Absolutely positioned children (sr-only labels) stay inside a table's scroll container instead of widening the page. */
+  table {
+    position: relative;
+  }
 }
 
 @layer utilities {
@@ -352,6 +356,12 @@
 
 .live-dot { animation: zq-pulse-dot 2.2s ease-out infinite; }
 
+/* Execution flow along graph edges (website graphics). Content never depends on an animation running. */
+@keyframes zq-dash { to { stroke-dashoffset: -24; } }
+.zq-flow { stroke-dasharray: 6 6; animation: zq-dash 1.6s linear infinite; }
+@keyframes zq-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.zq-float { animation: zq-float 6s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -360,6 +370,7 @@
     scroll-behavior: auto !important;
   }
   .live-dot { animation: none; }
+  .zq-flow, .zq-float { animation: none; }
 }
 
 /* ============================================================

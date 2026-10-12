@@ -184,7 +184,7 @@ alter table public.feature_flags add constraint feature_flags_rollout_check
   );
 
 insert into public.feature_flags (key, description, enabled) values
-  ('zevir_graph_ui', 'Interactive ZevIR Graph Explorer in the product (needs zevir_shadow_v01 for data).', false),
+  ('zevir_graph_ui', 'Interactive ZevIR Graph Explorer in the product (needs zevir_shadow for data).', false),
   ('experimental_graph_overlays', 'Experimental Graph Explorer overlays (security/policy metadata).', false),
   ('visitor_intelligence', 'Record first-party, cookieless website analytics (no raw IP; DNT/GPC respected).', false),
   ('product_analytics', 'Record first-party product usage events (typed taxonomy; ids and counts only).', true)
@@ -350,3 +350,24 @@ insert into public.site_content_revisions (key, version, value, status, note, pu
 select key, 1, value, 'published', 'Imported from site_content by 019', coalesce(updated_at, now())
 from public.site_content
 on conflict (key, version) do nothing;
+
+-- Part 3 homepage copy. Guarded like 013: the hero is replaced only while it
+-- still holds 013's text, so a hero edited from /admin is left alone. The
+-- change is recorded as version 2, so the CMS can restore version 1.
+do $hero$
+declare
+  v_next jsonb := '{"announcement": null, "announcement_href": null, "headline": "Make AI cheaper without guessing.", "subheadline": "ZEVQORA understands how your AI system executes, finds expensive or unreliable paths, and proves which changes are worth shipping.", "supporting": "Connect the execution evidence you already have. ZEVQORA builds an execution graph, diagnoses where cost and latency go, generates better execution plans, replays them on your real workload and rejects anything that breaks quality.", "primary_cta": {"label": "Evaluate your AI workload", "href": "/evaluation"}, "secondary_cta": {"label": "Explore the product", "href": "/product"}, "trust_line": "Measure. Replay. Verify. Then optimize."}'::jsonb;
+begin
+  if exists (
+    select 1 from public.site_content
+    where key = 'hero'
+      and value->>'supporting' = 'ZEVQORA connects code, runtime and workload evidence, finds expensive AI execution patterns, tests alternatives against the same representative workload, and shows you which change is safe to ship.'
+      and value->'primary_cta'->>'label' = 'Run an evaluation'
+  ) then
+    update public.site_content_revisions set status = 'superseded' where key = 'hero' and status = 'published';
+    insert into public.site_content_revisions (key, version, value, status, note, published_at)
+    values ('hero', (select coalesce(max(version), 0) + 1 from public.site_content_revisions where key = 'hero'), v_next, 'published', 'Part 3 homepage copy (019)', now());
+    update public.site_content set value = v_next, updated_at = now() where key = 'hero';
+  end if;
+end
+$hero$;

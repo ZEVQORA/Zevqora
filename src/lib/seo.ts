@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
+import { useIsPreview } from './site';
 
 export const SITE_URL = 'https://zevqora.vercel.app';
 export const SITE_NAME = 'ZEVQORA';
-const DEFAULT_IMAGE = `${SITE_URL}/brand/og-image.png`;
+// An existing approved brand image; no new asset is generated for social cards.
+const DEFAULT_IMAGE = `${SITE_URL}/brand/zev-mascot.png`;
 
 function setMeta(attr: 'name' | 'property', key: string, value: string) {
   let el = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`);
@@ -30,7 +32,9 @@ function setLink(rel: string, href: string) {
  * not run JavaScript.
  */
 export function useSeo({ title, description, path, jsonLd, noindex = false }: { title: string; description: string; path: string; jsonLd?: Record<string, unknown>; noindex?: boolean }) {
+  const preview = useIsPreview();
   useEffect(() => {
+    if (preview) return;
     const url = `${SITE_URL}${path === '/' ? '' : path}`;
     document.title = title;
     setMeta('name', 'description', description);
@@ -56,5 +60,5 @@ export function useSeo({ title, description, path, jsonLd, noindex = false }: { 
     return () => {
       script?.remove();
     };
-  }, [title, description, path, noindex, jsonLd]);
+  }, [title, description, path, noindex, jsonLd, preview]);
 }
