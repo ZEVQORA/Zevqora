@@ -26,6 +26,13 @@ const FOUNDERS = [
       ['X', 'https://x.com/v01d_4040'],
     ],
   },
+  {
+    name: 'Bat-Ochir',
+    role: 'Co-founder & CMO',
+    focus: 'Go-to-market · positioning · customer development',
+    body: 'Leads go-to-market: how ZEVQORA is positioned, explained and brought to the AI teams it is built for.',
+    links: [] as string[][],
+  },
 ];
 
 export default function TeamPage() {
@@ -39,14 +46,14 @@ export default function TeamPage() {
         <div className="container-page grid items-end gap-10 lg:grid-cols-[1.4fr_auto]">
           <Reveal>
             <p className="text-eyebrow uppercase text-muted">Founders</p>
-            <h1 className="text-display mt-5 max-w-[14ch] text-ink">Two technical founders building from Mongolia.</h1>
-            <p className="text-body-lg mt-6 max-w-[54ch] text-muted">ZEVQORA is built by Bayarbayasgalan Enkhtulga and Khuslen Ganbat. The product started from a constraint they felt directly: when compute is limited, every unnecessary model call matters.</p>
+            <h1 className="text-display mt-5 max-w-[14ch] text-ink">Three founders building from Mongolia.</h1>
+            <p className="text-body-lg mt-6 max-w-[54ch] text-muted">ZEVQORA is built by Bayarbayasgalan Enkhtulga, Khuslen Ganbat and Bat-Ochir. The product started from a constraint they felt directly: when compute is limited, every unnecessary model call matters.</p>
           </Reveal>
           <Zev view="three-quarter-front" height={220} className="hidden lg:block" />
         </div>
       </Section>
       <Section surface="sunken">
-        <div className="container-page grid gap-6 lg:grid-cols-2">
+        <div className="container-page grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {FOUNDERS.map((f) => (
             <Reveal key={f.name}>
               <div className="h-full rounded-xl border border-line bg-surface p-7">
@@ -54,13 +61,15 @@ export default function TeamPage() {
                 <h2 className="text-h3 mt-3 text-ink">{f.name}</h2>
                 <p className="text-technical mt-2 font-mono text-subtle">{f.focus}</p>
                 <p className="text-caption mt-4 text-muted">{f.body}</p>
-                <div className="mt-5 flex gap-4">
-                  {f.links.map(([label, href]) => (
-                    <a key={label} href={href} target="_blank" rel="noreferrer" className="text-caption text-ink underline-offset-4 hover:underline">
-                      {label}
-                    </a>
-                  ))}
-                </div>
+                {f.links.length > 0 && (
+                  <div className="mt-5 flex gap-4">
+                    {f.links.map(([label, href]) => (
+                      <a key={label} href={href} target="_blank" rel="noreferrer" className="text-caption text-ink underline-offset-4 hover:underline">
+                        {label}
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
             </Reveal>
           ))}
