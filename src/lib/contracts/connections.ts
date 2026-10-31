@@ -33,6 +33,8 @@ export interface IntegrationCatalogEntry {
   capturedFields: readonly string[];
   excludedFields: readonly string[];
   setupRoute?: string;
+  /** ZevIR source kind whose server-returned graphs may upgrade this card to EVIDENCE RECEIVED. */
+  zevirSource?: 'zevqora_engine' | 'otel_genai' | 'openinference';
 }
 export interface IntegrationGateway {
   listCatalog(): Promise<IntegrationCatalogEntry[]>;

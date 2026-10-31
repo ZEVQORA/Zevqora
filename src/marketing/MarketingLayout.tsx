@@ -158,7 +158,7 @@ export function MarketingLayout() {
     <div className="flex min-h-dvh flex-col">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-surface focus:px-4 focus:py-2 focus:text-button focus:shadow-lift">Skip to content</a>
       <SiteHeader />
-      <main id="main" className="flex-1">
+      <main id="main" className="marketing-type flex-1">
         <Outlet />
       </main>
       <SiteFooter />

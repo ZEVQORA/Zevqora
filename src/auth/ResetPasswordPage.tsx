@@ -2,7 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { AuthShell } from './AuthShell';
 import { Button } from '@/components/ui/Button';
-import { Field, Input } from '@/components/ui/Field';
+import { Field } from '@/components/ui/Field';
+import { PasswordInput } from './PasswordInput';
 import { InlineNotice } from '@/components/ui/States';
 import { getSupabase } from '@/lib/supabase';
 import { errorMessage } from '@/lib/api';
@@ -61,10 +62,10 @@ export default function ResetPasswordPage() {
       {ready === 'ok' && (
         <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
           <Field id="password" label="New password" hint="At least 10 characters.">
-            <Input id="password" name="password" type="password" autoComplete="new-password" required minLength={10} autoFocus />
+            <PasswordInput id="password" name="password" autoComplete="new-password" required minLength={10} autoFocus />
           </Field>
           <Field id="confirm" label="Confirm password">
-            <Input id="confirm" name="confirm" type="password" autoComplete="new-password" required minLength={10} />
+            <PasswordInput id="confirm" name="confirm" label="password confirmation" autoComplete="new-password" required minLength={10} />
           </Field>
           {error && (
             <p role="alert" className="text-caption text-rejected">

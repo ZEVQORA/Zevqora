@@ -15,8 +15,8 @@ export default function ConnectionsView() {
   if (!selected) {
     return (
       <NoProject>
-        <IntegrationCatalog />
         <Empty title="Nothing connected yet" description="Connect the repository you develop in, or a workload you can export traces from. ZEVQORA reads what you give it and changes nothing." action={<Button onClick={dialogs.openConnect}><FolderGit2 size={15} /> Connect evidence</Button>} />
+        <div className="mt-6"><IntegrationCatalog /></div>
       </NoProject>
     );
   }
@@ -28,7 +28,6 @@ export default function ConnectionsView() {
 
   return (
     <ProductFrame>
-      <IntegrationCatalog />
       <div className="mb-6">
         <div className="peyebrow">Connections</div>
         <h1 className="ph1">Evidence sources for {selected.name}.</h1>
@@ -100,6 +99,8 @@ export default function ConnectionsView() {
           </div>
         </Card>
       </div>
+
+      <div className="mt-8"><IntegrationCatalog /></div>
     </ProductFrame>
   );
 }

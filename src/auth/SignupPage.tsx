@@ -4,6 +4,7 @@ import { Link, Navigate, useSearchParams } from 'react-router';
 import { AuthShell, OAuthButtons, OrDivider } from './AuthShell';
 import { Button } from '@/components/ui/Button';
 import { Field, Input, Checkbox } from '@/components/ui/Field';
+import { PasswordInput } from './PasswordInput';
 import { InlineNotice } from '@/components/ui/States';
 import { useSession } from '@/lib/session';
 import { getSupabase } from '@/lib/supabase';
@@ -105,7 +106,7 @@ export default function SignupPage() {
       <OAuthButtons onClick={oauth} disabled={status === 'unconfigured' || Boolean(oauthPending)} pending={oauthPending} />
       <OrDivider />
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field id="name" label="Name">
             <Input id="name" name="name" autoComplete="name" />
           </Field>
@@ -116,12 +117,12 @@ export default function SignupPage() {
         <Field id="email" label="Work email">
           <Input id="email" name="email" type="email" autoComplete="email" required />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field id="password" label="Password" hint="At least 10 characters.">
-            <Input id="password" name="password" type="password" autoComplete="new-password" required minLength={10} />
+            <PasswordInput id="password" name="password" autoComplete="new-password" required minLength={10} />
           </Field>
           <Field id="confirm" label="Confirm">
-            <Input id="confirm" name="confirm" type="password" autoComplete="new-password" required minLength={10} />
+            <PasswordInput id="confirm" name="confirm" label="password confirmation" autoComplete="new-password" required minLength={10} />
           </Field>
         </div>
         <Checkbox

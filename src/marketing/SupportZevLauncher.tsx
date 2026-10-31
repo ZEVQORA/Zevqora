@@ -22,6 +22,14 @@ export function SupportZevLauncher() {
   const close = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLElement>(null);
   const titleId = useId();
+  // The trigger is unmounted while the panel is open, so focus returns once it has re-rendered.
+  const returnFocus = useRef(false);
+
+  useEffect(() => {
+    if (open || !returnFocus.current) return;
+    returnFocus.current = false;
+    trigger.current?.focus();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -29,8 +37,8 @@ export function SupportZevLauncher() {
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
+        returnFocus.current = true;
         setOpen(false);
-        trigger.current?.focus();
       }
       if (event.key !== 'Tab' || !panel.current) return;
       const focusable = Array.from(panel.current.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled])'));
@@ -44,7 +52,7 @@ export function SupportZevLauncher() {
     return () => document.removeEventListener('keydown', handleKey);
   }, [open]);
 
-  const dismiss = () => { setOpen(false); trigger.current?.focus(); };
+  const dismiss = () => { returnFocus.current = true; setOpen(false); };
   const entry = selected === null ? null : FAQ[selected];
 
   return (
