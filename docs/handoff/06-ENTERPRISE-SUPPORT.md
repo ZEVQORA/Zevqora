@@ -1,7 +1,9 @@
 # Enterprise and Support Backend Handoff
 
-## Shipped-in-patch public FAQ boundary
+## Shipped public FAQ boundary (applied and tested 2026-10-31)
 `SupportZevLauncher` is a finite source-linked public FAQ. It has no `fetch` and does not invoke `/api/engine/agent/chat`, `/api/support/messages` or workspace state. UI labels **Public FAQ · Not a live agent**. Supports open, close, Esc, focus cycling/return, responsive bottom-sheet sizing, links to existing public pages and verified `contact.email` mailto fallback.
+
+Verified: jsdom test (no `fetch`, Esc closes, focus returns, axe clean) and a local browser at 375px (panel 343×567px inside the viewport, Tab/Shift+Tab wrap inside the dialog, no request from the panel). Fixed during integration: focus did not return to the sticker after Esc, because the trigger is unmounted while the panel is open.
 The signed-in product `ZevView.tsx` and `/api/engine/agent/chat` remain unchanged and independently server-authorized.
 
 ### Future generative public API — NOT_CONNECTED
@@ -26,3 +28,6 @@ The signed-in product `ZevView.tsx` and `/api/engine/agent/chat` remain unchange
 
 ## Acceptance
 Keyboard and mobile support, no public private-data access, no unsolicited requests, honest fallback; viewer cannot activate enterprise settings; owner cannot create fake entitlement; global admin never acquires tenant data merely via CEO/CTO presentation choice.
+
+## Enterprise screen as integrated (2026-10-31)
+`/app/enterprise` shows the workspace name and the role returned by `/api/me`, a table of existing actions with the minimum role the API enforces (`src/lib/contracts/roles.ts`, drift-tested against handler source) and whether the signed-in role clears it, and the `verified_optimization_vnext` flag state. Every enterprise capability is PROPOSED / REQUEST SETUP / CONTACT SALES; there is no enterprise capability endpoint. Owner/admin see a pre-filled mailto; viewers and members are told to ask an administrator. The view makes no network request (tested).

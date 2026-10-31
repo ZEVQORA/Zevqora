@@ -7,6 +7,20 @@ All proposed objects below are **schema proposals**, not existing migrations. Ex
 - Payment/credit and admin audit entities remain server-controlled; frontend must not add direct SQL writes or migration side effects.
 - Actual SQL column identities, indexes, triggers and FK names MUST be taken from checked release migrations, not inferred from these UI DTOs.
 
+## Migration map (read from `supabase/migrations` at `8e591cd`; the integration branch changes none of them)
+
+| Migration | Adds | RLS | Rollback script | Applied where? |
+|---|---|---|---|---|
+| `013_site_hero_copy.sql` | Guarded update of the `site_content` hero row (no tables) | n/a | none (guarded data update) | **Missing in production history** (2026-10-13 check); apply before 019 or 019's hero update is a no-op |
+| `016_zevir_part1.sql` | `zevir_ingest_runs`, `zevir_graphs`, `zevir_nodes`, `zevir_edges`, `zevir_evidence_refs` | 5 tables enabled | `supabase/rollback/016_zevir_part1.rollback.sql` | Not applied to production |
+| `017_verified_optimization.sql` | `evaluation_contracts`, `optimization_runs`, `performance_snapshots`, `optimization_diagnoses` + nullable lineage columns on `engine_*` | 4 enabled | `017_…rollback.sql` | Not applied |
+| `018_optimization_intelligence.sql` | `plan_searches`, `execution_plans`, `plan_calibrations`, `plan_decisions`, `bad_day_profiles`, `bad_day_results` | 6 enabled | `018_…rollback.sql` | Not applied |
+| `019_product_experience.sql` | `site_events`, `product_events`, `security_events`, `evaluation_requests`, `site_content_revisions`, flag targeting, `cms_publish()` | 5 enabled | `019_…rollback.sql` | Not applied |
+
+Order on an empty staging DB: 001 → … → 013 → 016 → 017 → 018 → 019 (see `docs/staging-runbook.md` §2). `supabase/tests/rls_privilege_check.sql` is the existing privilege check. Real-Postgres RLS has never been exercised — prior gates ran on PGlite.
+
+The new frontend adds **no** table, column or policy. `evidence-sources.ts` reads `zevir_graphs` only through the server route.
+
 ## New control plane requires a capabilities and data-model audit first
 | PROPOSED entity | Why existing cannot be assumed enough | Minimal fields | RLS, retention, write boundary |
 |---|---|---|---|

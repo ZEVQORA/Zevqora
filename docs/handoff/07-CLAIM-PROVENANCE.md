@@ -11,9 +11,9 @@ No fabricated customer traction, realized savings, billing readiness, compliance
 | Optimization and Pareto | `src/product/optimize.ts`, optimize handlers | Existing source under flags and contract; no deploy | Self-deploying agent or production guard |
 | One dataset, three presentations | `src/app/AppShell.tsx`, command center | CEO/CTO/Developer display selection only | Platform admin or tenant data elevation |
 | Pricing Starter $49, Pro $99, Enterprise from $299 | User-approved redesign reference; `src/lib/referencePlans.ts` on design branch | **REFERENCE ONLY** when live `plans` unavailable, with mailto request | Active Stripe checkout or approved commercial offer |
-| Three co-founders | Release TeamPage, supplied requirements | Nero (CEO), Khuslen (CTO), Bat-Ochir (CMO) | Unverified social accounts, equity stakes |
+| Three co-founders | Release TeamPage, supplied requirements | Bayarbayasgalan Enkhtulga — Nero (CEO), Khuslen Ganbat (CTO), Bat-Ochir (CMO). The public page uses Nero's legal name; adding the nickname is a copy decision for Nero | Unverified social accounts, equity stakes |
 | Public Zev FAQ | New `SupportZevLauncher` | **PUBLIC FAQ — NOT LIVE AGENT** | Chat knows signed-in customer, human online, personalized help |
-| Integration gallery | `SETUP_CATALOG`, adapter/repo code | **SETUP REQUIRED** or **NOT AVAILABLE** | Credentials authorized, data healthy, direct vendor OAuth |
+| Integration gallery | `SETUP_CATALOG`, adapter/repo code, `GET /api/zevir/graphs` | **SETUP REQUIRED**, **NOT AVAILABLE**, **NOT CONNECTED** (runtime telemetry) or **EVIDENCE RECEIVED** (server-returned graph only) | Credentials authorized, data healthy, direct vendor OAuth |
 | Enterprise SSO / SCIM / private deployment | New EnterpriseView and brief | **REQUEST SETUP / PROPOSED / NOT CONNECTED** | Verified SOC2, HIPAA, EU residency or active SAML |
 | Human change review | Source app/optimization | Evaluator VERIFIED then human review; deployment separate | Verified means deployed or realized |
 

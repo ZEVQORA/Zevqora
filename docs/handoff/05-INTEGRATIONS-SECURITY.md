@@ -1,12 +1,12 @@
 # Integration, Provider Readiness and Security Boundaries
 
 ## Grounded source support
-| Integration family | Existing source evidence | UI label in this patch | Future work |
+| Integration family | Existing source evidence | UI label (integration branch) | Future work |
 |---|---|---|---|
-| ZEVQORA telemetry `zqt_` token + POST `/api/telemetry/ingest` | Release backend and docs | SETUP REQUIRED | Verify scoped token creation/test/revoke in staging |
-| OpenTelemetry GenAI | `api/_lib/zevir/adapters/otel-genai.js`, `POST /api/zevir/ingest` | SETUP REQUIRED | Document exact collector/export shapes, test bounded ingest |
-| OpenInference | `api/_lib/zevir/adapters/openinference.js` | SETUP REQUIRED | Validate import coverage, content exclusion |
-| Sanitized JSON/JSONL traces | Existing `ConnectionsView` import | SETUP REQUIRED | Preserve explicit export redaction guidance |
+| ZEVQORA telemetry `zqt_` token + POST `/api/telemetry/ingest` | Release backend and `/app/docs`; token API `POST /api/projects/:id/connections` exists but no current screen issues tokens, and the data does not feed the proof-engine baseline | **NOT CONNECTED** (corrected from the patch's SETUP REQUIRED) | Decide whether to expose token issuance in Connections or retire the path; verify create/test/revoke in staging |
+| OpenTelemetry GenAI | `api/_lib/zevir/adapters/otel-genai.js`, `POST /api/zevir/ingest` (member + `zevir_shadow`) | SETUP REQUIRED → **EVIDENCE RECEIVED** when the server returns an `otel_genai` graph for the workspace; NOT ENABLED when the flag is off and no graph exists | Document exact collector/export shapes, test bounded ingest |
+| OpenInference | `api/_lib/zevir/adapters/openinference.js` | Same rule with `openinference` graphs | Validate import coverage, content exclusion |
+| Sanitized JSON/JSONL traces | Existing `ConnectionsView` import; ZevIR projection via `POST /api/engine/products/:id/zevir/build` | Same rule with `zevqora_engine` graphs | Preserve explicit export redaction guidance |
 | Browser/desktop repository scan | Existing product scanner | SETUP REQUIRED | Clearly distinguish local scan from GitHub hosted connector |
 | OpenAI/Anthropic hosted account OAuth | No verified direct connector | NOT AVAILABLE | Per-provider API/security/consent review |
 | LangSmith/Langfuse native connector | No verified direct OAuth control plane | NOT AVAILABLE | OTel/export compatibility tests first |
@@ -26,3 +26,6 @@ Account/workspace → choose supported source → read privacy scope → scoped 
 
 ## Negative tests
 Provider card never becomes connected from static data; cross-tenant connections deny; expired scopes can't be used; revocation invalidates credential; tokens don't echo to logs/analytics; zero samples never becomes healthy; missing cost remains unknown; unsigned callbacks fail; duplicate POST doesn't double-charge; admin platform role not granted by choosing CTO display view.
+
+## What "EVIDENCE RECEIVED" means (implemented 2026-10-31)
+The release has no provider-health or connection-verification endpoint. The strongest truthful state the UI shows is therefore EVIDENCE RECEIVED: `GET /api/zevir/graphs?workspace_id=` (viewer membership checked server-side) returned at least one graph of that `source_kind` for the active workspace. The card shows the server's graph count (with `+` when the 100-row page is full), incomplete graphs, and the newest server timestamp or "time unknown". It is never labelled CONNECTED or HEALTHY; `tests/unified-integration.test.tsx` checks every availability × state combination.

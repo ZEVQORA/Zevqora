@@ -17,6 +17,7 @@ Source kinds: `zevqora_engine`, `otel_genai`, `openinference`. `adapter_version`
 - `graphApi.list → GET /api/zevir/graphs`, `graph → GET /graphs/:id`, `node → GET /graphs/:id/nodes/:nodeId`, `neighbourhood → GET /nodes/:nodeId/neighborhood`; paged nodes/edges. Source handler `zevir.js` lines 70–180.
 - `OptimizeView.tsx` and `PlanSearchSection`: existing Part 2A/2B engine, not fake cost calculations. `optimization_intelligence_vnext` and `verified_optimization_vnext` flags checked on backend.
 - `CommandCenterView.tsx` and `experience.ts`: one workspace dataset, CEO/CTO/Developer are presentation modes. Real `CommandCenter.observed.spend_usd` and coverage are nullable; `Projection` is NOT realized savings.
+- NEW (2026-10-31) `src/lib/clients/evidence-sources.ts`: per-`source_kind` summary of `graphApi`'s list endpoint for the Connections catalogue. Reads only; does not touch `GraphExplorer`, `graphApi` or any optimizer client.
 
 ## Evidence state contract
 `NoEvidence → EvidencePartial → ReadyForContract → ContractFrozen → ReplayRunning → VERIFIED|REJECTED|INCOMPLETE → HumanReview`.

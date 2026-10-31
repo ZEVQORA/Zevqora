@@ -1,47 +1,77 @@
 # Verification Evidence and Result Log
-Date: 2026-10-31. This report distinguishes **executed** from **not executed**; source read is not a passing build.
 
-## Tool access and repo integrity
-| Check | Result | Evidence |
+Updated 2026-10-31. Executed on a Windows 11 laptop (Node v24.15.0, npm 11.12.1), worktree `D:/BeBe_personal/ZEVQORA-unified`, `OPENROUTER_API_KEY=""` and no `.env` in the worktree, so no real provider key was loaded. Every command below was actually run; anything not run says so.
+
+## 1. Baseline — untouched release `8e591cd`
+
+| Command | Exit | Result |
 |---|---|---|
-| Uploaded MD read | PASS | Provided file read at `/mnt/data/...md`, 100KB text |
-| Uploaded redesign ZIP available | BLOCKED | No ZIP mounted, only MD. Design branch read via GitHub |
-| Read release source | PASS | GitHub connector read `src/App.tsx`, `AppRoutes`, `AppShell`, `HomePage`, `Pricing`, `ConnectionsView`, `GraphExplorer`, `optimize`, handler sources |
-| Branch comparison | PASS | GitHub result: divergent, 39 behind / 1 ahead, merge base SHA `8e591cd...` |
-| Create integration branch | **FAIL 403** | GitHub `create_branch`: `Resource not accessible by integration` |
-| Local repo clone | **FAIL** | `git ls-remote`: DNS `Could not resolve host github.com` |
-| Production deploy/migrations/payment | NOT ATTEMPTED | Explicitly prohibited without founder approval |
+| `npm ci` | 0 | 345 packages |
+| `npm run typecheck` | 0 | — |
+| `npm run lint` | 0 | — |
+| `npm run test` | 0 | 40 files, **476/476** tests |
+| `npm run build` | 0 | built in 22.5 s |
+| `npm run verify:release` | 0 | "ZEVQORA release preflight passed." |
 
-## Source-level check log
-- `python -m py_compile tools/apply_unified_patch.py`: **PASS**.
-- `python tools/test_patch.py`: **PASS** for seven transformation functions against fixture anchors (not live checkout).
-- `node tools/syntax_check.mjs`: **PASS**, 10 TS/TSX overlay files transpile without syntax errors.
-- `tsc` on five pure contract/client files with `--strict --noEmit`: **PASS**. No React application typecheck was run.
-- `node tools/run-contract-tests.cjs`: **PASS**, 12 pure contract assertions.
-- Generated integrated `Hero` JSX TypeScript syntax: **PASS** (isolated parse, not rendered screenshot).
-- Read-only GitHub source anchor checks: **PASS**, target anchors found on audited release commit for all seven modified files.
-- Public/private boundary static scan: **PASS**. See `local-qa.json` for precise checks.
+## 2. Patch application
 
-## Required unified-repo validation — NOT RUN
-| Command | Status | Reason |
+| Step | Result |
+|---|---|
+| `apply_unified_patch.py <worktree> --check` | **Refused** on Windows: the toplevel check compares git's `D:/…` with Python's `D:\…`. Run from a copy with only that comparison normalised (and `ROOT` pointed at the package); transformation code unchanged |
+| `--check` (normalised copy) | PASS — HEAD = `8e591cd`, branch not protected, tree clean, 7 anchors matched exactly once, 27 files validated |
+| `--apply` | PASS — 7 files edited, 10 overlay files, 10 handoff docs; `git diff --check` clean; no line-ending churn |
+| typecheck + lint on raw patch | 0 / 0 → committed as delivered: `d9298ae` |
+
+## 3. Integrated branch — `1d70614` (code-final)
+
+| Command | Exit | Result |
 |---|---|---|
-| `npm ci` | NOT RUN | Full checkout and package-lock unavailable locally |
-| `npm run typecheck` | NOT RUN | Cannot typecheck the full app without checkout/dependencies |
-| `npm run lint` | NOT RUN | Cannot lint full app without repo and configured modules |
-| `npm run test` | NOT RUN | Vitest suite pending integration; source-only tests supplied |
-| `npm run build` | NOT RUN | Full Vite project unavailable |
-| `npm run verify:release` | NOT RUN | Requires release checkout artifacts/source |
-| Staging login / A-B RLS / migration 016–019 | NOT RUN | No staging credentials, production untouched |
-| Visual captures 360/768/1440/200% zoom | NOT RUN | No runnable app checkout/browser preview |
-| Lighthouse / LCP / CLS / INP | NOT RUN | No preview deploy/test environment |
+| `npm run typecheck` | 0 | — |
+| `npm run lint` | 0 | — |
+| `npm run test` (default workers) | 1 / 1 / 1 | Three runs: 42/42 files and 508/508 tests passed, but Vitest reported `[vitest-worker]: Timeout calling "onTaskUpdate"`; then 2 and 3 timeouts in **untouched** PGlite suites (`plan-search-compute`, `row-cap`, `optimize-acceptance`, `zevir-routes`, `optimize-view`) — a different set each time, with run time growing 157 s → 213 s → 289 s while the machine was at ~79% CPU and 2.4 of 7.9 GB RAM free |
+| `npx vitest run tests/plan-search-compute.test.ts tests/row-cap.test.ts` | 0 | 5/5 in isolation |
+| `npx vitest run --maxWorkers=2 --minWorkers=1` | **0** | **42/42 files, 508/508 tests** (158 s) |
+| `npm run build` | 0 | built in 29.3 s; `HomePage` 34.1 kB, `ConnectionsView` 16.9 kB, `EnterpriseView` 11.4 kB, CSS 85.7 kB |
+| `npm run verify:release` | 0 | "ZEVQORA release preflight passed." (mark geometry, no browser secrets, no retired claims) |
+| `git diff --check 8e591cd HEAD` | 2 | Only `public/fonts/space-grotesk/OFL.txt` (trailing spaces inside the verbatim SIL licence text; kept verbatim on purpose) |
+| `git diff --stat 8e591cd HEAD -- api supabase schemas package.json package-lock.json vercel.json` | — | empty |
 
-## Next runbook
-1. Create clean local checkout at commit `8e591cd...`, `git switch -c feat/unified-vnext-zevir-ui`.
-2. `python tools/apply_unified_patch.py . --check`, then `--apply`; inspect `git diff --check`, source diffs and security/secret scan.
-3. `npm ci && npm run typecheck && npm run lint && npm run test && npm run build && npm run verify:release`. Save complete stdout/stderr + exact exit codes by commit SHA.
-4. Fix typing/lint/style contract differences revealed by full checkout. Record screenshots, axe/keyboard/touch, 200% zoom, reduced-motion.
-5. Isolated staging: migration/flags, login, A/B tenant, ingestion → graph → eval contract → replay → verdict, dynamic pricing, permission denial and network-offline states.
-6. Only after these complete should a draft PR be opened for founder GO/HOLD.
+Not touched by this branch: the files whose tests flaked under load. `api/` is byte-identical to `8e591cd`.
+
+Regressions the full suite caught and that were fixed before the code-final commit:
+- `tests/a11y.test.tsx` home page and `tests/website-admin-ui.test.tsx` homepage: `HeroMark3D` called `window.matchMedia` unguarded once the patch put it on the home page → guarded.
+- `SupportZevLauncher`: focus did not return to the sticker after Esc/close (trigger unmounted while open) → fixed; now tested.
+
+## 4. New tests (`tests/unified-integration.test.tsx`, 27 tests; overlay `tests/unified-frontend.test.ts`, 5 tests)
+
+- Role mirror: 12 endpoint minimum roles checked against handler source; role rank checked against `api/_lib/auth.js`; unknown role (`'ceo'`) denied.
+- Gateway: null timestamps stay null; flag-off vs setup-required; newest server timestamp; cross-workspace rows dropped; cap → lower bound; server error codes (`NOT_FOUND`, `OFFLINE`) kept; no label can read CONNECTED / HEALTHY / ACTIVE.
+- `IntegrationCatalog`: upgrades only the card whose `source_kind` the server returned; error + Retry; axe clean.
+- `EnterpriseView`: viewer sees "Not with your role" for freeze, no request CTA, one `<main>`, zero `fetch`, axe clean.
+- `SupportZevLauncher`: source has no `/api/`, `fetch(`, agent route or product store; zero `fetch`; dialog named; Esc closes and returns focus; axe clean.
+- Routing/claims: `/demo/*` redirect present, `POST /api/optimize/demo` still registered, sitemap has no `/demo`; three founders present; reference pricing never reaches Stripe/checkout.
+
+## 5. Local browser QA (Vite dev on `127.0.0.1:5181`, no API backend, no Supabase env)
+
+| Check | Result |
+|---|---|
+| Horizontal page overflow at 360 / 390 / 768 / 1024 / 1440 on `/`, `/pricing`, `/team`, `/signup`, `/login`, `/demo/anything`, `/how-it-works`, `/proof` | None (wide elements are inside their own horizontal scrollers, e.g. the pricing comparison table) |
+| Redirects | `/demo/anything` → `/product`, `/how-it-works` → `/technology`, `/proof` → `/evaluation` |
+| Hero h1 | 40 px at 360/390, 74 px at 1280, 84 px at 1440; Space Grotesk |
+| Form inputs | 16 px at 360/390; 15 px from 768 |
+| Support panel (375×812) | 343×567 px inside the viewport; focus starts on Close; Tab/Shift+Tab wrap inside; Esc closes; focus returns to the sticker |
+| Network while using the panel | Only pre-existing page calls (`/api/public-config`, cookieless pageview `/api/analytics/collect`); none from the panel, none to `/api/engine/agent/chat` |
+| Screenshots | Desktop and 375px hero captured in the session; not committed |
+
+## 6. NOT RUN
+
+| Item | Reason |
+|---|---|
+| Staging migrations (013, 016–019), A/B RLS, `npm run test:staging` | No authorized isolated staging environment; needs founder approval |
+| End-to-end proof loop (sign-in → ingest → graph → freeze → baseline → plan search → replay → verdict → review) and its negative cases | Same; product screens were tested in jsdom only |
+| Signed-in screens in a browser | No API backend / Supabase env locally |
+| 200% zoom, reduced-motion capture, contrast audit in a browser, Lighthouse | Not run; reduced motion relies on `useReducedMotion` in `HeroMark3D` (no continuous animation) |
+| CI on GitHub | Branch not pushed |
 
 ## Release status
-**HOLD** — do not claim this patch was successfully built, deployed or merged. Pending author-owned repo integration, tests, stage migration, reviews and authorizations.
+**HOLD.** Code checks are green; staging, E2E and founder/CTO/CMO reviews are outstanding.

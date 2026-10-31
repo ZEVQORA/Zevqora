@@ -1,39 +1,52 @@
-# ZEVQORA — Unified Frontend Status
-Date: 2026-10-31 (Asia/Ulaanbaatar)
-Review target: 2026-11-08 GO/HOLD. Recommended current release state: **HOLD**.
+# ZEVQORA — Unified vNext + ZevIR Frontend: Status
 
-## Source identity and what was inspected
-- Base release branch: `ZEVQORA/Zevqora` `release/vnext-part3-production` at `8e591cd214b79deea2a1c19fcdd4a126d0184249` (read via GitHub connector, **NOT** checked out locally).
-- Redesign source: `design/zevqora-frontend-refresh` at `207cab5f977395a23b3be9765b099da7bedea412` (GitHub read-only). Compare confirmed `diverged`, 39 commits behind release, 1 ahead.
-- CEO-approved brief: `ZEVQORA_KHUSLEN_UNIFIED_VNEXT_ZEVIR_FRONTEND_HANDOFF_2026-10-31(1).md`, supplied in the conversation.
-- `zevqora-frontend-redesign.zip`: referenced in the brief but **not attached in this conversation**. Design branch was used for comparison; identical ZIP bytes have not been inspected in this execution.
-- GitHub integration write attempt: creating `feat/unified-vnext-zevir-ui-20261031` returned **403 Resource not accessible by integration**. No remote branch, commit or PR created.
-- Local environment cannot clone GitHub (`Could not resolve host: github.com`). Hence integration against the full repo, npm ci, typecheck, lint, tests, build, browser E2E and staging are **NOT RUN**.
+Updated 2026-10-31 after the integration was actually applied and built.
+**Release verdict: HOLD.** Nothing here is pushed, merged, deployed or migrated.
 
-## Actual deliverable — local source patch, NOT merged code
-This ZIP contains a guarded `tools/apply_unified_patch.py`, original new React/TS components, tests and ten handoff docs. The patch script validates the exact base commit, refuses protected branches and dirty worktrees, verifies source anchors before writing, then patches only source/view files and `docs/handoff/`. It never executes git push/merge/deploy, SQL migrations, Stripe, OpenRouter or third-party API calls.
+## Source identity (verified with `git` at execution time)
 
-### New frontend components/code
-- `src/marketing/SupportZevLauncher.tsx`: accessible public Zev FAQ modal, verified contact route, zero private API calls, no fake generative/human messaging.
-- `src/marketing/PricingReferenceFallback.tsx`: reference prices $49/$99/from $299 shown ONLY when server plan loading errors, with a warning and mailto CTAs instead of fake checkout.
-- `src/product/views/IntegrationCatalog.tsx`: filterable source setup catalogue, explicit SETUP REQUIRED / NOT AVAILABLE status; no faux "connected" providers.
-- `src/product/views/EnterpriseView.tsx`: capability-request surface, real workspace role display, role-gated email request, no fictitious SSO/compliance toggles.
-- `src/lib/contracts/{claims,connections,support,enterprise}.ts`: independent, typed frontend contract and provenance semantics.
-- `src/lib/clients/integrations.ts`: conservative catalog, disconnected backend gateway that rejects rather than silently returning fixture success.
-- `tests/unified-frontend.test.ts`: checks for known-zero vs unknown, verdict whitelist, disallowed fake connections, public support and enterprise offline paths.
+| Item | Value |
+|---|---|
+| Base | `release/vnext-part3-production` = `8e591cd214b79deea2a1c19fcdd4a126d0184249` (remote ref re-checked with `git ls-remote` on 2026-10-31; unchanged) |
+| Design source | `design/zevqora-frontend-refresh` = `207cab5f977395a23b3be9765b099da7bedea412`. Branched from `main` (`97079d5`), so 39 commits behind the release and 1 ahead; it deletes most of `api/_lib/optimize`, `api/_lib/zevir`, the Part 3 handlers and their tests. **Never merged wholesale.** |
+| Redesign ZIP | `zevqora-frontend-redesign (1).zip` was attached this time. Its tree is byte-identical to `207cab5` apart from CRLF line endings, so the branch was used as the design source. |
+| Integration branch | `integration/unified-vnext-zevir-ui` (local only), in its own worktree `D:/BeBe_personal/ZEVQORA-unified`. |
+| Commits on top of `8e591cd` | `d9298ae` patch as delivered · `1d70614` integration repairs and gateway · docs commit (this file) |
 
-### Existing source files patched by script
-`src/App.tsx`, `src/app/AppRoutes.tsx`, `src/app/AppShell.tsx`, `src/marketing/MarketingLayout.tsx`, `src/marketing/HomePage.tsx`, `src/marketing/Pricing.tsx`, `src/product/views/ConnectionsView.tsx`.
+## What is IMPLEMENTED (in code, covered by tests, not deployed)
 
-### Preserved by design
-NO changes to `api/`, `supabase/`, `schemas/zevir/`, `src/product/graph/`, `src/product/command/`, `src/product/optimize.ts`, auth/session/role code, admin routes, internal synthetic `/api/optimize/demo`, database or staging/production.
+| Area | Implementation | Truthfulness rule enforced |
+|---|---|---|
+| Public hero | `HomePage` hero: dark immersive section, canonical `HeroMark3D` (locked `MARK_PATH`), display size `clamp(2.5rem,5.8vw,5.75rem)` (≈14% under the patch's 6.7rem), Space Grotesk display face, AA-contrast CTAs | Mark is decorative (`aria-hidden`); copy still comes from CMS `site_content` / `DEFAULT_CONTENT` |
+| Public nav | Product · How it works · Evidence · Pricing · Security · Team; `/how-it-works`→`/technology`, `/proof`→`/evaluation`, `/demo/*`→`/product` | `POST /api/optimize/demo` (internal, admin-only) untouched |
+| Public Zev support | `SupportZevLauncher` on `/` only: FAQ-only dialog, focus trap, Esc closes and focus returns to the sticker | No network request, no `/api/engine/agent/chat`, labelled "Public FAQ · Not a live agent" |
+| Pricing fallback | `PricingReferenceFallback` renders $49 / $99 / from $299 **only** when live plans fail to load | Labelled reference/unconfirmed; mailto CTAs, never checkout |
+| Team | Unchanged release page: Bayarbayasgalan Enkhtulga (Nero), Khuslen Ganbat, Bat-Ochir | No invented bios or social profiles |
+| Connections catalogue | `IntegrationCatalog` under the existing evidence cards on `/app/connections` | Static capability cards; the only live state is **EVIDENCE RECEIVED**, from server-returned ZevIR graphs. Never CONNECTED / HEALTHY |
+| Evidence-source gateway | `src/lib/clients/evidence-sources.ts` over existing `GET /api/zevir/graphs` | Unknown timestamps stay `null`; cross-workspace rows dropped; capped counts flagged; server error code surfaced with retry |
+| Role contract | `src/lib/contracts/roles.ts`: minimum role per existing endpoint | Test reads handler source and fails on drift; presentation mode is not a role |
+| Enterprise | `/app/enterprise`: server-verified role, role-capability table, optimization flag from `/api/me`, PROPOSED/REQUEST statuses | No SSO/SCIM/region/certification claims; owner/admin get a mailto, not a ticket |
+| Auth polish | Show/hide password on signup and reset; one column on phones; all inputs 16px below `sm` | No auth logic changed |
 
-## Explicit limitations
-- This patch is NOT yet a complete frontend merge and NOT an accepted release candidate. Existing release routes and functionality are retained conceptually but cannot be certified until the patch is applied and checks pass.
-- Design-branch `EngineSections`, selected font/CSS/auth redesign and QA screenshots are not fully ported. The hero uses release assets and coherent black/blue visual treatment as an integration-safe alternative.
-- Existing full graph/optimization/Command Center UI was reviewed but not modified; its functionality depends on flags/migrations and live backend verification.
-- Connector control plane and separate public support API are PROPOSED only. Enterprise request uses mailto, not a ticket backend.
-- The present patch cannot establish current production payment, migration or source evidence status.
+## NOT_CONNECTED (UI exists, backend does not)
 
-## Safe use
-See `README-APPLY.md`. Apply only on a new local feature branch from the exact release commit; then run `npm ci`, `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build`, `npm run verify:release`, and repair any failures **before** a draft PR. Founder authorization required for production merge, migration, deployment and marketing publication.
+- Integration control plane (list/test/rotate/revoke workspace connections): `disconnectedGateway` rejects with `INTEGRATION_NOT_CONNECTED`.
+- Enterprise capability API and enterprise request API (`ENTERPRISE_REQUEST_API_AVAILABLE = false`).
+- Public generative support / ticket API (`PUBLIC_SUPPORT_MODE = 'public_faq'`).
+- Runtime telemetry (`POST /api/telemetry/ingest`) exists but does not feed the proof engine, and this release's Connections screen does not issue its tokens → catalogue says NOT CONNECTED.
+
+## BLOCKED / NOT RUN
+
+| Item | Status | Why |
+|---|---|---|
+| Push / PR | NOT DONE | Needs founder approval; the repository is public |
+| Staging migrations 013, 016–019, A/B RLS, E2E proof loop | NOT RUN | No authorized isolated staging environment in this session (see `docs/staging-runbook.md`) |
+| Signed-in screens in a real browser | NOT RUN | Local dev has no API backend or Supabase env; product screens verified in jsdom tests only |
+| Lighthouse / LCP / CLS / INP | NOT RUN | No deployed preview |
+| 200% zoom and reduced-motion screenshots | NOT RUN in browser | Covered only by code paths (`useReducedMotion`, no continuous animation) |
+
+## Preserved
+
+No change to `api/`, `supabase/` (migrations, rollback, tests), `schemas/`, `package.json` / lockfile, auth/session logic, admin, `src/product/graph`, `src/product/command`, `src/product/optimize.ts`. One defensive guard was added to `src/brand/HeroMark3D.tsx` (`matchMedia` may be absent); the mark geometry is unchanged and `verify:release` still checks it.
+
+See `08-TEST-RESULTS.md` for command-by-command results, `02-API-CONTRACT-MAP.md` for existing vs proposed endpoints and `09-BACKEND-TODO.md` for the remaining backend work, deploy and rollback.

@@ -1,5 +1,26 @@
 # Backend API Contract Map — EXISTING vs PROPOSED
-Source priority: release source handlers and typed clients before this design handoff. **EXISTING_IN_BRANCH ≠ DEPLOYED or TESTED**. All endpoints below are read from audited release docs/handlers; no live calls were performed here.
+Source priority: release source handlers and typed clients before this design handoff. **EXISTING_IN_BRANCH ≠ DEPLOYED or TESTED**.
+
+> Updated 2026-10-31 against the checked-out release (`8e591cd`): 141 routes are registered in `api/_lib/handlers/*.js` (the `calibrate` / `replay` search stages are registered in a loop at `optimize-search.js:122`). No live API calls were made; there is no staging environment in this session.
+
+## Frontend gateway modules — IMPLEMENTED on `integration/unified-vnext-zevir-ui`
+
+| Module | Calls (existing only) | Returns | Guarantees (tested in `tests/unified-integration.test.tsx`) |
+|---|---|---|---|
+| `src/lib/clients/evidence-sources.ts` `loadEvidenceSources(workspaceId, ingestEnabled)` | `GET /api/zevir/graphs?workspace_id=…&limit=100` (viewer) | `{state:'ok', sources: Record<'zevqora_engine'\|'otel_genai'\|'openinference', EvidenceSourceStatus>, capped}` or `{state:'error', status, code, message}` | `evidence_received` only from server graphs; `lastEvidenceAt` is a server timestamp or `null`; rows for another workspace dropped; `capped` when the page is full; errors keep the server code (`OFFLINE`, `NOT_FOUND`, …) |
+| `sourceBadge(availability, observed)` | — | `NOT AVAILABLE` · `EVIDENCE RECEIVED` · `NOT ENABLED FOR THIS WORKSPACE` · `NOT CONNECTED` · `PLAN RESTRICTED` · `STATUS UNAVAILABLE` · `SETUP REQUIRED` | Exhaustively tested never to produce CONNECTED / HEALTHY / ACTIVE |
+| `src/lib/contracts/roles.ts` `SERVER_ACTIONS`, `roleAllows` | — | Minimum role per endpoint, below | Each row is checked against the handler source; drift fails the suite |
+| `src/lib/clients/integrations.ts` `disconnectedGateway` | none | rejects `INTEGRATION_NOT_CONNECTED` | No synthetic connection list or test result |
+| `src/lib/contracts/{support,enterprise}.ts` | none | `PUBLIC_SUPPORT_MODE='public_faq'`, `ENTERPRISE_REQUEST_API_AVAILABLE=false` | Public support and enterprise request send nothing |
+
+### Minimum workspace role per existing endpoint (server-enforced; mirrored in `roles.ts`)
+| Endpoint | Min role |
+|---|---|
+| `GET /api/workspaces/:id/command-center`, `GET /api/zevir/graphs`, `GET /api/optimize/runs/:runId/report` | viewer |
+| `POST /api/zevir/ingest` (+ `zevir_shadow` flag), `POST /api/optimize/products/:id/runs`, `…/candidates/:planId/replay`, `POST /api/optimize/runs/:runId/searches`, `POST /api/optimize/searches/:id/decision` | member |
+| `POST /api/optimize/products/:id/contracts`, `…/contracts/:cid/freeze`, `POST /api/workspaces/:id/invites`, `PATCH /api/workspaces/:id/members/:userId`, `POST /api/optimize/demo` | admin |
+
+Rank (from `api/_lib/auth.js`): owner 4 > admin 3 > member 2 > viewer 1. Unknown graph ids and graphs in another workspace both return 404.
 
 ## EXISTING_IN_BRANCH — server routes and matching clients
 | Method | Endpoint family | Source / frontend adapter | Auth/flag/negative state |
