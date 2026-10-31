@@ -3,12 +3,10 @@ import { Check } from 'lucide-react';
 import { api, errorMessage } from '@/lib/api';
 import { track } from '@/lib/analytics';
 import { useIsPreview, useSiteContent } from '@/lib/site';
-import { useSeo } from '@/lib/seo';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { Checkbox, Field, Input, Select, Textarea } from '@/components/ui/Field';
-import { ZevFace, Zev } from '@/brand/Zev';
-import { Section } from './Sections';
-import { PageHero } from './PageHero';
+import { ZevFace } from '@/brand/Zev';
+import { Intro, Kicker, PageTitle } from './Editorial';
 
 const SPEND = [
   ['unknown', 'Prefer not to say'],
@@ -25,7 +23,6 @@ type Errors = Partial<Record<'name' | 'email' | 'company' | 'workload' | 'consen
 export default function EvaluationPage() {
   const { evaluation_page: page, contact } = useSiteContent();
   const preview = useIsPreview();
-  useSeo({ title: 'Evaluate your AI workload — ZEVQORA', description: page.intro || 'Tell us about one AI workflow and we will tell you what ZEVQORA can measure and prove.', path: '/evaluation' });
   const [form, setForm] = useState({ name: '', email: '', company: '', role_title: '', workload: '', ai_spend_band: 'unknown', consent: false, website: '' });
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
@@ -57,12 +54,13 @@ export default function EvaluationPage() {
 
   return (
     <>
-      <PageHero eyebrow="Evaluation" title={page.title} intro={page.intro} art={<Zev view="pose-sitting" height={200} alt="" />} />
-      <Section rule={false}>
-        <div className="container-page grid gap-10 lg:grid-cols-[0.85fr_1.15fr]">
+      <PageTitle title="Evaluate your AI workload" description={page.intro || 'Tell us about one AI workflow and we will tell you what ZEVQORA can measure and prove.'} />
+      <Intro kicker="START WITH ONE WORKLOAD" title={page.title} body={page.intro} />
+      <section className="z-section evaluation-section">
+        <div className="z-wrap evaluation-layout">
           <div>
-            <h2 className="text-h3 text-ink">What an evaluation includes</h2>
-            <ul className="mt-5 space-y-3">
+            <Kicker>WHAT AN EVALUATION INCLUDES</Kicker>
+            <ul className="evaluation-includes">
               {page.what_you_get.map((w) => (
                 <li key={w} className="flex items-start gap-2.5 text-[14.5px] text-ink">
                   <Check size={16} className="mt-0.5 shrink-0 text-verified" aria-hidden /> {w}
@@ -72,13 +70,13 @@ export default function EvaluationPage() {
             <p className="mt-6 text-[13px] text-muted">{page.response_note}</p>
             <p className="mt-2 text-[13px] text-muted">Prefer email? <a className="font-medium text-accent-text" href={`mailto:${contact.email}`}>{contact.email}</a></p>
           </div>
-          <div className="rounded-[22px] border border-line bg-surface p-6 shadow-[0_1px_2px_rgb(15_17_21/0.04),0_24px_60px_-40px_rgb(15_17_21/0.35)] sm:p-8">
+          <div className="evaluation-form-card">
             {done ? (
               <div role="status" className="flex flex-col items-center py-8 text-center">
                 <ZevFace expression="delighted" size={72} />
                 <h2 className="text-h3 mt-5 text-ink">Thank you — we have your request.</h2>
                 <p className="mt-2 max-w-[44ch] text-[14.5px] text-muted">A person will read it and reply by email. Nothing has been connected to your systems.</p>
-                <ButtonLink to="/technology" variant="secondary" className="mt-6">Read how the engine works</ButtonLink>
+                <ButtonLink to="/how-it-works" variant="secondary" className="mt-6">Read how the engine works</ButtonLink>
               </div>
             ) : (
               <form onSubmit={onSubmit} noValidate className="grid gap-4" aria-describedby={errors.form ? 'form-error' : undefined}>
@@ -112,7 +110,7 @@ export default function EvaluationPage() {
             )}
           </div>
         </div>
-      </Section>
+      </section>
     </>
   );
 }

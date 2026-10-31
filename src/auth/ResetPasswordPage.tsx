@@ -65,7 +65,7 @@ export default function ResetPasswordPage() {
             <PasswordInput id="password" name="password" autoComplete="new-password" required minLength={10} autoFocus />
           </Field>
           <Field id="confirm" label="Confirm password">
-            <PasswordInput id="confirm" name="confirm" label="password confirmation" autoComplete="new-password" required minLength={10} />
+            <PasswordInput id="confirm" name="confirm" autoComplete="new-password" required minLength={10} />
           </Field>
           {error && (
             <p role="alert" className="text-caption text-rejected">

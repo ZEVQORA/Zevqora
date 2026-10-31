@@ -1,6 +1,7 @@
 import { createContext, createElement, useContext, useEffect, useState, type ReactNode } from 'react';
 import { getSupabase } from './supabase';
 import type { Plan, SiteContent } from './types';
+import { REFERENCE_PLANS } from './referencePlans';
 
 /**
  * Fallbacks for every editable section. Published site_content rows override
@@ -135,31 +136,47 @@ export function useSiteContent() {
   return merge(DEFAULT_CONTENT, rows, override);
 }
 
-export function usePlans() {
+/**
+ * Server plans from Supabase. Only the public pricing pages pass `referenceFallback`:
+ * when plans cannot load they show the repository reference plans, flagged with
+ * `isReference` so no reference price can start checkout. Admin and billing screens never do.
+ */
+export function usePlans({ referenceFallback = false }: { referenceFallback?: boolean } = {}) {
   const [plans, setPlans] = useState<Plan[] | null>(plansCache);
   const [error, setError] = useState<string | null>(null);
+  const [isReference, setIsReference] = useState(false);
   useEffect(() => {
     let active = true;
     if (plansCache) return;
-    getSupabase().then(async (sb) => {
-      if (!sb) {
-        if (active) setError('Pricing is temporarily unavailable.');
-        return;
-      }
-      const { data, error: err } = await sb.from('plans').select('*').order('sort_order');
+    const unavailable = () => {
       if (!active) return;
-      if (err || !data) {
-        setError('Pricing is temporarily unavailable.');
-        return;
+      setError('Pricing is temporarily unavailable.');
+      if (referenceFallback) {
+        setPlans(REFERENCE_PLANS);
+        setIsReference(true);
       }
-      plansCache = data as Plan[];
-      setPlans(plansCache);
-    });
+    };
+    getSupabase()
+      .then(async (sb) => {
+        if (!sb) {
+          unavailable();
+          return;
+        }
+        const { data, error: err } = await sb.from('plans').select('*').order('sort_order');
+        if (!active) return;
+        if (err || !data) {
+          unavailable();
+          return;
+        }
+        plansCache = data as Plan[];
+        setPlans(plansCache);
+      })
+      .catch(unavailable);
     return () => {
       active = false;
     };
-  }, []);
-  return { plans, error };
+  }, [referenceFallback]);
+  return { plans, error, isReference };
 }
 
 export function invalidateSiteCaches() {

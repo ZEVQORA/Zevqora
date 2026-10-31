@@ -13,10 +13,22 @@ const FAQ = [
   { title: 'Contact the team', answer: 'Use the official contact address below. This help panel is a public FAQ, not a live human or a signed-in workspace agent.', to: '/team', link: 'Meet the team' },
 ] as const;
 
-/** No network requests, no private data, no impersonation of authenticated Ask Zev. */
-export function SupportZevLauncher() {
+/**
+ * No network requests, no private data, no impersonation of authenticated Ask Zev.
+ * `afterHero` keeps the sticker off the cinematic hero (its CTAs and motion controls sit
+ * in the bottom corner) until the visitor has scrolled past most of the first screen.
+ */
+export function SupportZevLauncher({ afterHero = false }: { afterHero?: boolean }) {
   const { contact } = useSiteContent();
   const [open, setOpen] = useState(false);
+  const [pastHero, setPastHero] = useState(!afterHero);
+  useEffect(() => {
+    if (!afterHero) return;
+    const onScroll = () => setPastHero(window.scrollY > window.innerHeight * 0.6);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [afterHero]);
   const [selected, setSelected] = useState<number | null>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const close = useRef<HTMLButtonElement>(null);
@@ -54,6 +66,7 @@ export function SupportZevLauncher() {
 
   const dismiss = () => { returnFocus.current = true; setOpen(false); };
   const entry = selected === null ? null : FAQ[selected];
+  if (!pastHero && !open) return null;
 
   return (
     <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-50 sm:bottom-6 sm:right-6">

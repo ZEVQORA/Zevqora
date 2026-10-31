@@ -3,6 +3,8 @@
 Updated 2026-10-31 after the integration was actually applied and built.
 **Release verdict: HOLD.** The branch is pushed for a draft PR only; nothing is merged, deployed or migrated.
 
+> **Design correction (2026-10-31):** the public site now uses the complete design from `design/zevqora-frontend-refresh` @ `207cab5`. The design decides how ZEVQORA looks and the release decides how it works. The section-by-section checklist, comparison results and open decisions are in `11-DESIGN-FIDELITY.md`, which supersedes the hero, nav and pricing rows in the table below.
+
 ## Source identity (verified with `git` at execution time)
 
 | Item | Value |

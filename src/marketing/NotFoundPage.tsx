@@ -1,23 +1,21 @@
-import { Link } from 'react-router';
-import { ZevqoraLogo } from '@/brand/ZevqoraLogo';
-import { Zev } from '@/brand/Zev';
-import { ButtonLink } from '@/components/ui/Button';
-
+import { Link } from "react-router";
+import { ArrowUpRight } from "lucide-react";
+import { ZevqoraLogo } from "@/brand/ZevqoraLogo";
+import { PageTitle } from "./Editorial";
 export default function NotFoundPage() {
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center px-6 py-16 text-center">
+    <main className="not-found">
+      <PageTitle title="Page not found" />
       <Link to="/" aria-label="ZEVQORA home">
-        <ZevqoraLogo size={26} />
+        <ZevqoraLogo size={25} />
       </Link>
-      <Zev view="pose-thinking" height={150} className="mt-10" />
-      <h1 className="text-h2 mt-6 text-ink">This page doesn&rsquo;t exist.</h1>
-      <p className="text-caption mt-2 max-w-[40ch] text-muted">The link may be old, or the page may have moved. Nothing here was measured.</p>
-      <div className="mt-6 flex gap-3">
-        <ButtonLink to="/">Home</ButtonLink>
-        <ButtonLink to="/app" variant="secondary">
-          Open ZEVQORA
-        </ButtonLink>
-      </div>
+      <strong>404</strong>
+      <h1>A little off the path.</h1>
+      <p>This page may have moved. Let’s get you back to a clearer view.</p>
+      <Link to="/" className="z-button z-button-ink">
+        Back to ZEVQORA
+        <ArrowUpRight size={15} />
+      </Link>
     </main>
   );
 }

@@ -167,6 +167,17 @@ describe('EnterpriseView', () => {
 });
 
 describe('public Zev support', () => {
+  it('stays off the cinematic hero and appears once the visitor scrolls past it', async () => {
+    const { SupportZevLauncher } = await import('@/marketing/SupportZevLauncher');
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 });
+    render(<MemoryRouter><SupportZevLauncher afterHero /></MemoryRouter>);
+    expect(screen.queryByRole('button', { name: 'Open Ask Zev public support' })).toBeNull();
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: window.innerHeight });
+    act(() => { window.dispatchEvent(new Event('scroll')); });
+    expect(screen.getByRole('button', { name: 'Open Ask Zev public support' })).toBeTruthy();
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 });
+  });
+
   it('is FAQ-only: no network, no private agent route, focus returns on Escape', async () => {
     const src = read('src/marketing/SupportZevLauncher.tsx');
     expect(src).not.toMatch(/\/api\/|fetch\(|engine\/agent|useProduct|experienceApi/);
@@ -199,9 +210,15 @@ describe('routing and public claims', () => {
     for (const name of ['Bayarbayasgalan Enkhtulga', 'Khuslen Ganbat', 'Bat-Ochir']) expect(team).toContain(name);
   });
 
-  it('reference prices never reach checkout', () => {
-    const fallback = read('src/marketing/PricingReferenceFallback.tsx');
-    expect(fallback).not.toMatch(/stripe|create-checkout|navigate\(/i);
-    expect(fallback).toContain('reference');
+  it('reference prices never reach checkout', async () => {
+    // Supabase is unavailable in this file, so the design pricing grid falls back to reference plans.
+    const { PricingGrid } = await import('@/marketing/Pricing');
+    render(<MemoryRouter><PricingGrid /></MemoryRouter>);
+    const confirm = await screen.findAllByRole('link', { name: /Confirm current pricing/ });
+    expect(confirm.length).toBeGreaterThan(0);
+    for (const link of confirm) expect(link.getAttribute('href')).toMatch(/^mailto:/);
+    expect(screen.queryAllByRole('button', { name: /^(Choose|Manage)/ })).toHaveLength(0);
+    expect(document.querySelector('a[href*="/signup?plan"], a[href*="/app/usage"]')).toBeNull();
+    expect(screen.getByText(/reference prices, not a\s+confirmed offer/)).toBeTruthy();
   });
 });

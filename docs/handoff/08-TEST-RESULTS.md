@@ -55,6 +55,23 @@ Regressions the full suite caught and that were fixed before the code-final comm
 | `node -e "await import('./api/index.js')"` (CI's API import step) | 0 | `api ok` |
 | Secret scan of the diff vs `8e591cd` (key/JWT/webhook/private-key patterns) | — | no matches; only `.env.example` files are tracked |
 
+## 3c. Design correction (2026-10-31, same machine)
+
+| Command | Exit | Result |
+|---|---|---|
+| `npx vitest run --maxWorkers=2 --minWorkers=1` | **0** | **42/42 files, 508/508 tests** (189 s) |
+| `npm run build` / `npm run verify:release` | 0 / 0 | built in 21.4 s; "ZEVQORA release preflight passed." |
+| Affected files re-run after the last component change (`unified-integration`, `a11y`, `website-admin-ui`) | 0 | 3/3 files, 44/44 tests (incl. the new hero-aware sticker test, so the full suite is 509 tests) |
+| `npm run typecheck`, `npm run lint` | 0, 0 | — |
+| Headless Chrome captures, design `207cab5` vs unified, 1440×900 and 375×812 | — | 44 full-page captures, zero horizontal overflow, section-by-section match recorded in `11-DESIGN-FIDELITY.md` |
+
+Tests changed for the design and why:
+- The home headline is now the design's "Make AI lighter."; claim checks are unchanged (42.01% internal benchmark qualifier, illustrative labels, no customer claims).
+- The 404 test looks for the design's "404".
+- The axe check now covers `HowItWorksPage`, which replaced `TechnologyPage`.
+- The reference-price test now renders the design pricing grid with no Supabase, and asserts mailto-only CTAs and no checkout links.
+- Design defect fixed: the home ticker had an `aria-label` without a role (axe `aria-prohibited-attr`).
+
 ## 4. New tests (`tests/unified-integration.test.tsx`, 27 tests; overlay `tests/unified-frontend.test.ts`, 5 tests)
 
 - Role mirror: 12 endpoint minimum roles checked against handler source; role rank checked against `api/_lib/auth.js`; unknown role (`'ceo'`) denied.
