@@ -24,6 +24,7 @@ const UsagePage = lazy(() => import('./pages/UsagePage'));
 const TeamPage = lazy(() => import('./pages/TeamPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const DocsPage = lazy(() => import('./pages/DocsPage'));
+const EnterpriseView = lazy(() => import('@/product/views/EnterpriseView'));
 
 /** Paths from the retired telemetry-era pages, kept so old links and bookmarks still land somewhere useful. */
 const RETIRED: Array<[string, string]> = [
@@ -68,6 +69,7 @@ export default function AppRoutes() {
         <Route path="settings" element={<SettingsPage />} />
         <Route path="settings/:tab" element={<SettingsPage />} />
         <Route path="docs" element={<DocsPage />} />
+        <Route path="enterprise" element={<EnterpriseView />} />
         {RETIRED.map(([from, to]) => <Route key={from} path={from} element={<Navigate to={to} replace />} />)}
         <Route path="*" element={<Navigate to="/app" replace />} />
       </Route>

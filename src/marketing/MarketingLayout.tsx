@@ -9,9 +9,11 @@ import { cn } from '@/lib/cn';
 
 const NAV = [
   { label: 'Product', href: '/product' },
-  { label: 'Technology', href: '/technology' },
+  { label: 'How it works', href: '/technology' },
+  { label: 'Evidence', href: '/evaluation' },
+  { label: 'Pricing', href: '/pricing' },
   { label: 'Security', href: '/security' },
-  { label: 'Company', href: '/company' },
+  { label: 'Team', href: '/team' },
 ];
 
 export function SiteHeader() {

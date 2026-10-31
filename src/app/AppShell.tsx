@@ -28,6 +28,7 @@ export const NAV: Array<{ to: string; label: string; Icon: typeof Home; end?: bo
   { to: '/app/connections', label: 'Connections', Icon: Plug },
   { to: '/app/team', label: 'Team', Icon: Users, section: 'Workspace' },
   { to: '/app/settings', label: 'Settings', Icon: Settings },
+  { to: '/app/enterprise', label: 'Enterprise', Icon: Shield },
   { to: '/app/project', label: 'Repository', Icon: FolderGit2, section: 'More' },
   { to: '/app/opportunities', label: 'Opportunities', Icon: Lightbulb, end: true },
   { to: '/app/evaluation', label: 'Evaluation', Icon: ClipboardCheck },

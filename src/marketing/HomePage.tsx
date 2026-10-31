@@ -5,6 +5,8 @@ import { ButtonLink } from '@/components/ui/Button';
 import { useSiteContent } from '@/lib/site';
 import { useSeo, SITE_URL } from '@/lib/seo';
 import { Zev } from '@/brand/Zev';
+import { HeroMark3D } from '@/brand/HeroMark3D';
+import { SupportZevLauncher } from './SupportZevLauncher';
 import { Section, Reveal } from './Sections';
 import { ProductPreview } from './graphics/ProductPreview';
 import { LoopViz } from './graphics/LoopViz';
@@ -27,42 +29,32 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 function Hero() {
   const { hero } = useSiteContent();
   const words = hero.headline.replace(/\.$/, '').split(' ');
-  // The last two words carry the Soft Blue accent, like "lighter." on the brand board.
   const lead = words.slice(0, -2).join(' ');
   const accent = words.slice(-2).join(' ');
   return (
-    <section className="hero-env relative overflow-hidden border-b border-line">
-      <div className="container-wide grid items-center gap-12 py-14 lg:grid-cols-[1.05fr_1fr] lg:gap-10 lg:py-24">
+    <section className="relative isolate overflow-hidden border-b border-[#202833] bg-[#0F1115] text-[#F7F8FA]">
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_78%_35%,rgba(70,139,255,0.2),transparent_48%)]" />
+      <div className="container-wide relative grid items-center gap-10 py-12 sm:py-16 lg:grid-cols-[1.06fr_0.94fr] lg:gap-14 lg:py-24">
         <div>
-          {hero.announcement && (
-            <Link to={hero.announcement_href || '/product'} className="glass mb-6 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-caption text-ink">
-              <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden />
-              {hero.announcement}
-            </Link>
-          )}
-          <p className="inline-flex items-center gap-2 rounded-full border border-line bg-surface/80 px-3 py-1 text-[12.5px] font-medium text-ink">
-            <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden /> Make AI <span className="text-brand">lighter.</span>
-            <span className="text-subtle">· Verified AI optimization</span>
-          </p>
-          <h1 className="text-display mt-6 max-w-[14ch] text-ink">
-            {lead} <span className="text-brand">{accent}</span>
-            <span className="text-brand">.</span>
-          </h1>
-          {hero.subheadline && <p className="text-body-lg mt-6 max-w-[48ch] text-ink/80">{hero.subheadline}</p>}
-          <div className="mt-9 flex flex-wrap items-center gap-3">
-            <ButtonLink to={hero.primary_cta.href} size="lg" data-cta="hero.primary">{hero.primary_cta.label}</ButtonLink>
-            <ButtonLink to={hero.secondary_cta.href} size="lg" variant="secondary" data-cta="hero.secondary">{hero.secondary_cta.label}</ButtonLink>
+          {hero.announcement && <Link to={hero.announcement_href || '/product'} className="mb-6 inline-flex min-h-10 items-center rounded-full border border-white/20 px-4 text-[13px] text-white/80">{hero.announcement}</Link>}
+          <p className="inline-flex items-center gap-2 rounded-full border border-[#468BFF]/40 bg-[#468BFF]/10 px-3 py-2 font-mono text-[12px] text-[#9ac3ff]">ZEVQORA / VERIFIED AI ENGINEERING</p>
+          <h1 className="mt-7 max-w-[13ch] text-[clamp(2.55rem,6.1vw,6.7rem)] font-semibold leading-[1.06] tracking-[-0.055em] text-white">{lead} <span className="text-[#7fb0ff]">{accent}.</span></h1>
+          {hero.subheadline && <p className="mt-7 max-w-[53ch] text-[clamp(1rem,1.35vw,1.125rem)] leading-relaxed text-[#bdc6d4]">{hero.subheadline}</p>}
+          <div className="mt-9 flex flex-wrap gap-3">
+            <Link to={hero.primary_cta.href} data-cta="hero.primary" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[#468BFF] px-6 text-[15px] font-semibold text-white transition-colors hover:bg-[#296edc] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#90bdff]">{hero.primary_cta.label} <ArrowRight size={16} className="ml-2" aria-hidden /></Link>
+            <Link to={hero.secondary_cta.href} data-cta="hero.secondary" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/20 px-6 text-[15px] font-medium text-white/80 transition-colors hover:bg-white/10">{hero.secondary_cta.label}</Link>
           </div>
-          <p className="mt-8 font-mono text-technical text-muted">{hero.trust_line}</p>
+          <p className="mt-7 max-w-[60ch] font-mono text-[12px] leading-relaxed text-[#8995a6]">{hero.trust_line}</p>
+          <div className="mt-10 flex items-center gap-4 border-t border-white/10 pt-6 text-[12px] uppercase tracking-wider text-[#8ea5c2]"><span>01 / Observe</span><span className="text-[#468BFF]">→</span><span>02 / Replay</span><span className="text-[#468BFF]">→</span><span>03 / Verify</span></div>
         </div>
-        <div className="relative mx-auto w-full max-w-[560px]">
-          <div aria-hidden className="pointer-events-none absolute -inset-8 -z-10 rounded-[40px] bg-[radial-gradient(closest-side,rgba(70,139,255,0.16),transparent_72%)]" />
-          <ProductPreview className="mx-auto" />
-          {/* Beside the card on wide screens, below it otherwise — never over its content. */}
-          <div className="mt-6 flex flex-col items-center gap-1 lg:absolute lg:-left-36 lg:bottom-0 lg:mt-0">
-            <span className="rounded-[14px] rounded-bl-sm border border-line bg-surface px-3 py-1.5 text-[13px] font-medium text-accent-text shadow-sm">Hi, I’m Zev.</span>
-            <Zev view="three-quarter-front" height={130} className="zq-float drop-shadow-[0_14px_20px_rgba(31,63,122,0.18)]" alt="Zev, the ZEVQORA mascot" />
+        <div className="relative mx-auto w-full max-w-[550px]">
+          <div className="relative flex min-h-[320px] items-center justify-center overflow-hidden rounded-[30px] border border-[#4b81c9]/25 bg-[radial-gradient(circle_at_45%_35%,#163762,#0c182a_62%,#0a0d14)] sm:min-h-[400px]">
+            <div aria-hidden className="pointer-events-none absolute inset-[10%] rounded-full border border-[#468BFF]/10" />
+            <div className="relative scale-[0.86] sm:scale-100"><HeroMark3D size={320} /></div>
+            <span className="absolute bottom-5 left-5 font-mono text-[11px] uppercase tracking-[0.18em] text-[#91b9ed]">The canonical Z · dimensional study</span>
+            <span className="absolute right-5 top-5 rounded-full border border-white/10 bg-white/5 px-3 py-1 font-mono text-[10px] text-white/60">SVG / REDUCED-MOTION SAFE</span>
           </div>
+          <div className="mt-4 hidden overflow-hidden rounded-[18px] border border-white/10 bg-white p-3 lg:block"><ProductPreview className="mx-auto" /></div>
         </div>
       </div>
     </section>
@@ -329,6 +321,7 @@ export default function HomePage() {
       <Integrations />
       <SecurityTeaser />
       <EvaluationCta />
+      <SupportZevLauncher />
     </>
   );
 }

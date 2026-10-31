@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/States';
 import { planPrice, usePlans } from '@/lib/site';
 import { useSession } from '@/lib/session';
 import type { Plan } from '@/lib/types';
+import { PricingReferenceFallback } from './PricingReferenceFallback';
 
 /** The badge reads the discount from the plans themselves so it can never disagree with the prices. */
 function annualDiscountLabel(plans?: Plan[] | null) {
@@ -110,11 +111,12 @@ export function PricingGrid({ heading = true, currentPlanId }: { heading?: boole
       )}
       <div className="mt-10 grid gap-5 lg:grid-cols-3">
         {!plans && !error && [0, 1, 2].map((i) => <Skeleton key={i} className="h-[440px] rounded-xl" />)}
-        {error && <p className="text-caption text-muted">{error}</p>}
+        {error && <p className="text-caption text-muted" role="alert">Could not load live plans: {error}</p>}
         {visible.map((p) => (
           <PlanCard key={p.id} plan={p} annual={annual} currentPlanId={currentPlanId} />
         ))}
       </div>
+      {error && !visible.length && <PricingReferenceFallback annual={annual} />}
       <p className="text-technical mt-8 font-mono text-subtle">
         Subscriptions renew until cancelled. Zev credit resets each billing period and is consumed only by provider cost during replay. <Link to="/security" className="underline underline-offset-4 hover:text-ink">Security overview</Link>.
       </p>

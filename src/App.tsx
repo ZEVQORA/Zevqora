@@ -78,7 +78,9 @@ export function App() {
             <Route index element={<HomePage />} />
             <Route path="product" element={<ProductPage />} />
             <Route path="technology" element={<TechnologyPage />} />
+            <Route path="how-it-works" element={<Navigate to="/technology" replace />} />
             <Route path="evaluation" element={<EvaluationPage />} />
+            <Route path="proof" element={<Navigate to="/evaluation" replace />} />
             <Route path="company" element={<CompanyPage />} />
             <Route path="pricing" element={<PricingPage />} />
             <Route path="security" element={<SecurityPage />} />
@@ -87,6 +89,7 @@ export function App() {
             <Route path="terms" element={<LegalPage kind="terms" />} />
             <Route path="download" element={<DownloadPage />} />
           </Route>
+          <Route path="demo/*" element={<Navigate to="/product" replace />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="signup" element={<SignupPage />} />
           <Route path="forgot-password" element={<ForgotPasswordPage />} />
