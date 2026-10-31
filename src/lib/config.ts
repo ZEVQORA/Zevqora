@@ -33,6 +33,9 @@ export function getConfigSync(): PublicConfig {
 }
 
 export function loadConfig(): Promise<PublicConfig> {
+  // The separately published design preview has no API or production session.
+  // Ordinary builds retain the existing authenticated runtime configuration.
+  if (import.meta.env.VITE_DESIGN_PREVIEW === 'true') return Promise.resolve(cached);
   if (pending) return pending;
   pending = fetch('/api/public-config', { cache: 'no-store' })
     .then(async (res) => {

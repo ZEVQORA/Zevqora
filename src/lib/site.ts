@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getSupabase } from './supabase';
 import type { Plan, SiteContent } from './types';
+import { REFERENCE_PLANS } from './referencePlans';
 
 /** Fallbacks mirror the seeded site_content rows so the site renders without a network. */
 export const DEFAULT_CONTENT: Required<SiteContent> = {
@@ -49,31 +50,37 @@ export function useSiteContent() {
   return content;
 }
 
-export function usePlans() {
+export function usePlans({ referenceFallback = false }: { referenceFallback?: boolean } = {}) {
   const [plans, setPlans] = useState<Plan[] | null>(plansCache);
   const [error, setError] = useState<string | null>(null);
+  const [isReference, setIsReference] = useState(false);
   useEffect(() => {
     let active = true;
     if (plansCache) return;
+    const unavailable = () => {
+      if (!active) return;
+      setError('Pricing is temporarily unavailable.');
+      if (referenceFallback) { setPlans(REFERENCE_PLANS); setIsReference(true); }
+    };
     getSupabase().then(async (sb) => {
       if (!sb) {
-        if (active) setError('Pricing is temporarily unavailable.');
+        unavailable();
         return;
       }
       const { data, error: err } = await sb.from('plans').select('*').order('sort_order');
       if (!active) return;
       if (err || !data) {
-        setError('Pricing is temporarily unavailable.');
+        unavailable();
         return;
       }
       plansCache = data as Plan[];
       setPlans(plansCache);
-    });
+    }).catch(unavailable);
     return () => {
       active = false;
     };
-  }, []);
-  return { plans, error };
+  }, [referenceFallback]);
+  return { plans, error, isReference };
 }
 
 export function invalidateSiteCaches() {

@@ -14,7 +14,7 @@ const tones: Record<Tone, string> = {
 
 export function Panel({ tone = 'plane', className, children, ...props }: HTMLAttributes<HTMLDivElement> & { tone?: Tone; children: ReactNode }) {
   return (
-    <div className={cn(tones[tone], className)} data-surface={tone === 'ink' ? 'ink' : undefined} {...props}>
+    <div className={cn('ui-panel', tones[tone], className)} data-surface={tone === 'ink' ? 'ink' : undefined} {...props}>
       {children}
     </div>
   );
@@ -22,7 +22,7 @@ export function Panel({ tone = 'plane', className, children, ...props }: HTMLAtt
 
 export function PanelHeader({ title, description, action, eyebrow, className }: { title: ReactNode; description?: ReactNode; action?: ReactNode; eyebrow?: string; className?: string }) {
   return (
-    <div className={cn('flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4', className)}>
+    <div className={cn('ui-panel-header flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4', className)}>
       <div className="min-w-0">
         {eyebrow && <p className="text-eyebrow mb-1 uppercase text-subtle">{eyebrow}</p>}
         <h3 className="text-h4 text-ink">{title}</h3>
@@ -39,7 +39,7 @@ export function Eyebrow({ children, className }: { children: ReactNode; classNam
 
 export function PageHeader({ title, description, actions, eyebrow, children }: { title: ReactNode; description?: ReactNode; actions?: ReactNode; eyebrow?: string; children?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="ui-page-heading mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div className="min-w-0">
         {eyebrow && <Eyebrow className="mb-2">{eyebrow}</Eyebrow>}
         <h1 className="text-h2 text-ink">{title}</h1>
