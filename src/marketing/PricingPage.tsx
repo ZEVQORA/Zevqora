@@ -1,78 +1,129 @@
-import { useEffect } from 'react';
-import { Section } from './Sections';
-import { PricingGrid } from './Pricing';
-import { usePlans } from '@/lib/site';
-import { Table, Th, Td } from '@/components/ui/Misc';
-import { useSession } from '@/lib/session';
+import { usePlans } from "@/lib/site";
+import { useSession } from "@/lib/session";
+import { FAQ, Kicker, PageTitle } from "./Editorial";
+import { ArrowUpRight } from "lucide-react";
+import { useSiteContent } from "@/lib/site";
+import { PricingGrid } from "./Pricing";
 
 export default function PricingPage() {
-  const { plans } = usePlans();
-  const { me } = useSession();
-  useEffect(() => {
-    document.title = 'Pricing — ZEVQORA';
-  }, []);
-  const visible = (plans || []).filter((p) => p.visible);
-  const rows: Array<{ label: string; key: keyof NonNullable<(typeof visible)[number]['limits']>; fmt: (v: unknown) => string }> = [
-    { label: 'Projects', key: 'projects', fmt: (v) => (v === null ? 'Unlimited' : String(v)) },
-    { label: 'Zev credit / month', key: 'credits_usd', fmt: (v) => `$${v}` },
-    { label: 'Replay samples per experiment', key: 'replay_samples', fmt: (v) => String(v) },
-    { label: 'Team seats', key: 'team_members', fmt: (v) => (v === null ? 'Unlimited' : String(v)) },
-    { label: 'Telemetry retention', key: 'telemetry_retention_days', fmt: (v) => `${v} days` },
-    { label: 'GitHub connection', key: 'github', fmt: (v) => (v ? 'Included' : 'Coming soon') },
-    { label: 'PDF report export', key: 'pdf_export', fmt: (v) => (v ? 'Included' : '—') },
+  const { contact } = useSiteContent();
+  const { plans } = usePlans({ referenceFallback: true }),
+    { me } = useSession(),
+    visible = (plans || []).filter((p) => p.visible);
+  const rows: Array<[string, string]> = [
+    ["Projects", "projects"],
+    ["Zev credit / month", "credits_usd"],
+    ["Replay samples / experiment", "replay_samples"],
+    ["Team seats", "team_members"],
+    ["Telemetry retention", "telemetry_retention_days"],
+    ["GitHub connection", "github"],
+    ["PDF report export", "pdf_export"],
   ];
   return (
     <>
-      <Section rule={false} className="studio pt-14 lg:pt-20">
-        <PricingGrid currentPlanId={me?.account.plan} />
-      </Section>
-      <Section surface="sunken">
-        <div className="container-page">
-          <p className="text-eyebrow uppercase text-muted">Plan limits</p>
-          <h2 className="text-h2 mt-4 text-ink">Enforced on the server, visible up front.</h2>
-          <p className="text-body mt-3 max-w-[56ch] text-muted">Limits are configuration, not marketing. The same table drives the app, the API and this page.</p>
-          <div className="mt-8 rounded-xl border border-line bg-surface p-5">
-            <Table minWidth={560}>
+      <PageTitle title="Pricing" />
+      <section className="pricing-page-intro">
+        <PricingGrid page currentPlanId={me?.account.plan} />
+      </section>
+      <section className="z-section pricing-detail-section">
+        <div className="z-wrap">
+          <Kicker>THE DETAILS, UP FRONT</Kicker>
+          <h2 className="z-heading" style={{ marginTop: 23 }}>
+            Know your room to work.
+          </h2>
+          <div style={{ overflowX: "auto" }}>
+            <table className="pricing-comparison">
               <thead>
                 <tr>
-                  <Th>Limit</Th>
+                  <th>Workspace limits</th>
                   {visible.map((p) => (
-                    <Th key={p.id} align="right">
-                      {p.name}
-                    </Th>
+                    <th key={p.id}>{p.name}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
-                  <tr key={r.label}>
-                    <Td>{r.label}</Td>
-                    {visible.map((p) => (
-                      <Td key={p.id} align="right" mono>
-                        {r.fmt(p.limits?.[r.key] ?? null)}
-                      </Td>
-                    ))}
+                {rows.map(([label, key]) => (
+                  <tr key={key}>
+                    <td>{label}</td>
+                    {visible.map((p) => {
+                      const v = (
+                        p.limits as unknown as Record<string, unknown>
+                      )[key];
+                      return (
+                        <td key={p.id}>
+                          {v === null
+                            ? "Unlimited"
+                            : typeof v === "boolean"
+                              ? v
+                                ? "Included"
+                                : "Coming soon"
+                              : key === "credits_usd"
+                                ? `$${v}`
+                                : key === "telemetry_retention_days"
+                                  ? `${v} days`
+                                  : String(v ?? "—")}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
-            </Table>
+            </table>
           </div>
         </div>
-      </Section>
-      <Section>
-        <div className="container-page grid gap-10 lg:grid-cols-3">
-          {[
-            ['What is Zev credit?', 'Zev credit pays for provider cost when ZEVQORA replays your samples on candidate models. Analysis, telemetry and reports do not consume credit. Credit is accounted server-side; you cannot be charged twice for a retried run.'],
-            ['Do I need my own provider key?', 'No. Replays run on the ZEVQORA platform credential, which never leaves the server. Your runtime keeps using your own keys; ZEVQORA only receives call metadata.'],
-            ['What happens when I exceed a limit?', 'The server declines the protected operation and the app explains which limit applied and what plan lifts it. Nothing is silently dropped.'],
-          ].map(([q, a]) => (
-            <div key={q}>
-              <h3 className="text-h4 text-ink">{q}</h3>
-              <p className="text-caption mt-2 text-muted">{a}</p>
-            </div>
-          ))}
+      </section>
+      <section className="z-section pricing-faq-section">
+        <div className="z-wrap loop-layout">
+          <div>
+            <Kicker>A FEW GOOD QUESTIONS</Kicker>
+            <h2 className="z-heading" style={{ marginTop: 23 }}>
+              Clear costs.
+              <br />
+              Clear expectations.
+            </h2>
+          </div>
+          <FAQ
+            items={[
+              [
+                "What is Zev credit?",
+                "Zev credit covers provider cost when you replay your samples on candidate models. It is accounted for on the server. Analysis, telemetry and reports do not consume replay credit.",
+              ],
+              [
+                "Do I need my own model provider key?",
+                "No. Platform replays run through your ZEVQORA account. Your existing production runtime keeps its own provider keys; ZEVQORA receives scoped metadata.",
+              ],
+              [
+                "What happens at a plan limit?",
+                "The server declines the protected operation and the app explains the limit. You can review your usage and choose a plan with more capacity.",
+              ],
+              [
+                "Are savings guaranteed?",
+                "No. Results apply to the replayed samples and configured gates. Point estimates, confidence intervals and evidence limitations remain visible.",
+              ],
+            ]}
+          />
         </div>
-      </Section>
+      </section>
+      <section className="pricing-help">
+        <div>
+          <Kicker>LET’S FIND YOUR STARTING POINT</Kicker>
+          <h2>
+            A bigger team?
+            <br />
+            Let’s make room.
+          </h2>
+          <p>
+            Talk through workloads, verification gates and your team’s needs.
+          </p>
+        </div>
+        <a
+          className="engine-button engine-button-ink"
+          href={`mailto:${contact.email}`}
+        >
+          Talk to the team
+          <ArrowUpRight size={17} />
+        </a>
+      </section>
     </>
   );
 }

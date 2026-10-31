@@ -49,7 +49,7 @@ export function AdminShell() {
     </aside>
   );
   return (
-    <div className="app-env flex min-h-dvh">
+    <div className="app-env workspace-experience admin-experience flex min-h-dvh">
       <div className="sticky top-0 hidden h-dvh shrink-0 lg:block">{sidebar}</div>
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden">

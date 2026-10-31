@@ -4,6 +4,12 @@ AI cost optimization engineer for AI products. **Cut AI COGS without cutting pro
 
 Measure. Replay. Verify. Then optimize.
 
+## Frontend experience — The Lighter Engine
+
+The new direction combines a full-bleed realtime optical film, large Space Grotesk typography, four scroll-led engineering chapters, an interactive proof spotlight and a redesigned product presentation. Public, authentication, workspace and admin surfaces share the new Ink / Paper / Cobalt system.
+
+Open `/design` for the 53-entry screen catalogue and desktop/tablet/mobile previews, `/demo` for sample engineering workflows, or `/demo/admin` for sample administrative screens. See [the frontend design plan](docs/frontend-experience.md), [asset and motion notes](docs/lighter-engine-assets.md) and [verification record](docs/frontend-verification.md).
+
 ```
 connect evidence → map spend → diagnose waste → generate candidate
 → replay workload → evaluate quality → verify savings → human review

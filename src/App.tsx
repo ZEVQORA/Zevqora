@@ -5,6 +5,9 @@ import { useSession } from '@/lib/session';
 import { MarketingLayout } from '@/marketing/MarketingLayout';
 
 const HomePage = lazy(() => import('@/marketing/HomePage'));
+const ProductPage = lazy(() => import('@/marketing/ProductPage'));
+const HowItWorksPage = lazy(() => import('@/marketing/HowItWorksPage'));
+const ProofPage = lazy(() => import('@/marketing/ProofPage'));
 const PricingPage = lazy(() => import('@/marketing/PricingPage'));
 const SecurityPage = lazy(() => import('@/marketing/SecurityPage'));
 const TeamPage = lazy(() => import('@/marketing/TeamPage'));
@@ -20,6 +23,8 @@ const InvitePage = lazy(() => import('@/auth/InvitePage'));
 const AppRoutes = lazy(() => import('@/app/AppRoutes'));
 const AdminRoutes = lazy(() => import('@/admin/AdminRoutes'));
 const NotFoundPage = lazy(() => import('@/marketing/NotFoundPage'));
+const DemoWorkspace = lazy(() => import('@/demo/DemoWorkspace'));
+const DesignIndex = lazy(() => import('@/design/DesignIndex'));
 
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
@@ -60,14 +65,19 @@ export function App() {
         <Routes>
           <Route element={<MarketingLayout />}>
             <Route index element={<HomePage />} />
+            <Route path="product" element={<ProductPage />} />
+            <Route path="how-it-works" element={<HowItWorksPage />} />
+            <Route path="proof" element={<ProofPage />} />
             <Route path="pricing" element={<PricingPage />} />
             <Route path="security" element={<SecurityPage />} />
             <Route path="team" element={<TeamPage />} />
             <Route path="privacy" element={<LegalPage kind="privacy" />} />
             <Route path="terms" element={<LegalPage kind="terms" />} />
             <Route path="download" element={<DownloadPage />} />
+            <Route path="design" element={<DesignIndex />} />
           </Route>
           <Route path="login" element={<LoginPage />} />
+          <Route path="demo/*" element={<DemoWorkspace />} />
           <Route path="signup" element={<SignupPage />} />
           <Route path="forgot-password" element={<ForgotPasswordPage />} />
           <Route path="reset-password" element={<ResetPasswordPage />} />
