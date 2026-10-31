@@ -1,7 +1,7 @@
 # ZEVQORA — Unified vNext + ZevIR Frontend: Status
 
 Updated 2026-10-31 after the integration was actually applied and built.
-**Release verdict: HOLD.** Nothing here is pushed, merged, deployed or migrated.
+**Release verdict: HOLD.** The branch is pushed for a draft PR only; nothing is merged, deployed or migrated.
 
 ## Source identity (verified with `git` at execution time)
 
@@ -10,7 +10,7 @@ Updated 2026-10-31 after the integration was actually applied and built.
 | Base | `release/vnext-part3-production` = `8e591cd214b79deea2a1c19fcdd4a126d0184249` (remote ref re-checked with `git ls-remote` on 2026-10-31; unchanged) |
 | Design source | `design/zevqora-frontend-refresh` = `207cab5f977395a23b3be9765b099da7bedea412`. Branched from `main` (`97079d5`), so 39 commits behind the release and 1 ahead; it deletes most of `api/_lib/optimize`, `api/_lib/zevir`, the Part 3 handlers and their tests. **Never merged wholesale.** |
 | Redesign ZIP | `zevqora-frontend-redesign (1).zip` was attached this time. Its tree is byte-identical to `207cab5` apart from CRLF line endings, so the branch was used as the design source. |
-| Integration branch | `integration/unified-vnext-zevir-ui` (local only), in its own worktree `D:/BeBe_personal/ZEVQORA-unified`. |
+| Integration branch | `integration/unified-vnext-zevir-ui`, in its own git worktree. Pushed for review as a **draft PR** against `release/vnext-part3-production`; not merged. |
 | Commits on top of `8e591cd` | `d9298ae` patch as delivered · `1d70614` integration repairs and gateway · docs commit (this file) |
 
 ## What is IMPLEMENTED (in code, covered by tests, not deployed)
@@ -49,4 +49,4 @@ Updated 2026-10-31 after the integration was actually applied and built.
 
 No change to `api/`, `supabase/` (migrations, rollback, tests), `schemas/`, `package.json` / lockfile, auth/session logic, admin, `src/product/graph`, `src/product/command`, `src/product/optimize.ts`. One defensive guard was added to `src/brand/HeroMark3D.tsx` (`matchMedia` may be absent); the mark geometry is unchanged and `verify:release` still checks it.
 
-See `08-TEST-RESULTS.md` for command-by-command results, `02-API-CONTRACT-MAP.md` for existing vs proposed endpoints and `09-BACKEND-TODO.md` for the remaining backend work, deploy and rollback.
+See `10-BACKEND-CHECKLIST.md` for the implementation-ready backend checklist (existing vs proposed endpoints, staging prerequisites, order), `08-TEST-RESULTS.md` for command-by-command results, `02-API-CONTRACT-MAP.md` for existing vs proposed endpoints and `09-BACKEND-TODO.md` for the remaining backend work, deploy and rollback.

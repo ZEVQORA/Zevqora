@@ -3,7 +3,8 @@ These are implementation tasks, not promises of shipped capabilities. Preserve s
 
 ## Critical — enable honest existing flow first
 - [x] Clone/inspect actual release SHA and divergence; reconcile only approved new frontend files onto `8e591cd...` — done locally on `integration/unified-vnext-zevir-ui` (see `08-TEST-RESULTS.md`).
-- [ ] Push the branch and open a draft PR (founder approval; repository is public), then confirm CI and branch protections.
+- [x] Push the branch and open a draft PR against `release/vnext-part3-production` (2026-10-31, on the founder's instruction). Still to confirm: CI result and branch protection.
+- [ ] Work through `10-BACKEND-CHECKLIST.md` in its stated order.
 - [ ] Run ordered migrations 016–019 on **isolated staging** with schema history, backup/rollback and A/B RLS tests; check feature flags `zevir_shadow`, `zevir_graph_ui`, `verified_optimization_vnext`, `optimization_intelligence_vnext`; NEVER assume prod migrated.
 - [ ] Test Supabase signup/session → workspace membership → create engine workload → scoped telemetry or OTel sample ingest → ZevIR graph → frozen contract → baseline → diagnosis → candidates → bounded replay → VERIFIED/REJECTED/INCOMPLETE → reports. Save run/graph IDs, request IDs and evidence provenance.
 - [ ] Show `ZEVIR_DISABLED`, missing evidence, unauthorized graph 404, plan restricted and `OFFLINE` as truthful states; no automatic fallback to preview data.
@@ -39,7 +40,7 @@ All new endpoints have OpenAPI/TS request/response, validated error codes, serve
 ## Deploy and rollback — requires explicit founder approval for every step
 Nothing below was executed. Follow `docs/staging-runbook.md`; this is the minimum.
 
-1. **Push for review** (Nero approves; public repo): `git push -u origin integration/unified-vnext-zevir-ui`, open a **draft** PR against `release/vnext-part3-production` (not `main`).
+1. **Push for review**: done 2026-10-31 (`git push -u origin integration/unified-vnext-zevir-ui`, **draft** PR against `release/vnext-part3-production`, not `main`).
 2. **Staging DB** (Khuslen approves; never the production ref the staging guard refuses): apply 001…013, 016, 017, 018, 019 in order; run `supabase/tests/rls_privilege_check.sql`; then `npm run test:staging` with workspace A/B identities.
 3. **Preview deploy** pointed at staging; walk sign-in → workspace → ingest → graph → freeze → baseline → plan search → bounded replay → verdict → evidence → human review, plus the negative cases in this file.
 4. **Production** (Nero GO + Khuslen security sign-off + Bat-Ochir claims review): apply 013 first (missing in production), then 016–019; enable flags per workspace, not globally; deploy the reviewed commit.

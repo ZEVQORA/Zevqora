@@ -1,6 +1,6 @@
 # Verification Evidence and Result Log
 
-Updated 2026-10-31. Executed on a Windows 11 laptop (Node v24.15.0, npm 11.12.1), worktree `D:/BeBe_personal/ZEVQORA-unified`, `OPENROUTER_API_KEY=""` and no `.env` in the worktree, so no real provider key was loaded. Every command below was actually run; anything not run says so.
+Updated 2026-10-31. Executed on a Windows 11 laptop (Node v24.15.0, npm 11.12.1), in a separate git worktree, `OPENROUTER_API_KEY=""` and no `.env` in the worktree, so no real provider key was loaded. Every command below was actually run; anything not run says so.
 
 ## 1. Baseline — untouched release `8e591cd`
 
@@ -42,6 +42,19 @@ Regressions the full suite caught and that were fixed before the code-final comm
 - `tests/a11y.test.tsx` home page and `tests/website-admin-ui.test.tsx` homepage: `HeroMark3D` called `window.matchMedia` unguarded once the patch put it on the home page → guarded.
 - `SupportZevLauncher`: focus did not return to the sticker after Esc/close (trigger unmounted while open) → fixed; now tested.
 
+## 3b. Re-run on `fecd790` before the draft PR (2026-10-31)
+
+| Command | Exit | Result |
+|---|---|---|
+| `git status --porcelain` | — | empty (clean tree) |
+| `npx vitest run --maxWorkers=2 --minWorkers=1` | **0** | **42/42 files, 508/508 tests** (163 s) |
+| `npm run typecheck` | 0 | — |
+| `npm run lint` | 0 | — |
+| `npm run build` | 0 | — |
+| `npm run verify:release` | 0 | "ZEVQORA release preflight passed." |
+| `node -e "await import('./api/index.js')"` (CI's API import step) | 0 | `api ok` |
+| Secret scan of the diff vs `8e591cd` (key/JWT/webhook/private-key patterns) | — | no matches; only `.env.example` files are tracked |
+
 ## 4. New tests (`tests/unified-integration.test.tsx`, 27 tests; overlay `tests/unified-frontend.test.ts`, 5 tests)
 
 - Role mirror: 12 endpoint minimum roles checked against handler source; role rank checked against `api/_lib/auth.js`; unknown role (`'ceo'`) denied.
@@ -71,7 +84,7 @@ Regressions the full suite caught and that were fixed before the code-final comm
 | End-to-end proof loop (sign-in → ingest → graph → freeze → baseline → plan search → replay → verdict → review) and its negative cases | Same; product screens were tested in jsdom only |
 | Signed-in screens in a browser | No API backend / Supabase env locally |
 | 200% zoom, reduced-motion capture, contrast audit in a browser, Lighthouse | Not run; reduced motion relies on `useReducedMotion` in `HeroMark3D` (no continuous animation) |
-| CI on GitHub | Branch not pushed |
+| CI on GitHub | See the draft PR; `.github/workflows/ci.yml` runs on every push and pull request |
 
 ## Release status
 **HOLD.** Code checks are green; staging, E2E and founder/CTO/CMO reviews are outstanding.

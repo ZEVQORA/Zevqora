@@ -1,7 +1,7 @@
 # Backend API Contract Map — EXISTING vs PROPOSED
 Source priority: release source handlers and typed clients before this design handoff. **EXISTING_IN_BRANCH ≠ DEPLOYED or TESTED**.
 
-> Updated 2026-10-31 against the checked-out release (`8e591cd`): 141 routes are registered in `api/_lib/handlers/*.js` (the `calibrate` / `replay` search stages are registered in a loop at `optimize-search.js:122`). No live API calls were made; there is no staging environment in this session.
+> Updated 2026-10-31 against the checked-out release (`8e591cd`): 151 `on()` calls in 19 files under `api/_lib/handlers/` register 151 method+path routes (the `calibrate` / `replay` search stages come from one loop at `optimize-search.js:122`) plus `OPTIONS /api/telemetry/ingest`. An earlier draft said 141. No live API calls were made; there is no staging environment in this session.
 
 ## Frontend gateway modules — IMPLEMENTED on `integration/unified-vnext-zevir-ui`
 
@@ -28,6 +28,11 @@ Rank (from `api/_lib/auth.js`): owner 4 > admin 3 > member 2 > viewer 1. Unknown
 | GET | `/api/me`, `/api/workspaces`, members/invites/usage | `src/lib/session`, existing API routes | Auth; workspace membership and RBAC; cross-tenant denied |
 | GET | `/api/public-config`, plan rows | `src/lib/site.ts`, `src/marketing/Pricing.tsx` | Public; frontend fallback must be marked reference |
 | POST | `/api/telemetry/ingest` | telemetry handler, scoped token `zqt_` | Scoped token, rate limits, workspace binding; no public browser secret |
+| POST | `/api/projects/:id/connections` | `projects.js:91`, client `src/app/data.ts:10` (no screen calls it) | Member; token returned once, hash stored; `github` → `409 COMING_SOON` |
+| PATCH / DELETE | `/api/connections/:id` | `projects.js:144,160`, `src/app/data.ts:11-12` | Member rename/`capture_samples`; revoke by creator or admin |
+| POST | `/api/connections/:id/rotate` | `projects.js:172`, `src/app/data.ts:13` | Creator or admin; active telemetry only |
+| GET | `/api/workspaces/:id/overview` | `workspaces.js:76` | Viewer; active connections with server-derived `live` from `last_seen_at` |
+| POST | `/api/evaluation-requests` | `analytics.js:59`; admin queue `admin-v3.js:244,257` | Public; honeypot, consent, IP and email rate limits |
 | POST | `/api/engine/products/:id/zevir/build` | `api/_lib/handlers/zevir.js:70` | Member+`zevir_shadow`, disabled returns `403 ZEVIR_DISABLED` |
 | GET | `/api/engine/products/:id/zevir` | `zevir.js:79` | Authorized product/workspace; flag |
 | POST | `/api/zevir/ingest` | `zevir.js:88` | Authorized bounded OTel/OpenInference envelope; never content-capture by default |
@@ -74,7 +79,7 @@ Rank (from `api/_lib/auth.js`): owner 4 > admin 3 > member 2 > viewer 1. Unknown
 | 5xx / `OFFLINE` / incompatible JSON | ErrorState + request id (when provided), bounded GET retry only; no synthetic success |
 
 ## PROPOSED — frontend types but network DISABLED
-These routes do not exist in the inspected release. **Do not call them until a tested capability says available.**
+These routes do not exist in the inspected release. `10-BACKEND-CHECKLIST.md` marks which of them should **extend** existing routes instead: rotate/revoke → `/api/connections/:id…`, enterprise requests → `evaluation_requests`. **Do not call them until a tested capability says available.**
 | Method | Proposed path | Role | Request / response DTO | Server acceptance and tests |
 |---|---|---|---|---|
 | GET | `/api/integrations/catalog` | Signed-in | `IntegrationCatalogEntry[]` | Only verified methods, no token; 401 denied; empty allowed |
