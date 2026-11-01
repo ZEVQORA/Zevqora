@@ -84,15 +84,19 @@ export function resetSecurityThrottle() {
   throttle.clear();
 }
 
-/** Writes one event; never throws. Metadata keys that look like secrets are redacted. */
-export async function recordSecurityEvent(request, { kind, severity = 'info', status = null, code = null, actorId = null, workspaceId = null, metadata = {} }) {
+/**
+ * Writes one event; never throws. Metadata keys that look like secrets are redacted.
+ * Audit records of deliberate changes pass `throttle: false`: a burst of real role
+ * changes must not be collapsed the way a flood of denied requests is.
+ */
+export async function recordSecurityEvent(request, { kind, severity = 'info', status = null, code = null, actorId = null, workspaceId = null, metadata = {}, throttle = true }) {
   try {
     // Tests never reach a real project: without an explicit test client nothing is written.
     if (!clientOverride && process.env.VITEST) return false;
     const url = new URL(request.url);
     const ip = clientIp(request);
     const hash = ipHash(ip);
-    if (!allowed(`${kind}:${hash || 'none'}:${routeTemplate(url.pathname)}`)) return false;
+    if (throttle && !allowed(`${kind}:${hash || 'none'}:${routeTemplate(url.pathname)}`)) return false;
     const safe = JSON.parse(JSON.stringify(metadata || {}, (k, v) => (/(secret|token|password|key|authorization|cookie)/i.test(k) ? '[redacted]' : v)));
     const { error } = await client().from('security_events').insert({
       kind,
