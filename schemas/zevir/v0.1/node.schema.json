@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zevqora.com/schemas/zevir/v0.1/node.schema.json",
+  "title": "ZevIR v0.1 node",
+  "description": "One canonical execution node. Exactly eight kinds. Unknown values are null, never zero. Raw prompt/output content is not representable.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["stable_key", "kind", "attributes"],
+  "properties": {
+    "stable_key": { "$ref": "#/$defs/sha256" },
+    "kind": { "enum": ["Task", "ModelCall", "Agent", "ToolCall", "Retrieval", "Function", "Runtime", "Outcome"] },
+    "name": { "type": ["string", "null"], "maxLength": 300 },
+    "operation": { "type": ["string", "null"], "pattern": "^[a-z_]{1,40}$" },
+    "started_at": { "$ref": "#/$defs/timestamp" },
+    "ended_at": { "$ref": "#/$defs/timestamp" },
+    "duration_ms": { "$ref": "#/$defs/nonNegative" },
+    "status": { "enum": ["ok", "error", "unset", null] },
+    "cost_usd": { "$ref": "#/$defs/nonNegative" },
+    "cost_source": { "enum": ["provider_reported", "pricing_snapshot_estimate", "imported_external", null] },
+    "latency_ms": { "$ref": "#/$defs/nonNegative" },
+    "ttft_ms": { "$ref": "#/$defs/nonNegative" },
+    "input_tokens": { "$ref": "#/$defs/count" },
+    "output_tokens": { "$ref": "#/$defs/count" },
+    "cached_input_tokens": { "$ref": "#/$defs/count" },
+    "reasoning_tokens": { "$ref": "#/$defs/count" },
+    "task_success": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "trust_class": { "$ref": "#/$defs/label" },
+    "data_sensitivity": { "$ref": "#/$defs/label" },
+    "action_risk": { "$ref": "#/$defs/label" },
+    "attributes": {
+      "type": "object",
+      "maxProperties": 64,
+      "propertyNames": {
+        "maxLength": 80,
+        "not": { "pattern": "^(prompt|prompts|completion|completions|content|contents|messages|input_text|output_text|expected_output|candidate_output|system_prompt|system_instructions|raw_.*)$" }
+      },
+      "properties": {
+        "semantic_role": { "enum": ["chain", "prompt", "guardrail", "evaluator"] }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "$comment": "A known cost must carry its provenance.",
+      "if": { "type": "object", "properties": { "cost_usd": { "type": "number" } }, "required": ["cost_usd"] },
+      "then": { "type": "object", "properties": { "cost_source": { "type": "string" } }, "required": ["cost_source"] }
+    },
+    {
+      "$comment": "operation is ModelCall metadata (embedding, rerank, decision, chat, ...).",
+      "if": { "type": "object", "properties": { "kind": { "not": { "const": "ModelCall" } } } },
+      "then": { "type": "object", "properties": { "operation": { "type": "null" } } },
+      "else": { "type": "object", "properties": { "operation": { "enum": ["chat", "completion", "generate_content", "embedding", "rerank", "decision", null] } } }
+    },
+    {
+      "$comment": "semantic_role refines Function only.",
+      "if": { "type": "object", "properties": { "kind": { "not": { "const": "Function" } } } },
+      "then": { "type": "object", "properties": { "attributes": { "type": "object", "properties": { "semantic_role": false } } } }
+    }
+  ],
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "timestamp": { "type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$" },
+    "nonNegative": { "type": ["number", "null"], "minimum": 0 },
+    "count": { "type": ["integer", "null"], "minimum": 0, "maximum": 2147483647 },
+    "label": { "type": ["string", "null"], "pattern": "^[a-z_]{1,40}$" }
+  }
+}

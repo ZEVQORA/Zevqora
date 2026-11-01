@@ -2,6 +2,11 @@ import { on } from '../router.js';
 import { ApiError, readJson, str, num, uuid, slugify } from '../http.js';
 import { requireUser, requireWorkspaceRole, requireProjectAccess, roleRank, rateLimit } from '../auth.js';
 import { generateConnectionToken } from '../tokens.js';
+import { recordSecurityEvent } from '../analytics/security.js';
+
+/** Audit record of a deliberate connection change (security_events, never throttled). */
+const auditConnection = (request, kind, { user, connection, action, metadata = {} }) =>
+  recordSecurityEvent(request, { kind, severity: 'low', actorId: user.id, workspaceId: connection.workspace_id, throttle: false, metadata: { action, connection_id: connection.id, connection_kind: connection.kind, ...metadata } });
 import { workspacePlan } from './workspaces.js';
 
 const SOURCE_KINDS = ['runtime', 'server', 'repository', 'github', 'manual'];
@@ -146,14 +151,21 @@ on('PATCH', '/api/connections/:id', async ({ request, params }) => {
   const connectionId = uuid(params.id, 'connection');
   const { data: connection } = await admin.from('connections').select('*').eq('id', connectionId).maybeSingle();
   if (!connection) throw new ApiError(404, 'Connection not found.', 'NOT_FOUND');
-  await requireWorkspaceRole(admin, connection.workspace_id, user.id, 'member');
+  const role = await requireWorkspaceRole(admin, connection.workspace_id, user.id, 'member');
   const body = await readJson(request);
   const update = {};
   if (body.name !== undefined) update.name = str(body.name, { name: 'Connection name', required: true, min: 2, max: 80 });
-  if (body.capture_samples !== undefined) update.metadata = { ...(connection.metadata || {}), capture_samples: Boolean(body.capture_samples) };
+  const captureBefore = Boolean(connection.metadata?.capture_samples);
+  const captureAfter = body.capture_samples === undefined ? captureBefore : Boolean(body.capture_samples);
+  if (captureAfter !== captureBefore) {
+    // Sample capture decides whether request content leaves the customer's runtime: creator or admin only.
+    if (connection.created_by !== user.id && roleRank(role) < roleRank('admin')) throw new ApiError(403, 'Only the creator or a workspace admin can change sample capture.', 'FORBIDDEN');
+    update.metadata = { ...(connection.metadata || {}), capture_samples: captureAfter };
+  }
   if (!Object.keys(update).length) throw new ApiError(400, 'Nothing to update.', 'VALIDATION');
   const { data, error } = await admin.from('connections').update(update).eq('id', connectionId).select('*').single();
   if (error) throw error;
+  if (captureAfter !== captureBefore) await auditConnection(request, 'config_change', { user, connection, action: 'connection_capture_samples', metadata: { from: captureBefore, to: captureAfter } });
   return { connection: data };
 });
 
@@ -164,8 +176,12 @@ on('DELETE', '/api/connections/:id', async ({ request, params }) => {
   if (!connection) throw new ApiError(404, 'Connection not found.', 'NOT_FOUND');
   const role = await requireWorkspaceRole(admin, connection.workspace_id, user.id, 'member');
   if (connection.created_by !== user.id && roleRank(role) < roleRank('admin')) throw new ApiError(403, 'Only the creator or a workspace admin can revoke this connection.', 'FORBIDDEN');
+  rateLimit(`conn-revoke:${user.id}`, { limit: 20, windowMs: 60_000 });
+  // Revoking twice is a no-op: the first revocation's time and actor stay on record.
+  if (connection.status === 'revoked') return { ok: true, already_revoked: true };
   await admin.from('connections').update({ status: 'revoked', revoked_at: new Date().toISOString(), revoked_by: user.id }).eq('id', connectionId);
   await admin.from('connection_secrets').delete().eq('connection_id', connectionId);
+  await auditConnection(request, 'connection_revoked', { user, connection, action: 'connection_revoked' });
   return { ok: true };
 });
 
@@ -174,13 +190,16 @@ on('POST', '/api/connections/:id/rotate', async ({ request, params }) => {
   const connectionId = uuid(params.id, 'connection');
   const { data: connection } = await admin.from('connections').select('*').eq('id', connectionId).maybeSingle();
   if (!connection) throw new ApiError(404, 'Connection not found.', 'NOT_FOUND');
-  if (connection.status !== 'active' || !['server_telemetry', 'runtime_api'].includes(connection.kind)) throw new ApiError(409, 'Only active telemetry connections can be rotated.', 'INVALID_STATE');
+  // Membership first: a non-member must not learn a connection's state from a 409.
   const role = await requireWorkspaceRole(admin, connection.workspace_id, user.id, 'member');
   if (connection.created_by !== user.id && roleRank(role) < roleRank('admin')) throw new ApiError(403, 'Only the creator or a workspace admin can rotate this token.', 'FORBIDDEN');
+  if (connection.status !== 'active' || !['server_telemetry', 'runtime_api'].includes(connection.kind)) throw new ApiError(409, 'Only active telemetry connections can be rotated.', 'INVALID_STATE');
+  rateLimit(`conn-rotate:${user.id}`, { limit: 10, windowMs: 60_000 });
   const { token, prefix, last4, hash } = generateConnectionToken();
   const { error } = await admin.from('connection_secrets').upsert({ connection_id: connectionId, token_hash: hash, rotated_at: new Date().toISOString() }, { onConflict: 'connection_id' });
   if (error) throw error;
   const { data } = await admin.from('connections').update({ token_prefix: prefix, token_last4: last4 }).eq('id', connectionId).select('*').single();
+  await auditConnection(request, 'config_change', { user, connection, action: 'connection_rotated' });
   return { connection: data, token };
 });
 

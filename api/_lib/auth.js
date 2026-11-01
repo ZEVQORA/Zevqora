@@ -45,9 +45,19 @@ export async function workspaceRoleOf(admin, workspaceId, userId) {
 /** Throws 404 (not 403) for non-members so workspace ids cannot be enumerated. */
 export async function requireWorkspaceRole(admin, workspaceId, userId, minRole = 'viewer') {
   const role = await workspaceRoleOf(admin, workspaceId, userId);
-  if (!role) throw new ApiError(404, 'Workspace not found.', 'NOT_FOUND');
-  if (roleRank(role) < roleRank(minRole)) throw new ApiError(403, `This action requires the ${minRole} role.`, 'FORBIDDEN');
+  if (!role) throw securityError(new ApiError(404, 'Workspace not found.', 'NOT_FOUND'), 'cross_workspace_denied', { actorId: userId, target: { workspace_id: workspaceId } });
+  if (roleRank(role) < roleRank(minRole)) throw securityError(new ApiError(403, `This action requires the ${minRole} role.`, 'FORBIDDEN'), 'authz_denied', { actorId: userId, workspaceId });
   return role;
+}
+
+/**
+ * Tags an error as a security signal for the router (security_events). The
+ * response the caller sees is unchanged: a non-member still gets a plain 404.
+ */
+export function securityError(error, kind, context = {}) {
+  error.security = kind;
+  error.securityContext = context;
+  return error;
 }
 
 export async function requireProjectAccess(admin, projectId, userId, minRole = 'viewer') {
@@ -59,8 +69,8 @@ export async function requireProjectAccess(admin, projectId, userId, minRole = '
 
 export async function requireAdmin(admin, userId, { superadmin = false } = {}) {
   const { data } = await admin.from('admin_roles').select('role').eq('user_id', userId).maybeSingle();
-  if (!data) throw new ApiError(404, 'Not found.', 'NOT_FOUND');
-  if (superadmin && data.role !== 'superadmin') throw new ApiError(403, 'Superadmin role required.', 'FORBIDDEN');
+  if (!data) throw securityError(new ApiError(404, 'Not found.', 'NOT_FOUND'), 'admin_denied', { actorId: userId });
+  if (superadmin && data.role !== 'superadmin') throw securityError(new ApiError(403, 'Superadmin role required.', 'FORBIDDEN'), 'admin_denied', { actorId: userId });
   return data.role;
 }
 

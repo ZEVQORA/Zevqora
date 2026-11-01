@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { scanText, scanFiles, classifyPath, redactSecretLikeValues } from '../api/_lib/product/scanner.js';
-import { parseTraces, diagnoseRuntimeEvidence, economics } from '../api/_lib/product/traces.js';
+import { parseTraces, diagnoseRuntimeEvidence, economics, baselineProvenance } from '../api/_lib/product/traces.js';
 import { planExactReuse, planModelSubstitution, executionKeyFor, candidateMessages, outputCapFor, promptEvidenceMissing } from '../api/_lib/product/strategies.js';
 import { executePlan } from '../api/_lib/product/executor.js';
-import { runEvaluation, gradeClassification, decideStatus } from '../api/_lib/product/evaluator.js';
+import { runEvaluation, gradeClassification, decideStatus, enforceRequirements, sanitizeRequirements } from '../api/_lib/product/evaluator.js';
 import { unifiedDiff } from '../api/_lib/product/diff.js';
 
 const PY = `from openai import OpenAI
@@ -57,6 +57,23 @@ describe('traces', () => {
     expect(e.trace_count).toBe(3);
     expect(e.observed_cost_usd).toBeCloseTo(0.009, 6);
   });
+
+  it('reports baseline provenance and names every gap instead of treating it as zero', () => {
+    const now = Date.parse('2026-09-24T00:00:00Z');
+    const rows = [
+      { ...traceRow(1, 'a', 'billing'), system_prompt: 'Classify.', protected: true, timestamp: '2026-09-20T00:00:00Z', cost_source: 'provider_reported' },
+      { ...traceRow(2, 'b', 'billing'), cost_usd: null, latency_ms: null, expected_output: null, timestamp: '2026-09-21T00:00:00Z' },
+    ];
+    const b = baselineProvenance(rows, now);
+    expect(b.cost).toEqual({ known: 1, unknown: 1, complete: false, sources: { provider_reported: 1 } });
+    expect(b.latency.unknown).toBe(1);
+    expect(b.tokens).toEqual({ known: 2, input: 80, output: 4 });
+    expect(b.evaluation_coverage).toEqual({ with_expected_output: 1, with_recorded_prompt: 1, protected: 1 });
+    expect(b.stale).toBe(false);
+    expect(b.gaps.map((g: string) => g.split(':')[0])).toEqual(['cost_unknown', 'latency_unknown', 'no_expected_output', 'input_only']);
+    expect(baselineProvenance(rows, Date.parse('2026-12-01T00:00:00Z')).gaps.some((g: string) => g.startsWith('stale'))).toBe(true);
+    expect(baselineProvenance([], now).gaps).toEqual(['no_traces: import execution traces to establish a baseline']);
+  });
 });
 
 describe('exact reuse end to end', () => {
@@ -78,6 +95,39 @@ describe('exact reuse end to end', () => {
     expect(evaluation.candidate_quality).toBe(1);
     expect(evaluation.raw_cost_delta_percent).toBeCloseTo(100, 6);
     expect(evaluation.gates.find((g) => g.name === 'quality_floor')?.outcome).toBe('passed');
+  });
+
+  it('keeps a partially priced baseline unknown and returns INCOMPLETE, not a smaller saving', async () => {
+    const inputs = ['a', 'b', 'c'];
+    const rows = [0, 1, 2, 3, 4, 5].map((i) => ({ ...traceRow(i, `msg ${inputs[i % 3]}`, ['billing', 'technical', 'account'][i % 3], i % 3 === 1 ? { cost_usd: null } : {}), id: `t${i}`, metadata: {}, protected: false, input_hash: null, output_hash: null, cost_source: 'imported_external', timestamp: `2026-09-0${(i % 6) + 1}T00:00:00Z` }));
+    const plan = { ...planExactReuse(rows, { id: 'f1', symbol: 'classify' }), id: 'p1' };
+    const execution = await executePlan({ plan, traces: rows, complete: async () => { throw new Error('no provider expected'); }, pricing: pricingMap(), allowedModels: new Set() });
+    const evaluation = runEvaluation({ execution, plan, traces: rows, gateConfig: { min_samples: 3, quality_floor: 0.95, require_fallback: false } });
+    expect(evaluation.status).toBe('INCOMPLETE');
+    expect(evaluation.raw_cost_delta_percent).toBeNull();
+    expect(evaluation.gates.find((g) => g.name === 'cost_improvement')?.outcome).toBe('missing');
+    expect(evaluation.rejection_reason).toContain('baseline_cost_unknown');
+  });
+
+  it('holds a request to the project floor: it may tighten a gate, never loosen it', () => {
+    const req = { quality_floor: 0.97, min_samples: 20, require_protected_cases: true, require_latency: true, max_latency_regression_pct: 10 };
+    const loose = enforceRequirements({ quality_floor: 0.5, min_samples: 3, require_protected_cases: false, require_latency: false, latency_informational: true, max_latency_regression_pct: 500 }, req);
+    expect(loose).toMatchObject({ quality_floor: 0.97, min_samples: 20, require_protected_cases: true, require_latency: true, latency_informational: false, max_latency_regression_pct: 10 });
+    const tight = enforceRequirements({ quality_floor: 0.99, min_samples: 50 }, req);
+    expect(tight).toMatchObject({ quality_floor: 0.99, min_samples: 50 });
+    expect(enforceRequirements({}, {})).toMatchObject({ quality_floor: 0.95, min_samples: 5 });
+    expect(() => sanitizeRequirements({ quality_floor: 0.2 })).toThrow(/quality_floor/);
+    expect(() => sanitizeRequirements({ min_samples: 2.5 })).toThrow(/min_samples/);
+  });
+
+  it('a lowered floor in the request cannot turn a rejection into VERIFIED', async () => {
+    const inputs = ['a', 'b', 'c'];
+    const rows = [0, 1, 2, 3, 4, 5].map((i) => ({ ...traceRow(i, `msg ${inputs[i % 3]}`, ['billing', 'technical', 'account'][i % 3]), id: `t${i}`, metadata: {}, protected: false, input_hash: null, output_hash: null, cost_source: 'imported_external', timestamp: `2026-09-0${(i % 6) + 1}T00:00:00Z` }));
+    const plan = { ...planExactReuse(rows, { id: 'f1', symbol: 'classify' }), id: 'p1' };
+    const execution = await executePlan({ plan, traces: rows, complete: async () => { throw new Error('no provider expected'); }, pricing: pricingMap(), allowedModels: new Set() });
+    const evaluation = runEvaluation({ execution, plan, traces: rows, gateConfig: enforceRequirements({ min_samples: 1, require_fallback: false }, { min_samples: 10 }) });
+    expect(evaluation.status).toBe('INCOMPLETE');
+    expect(evaluation.gates.find((g) => g.name === 'minimum_samples')?.threshold).toBe(10);
   });
 
   it('is BLOCKED without repeated evidence', () => {

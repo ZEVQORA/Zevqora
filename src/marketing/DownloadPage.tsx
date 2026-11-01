@@ -1,101 +1,98 @@
-import { useEffect, useState } from 'react';
-import { Download, Monitor, ShieldCheck } from 'lucide-react';
-import { Section, Reveal } from './Sections';
-import { ButtonAnchor, ButtonLink } from '@/components/ui/Button';
-import { loadConfig, getConfigSync } from '@/lib/config';
-import { Zev } from '@/brand/Zev';
-
-const LOOP: Array<[string, string, string]> = [
-  ['01', 'Connect a repository', 'Read-only scan of the folder you develop in. Secret-like files are skipped. In the browser the scan runs on your machine too.'],
-  ['02', 'Detect AI usage', 'Every model call site, provider and symbol. Nothing leaves your machine.'],
-  ['03', 'Import execution traces', 'Your real requests, outputs and costs become the baseline evidence.'],
-  ['04', 'Let Zev test it', 'A bounded candidate is replayed on your samples through your ZEVQORA account.'],
-  ['05', 'Quality gate', 'Deterministic graders and gates decide PASS or FAIL. Cheaper alone never counts.'],
-  ['06', 'Review the patch', 'In the app: an isolated worktree and branch, the diff, your tests, then a pull request you open. In the browser: the same diff as a patch to apply yourself.'],
-];
+import { useEffect, useState } from "react";
+import { ArrowUpRight, Download, Monitor } from "lucide-react";
+import { Link } from "react-router";
+import { getConfigSync, loadConfig } from "@/lib/config";
+import { EndCta, Intro, Kicker, PageTitle, Rise } from "./Editorial";
+import { ProductPreview } from "./ProductPreview";
 
 export default function DownloadPage() {
   const [url, setUrl] = useState(getConfigSync().desktopDownloadUrl);
   useEffect(() => {
-    document.title = 'ZEVQORA Desktop';
-    loadConfig().then((c) => setUrl(c.desktopDownloadUrl));
+    let active = true;
+    loadConfig().then((c) => {
+      if (active) setUrl(c.desktopDownloadUrl);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
   return (
     <>
-      <Section rule={false} className="studio pt-14 lg:pt-20">
-        <div className="container-page grid items-center gap-12 lg:grid-cols-[1.3fr_1fr]">
-          <Reveal>
-            <p className="text-eyebrow uppercase text-muted">ZEVQORA Desktop</p>
-            <h1 className="text-display mt-5 max-w-[16ch] text-ink">The same product, closer to your code.</h1>
-            <p className="text-body-lg mt-6 max-w-[52ch] text-muted">ZEVQORA runs in your browser and in this app: the same screens, the same loop, the same account. The desktop app adds what a browser cannot reach — it reads the repository you develop in directly, and prepares a reviewed change in an isolated Git worktree it can push for you.</p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <ButtonAnchor href={url} size="lg">
-                <Download size={16} aria-hidden /> Download for Windows
-              </ButtonAnchor>
-              <ButtonLink to="/app" size="lg" variant="secondary">
-                Or open it in your browser
-              </ButtonLink>
-            </div>
-            <ul className="text-technical mt-8 space-y-1.5 font-mono text-subtle">
-              <li>
-                <Monitor size={12} className="mr-1.5 inline" aria-hidden /> Windows 10/11 · NSIS installer · bundles the local engine
-              </li>
-              <li>macOS build: not published yet. The browser version works on every platform.</li>
-              <li>Signs in with the same ZEVQORA account as this site. Plan and Zev credit follow you.</li>
-            </ul>
-          </Reveal>
-          <div className="hidden justify-center lg:flex">
-            <Zev view="pose-thinking" height={240} />
-          </div>
+      <PageTitle title="Desktop" />
+      <Intro
+        kicker="ZEVQORA DESKTOP"
+        title={
+          <>
+            The same intelligence.
+            <br />
+            <span>Closer to your code.</span>
+          </>
+        }
+        body="Your workspace, your account, your engineering loop. The desktop app adds direct repository access and isolated Git worktrees for a change you can review."
+      >
+        <div className="z-actions">
+          <a href={url} className="z-button z-button-blue">
+            <Download size={16} />
+            Download for Windows
+          </a>
+          <Link to="/product" className="z-button z-button-line">
+            Explore the product
+            <ArrowUpRight size={15} />
+          </Link>
         </div>
-      </Section>
-
-      <Section>
-        <div className="container-page">
-          <Reveal>
-            <p className="text-eyebrow uppercase text-muted">What happens inside</p>
-            <h2 className="text-h2 mt-3 max-w-[24ch] text-ink">Measure. Replay. Verify. Then optimize.</h2>
-          </Reveal>
-          <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {LOOP.map(([n, title, body]) => (
-              <Reveal key={n}>
-                <div className="plane h-full rounded-lg p-5">
-                  <p className="text-technical font-mono text-accent-text">{n}</p>
-                  <p className="text-h4 mt-2 text-ink">{title}</p>
-                  <p className="text-caption mt-2 text-muted">{body}</p>
-                </div>
-              </Reveal>
+        <p className="plan-reference">
+          <Monitor size={12} className="mr-2 inline" />
+          Windows 10/11 · NSIS installer · local engine included
+          <br />
+          macOS build not published yet. Use the browser on other platforms.
+        </p>
+      </Intro>
+      <div className="z-wrap">
+        <Rise className="download-stage">
+          <ProductPreview />
+        </Rise>
+      </div>
+      <section className="z-section" style={{ marginTop: 80 }}>
+        <div className="z-wrap">
+          <Kicker>FROM YOUR FOLDER TO YOUR REVIEW</Kicker>
+          <h2 className="z-heading" style={{ marginTop: 24 }}>
+            Local where it matters.
+            <br />
+            Connected where it helps.
+          </h2>
+          <div className="feature-rows" style={{ marginTop: 40 }}>
+            {[
+              [
+                "01",
+                "Choose your repository.",
+                "Read-only scans detect AI call sites on your machine. Secret-like files are skipped. Nothing is uploaded during a scan.",
+              ],
+              [
+                "02",
+                "Bring the right evidence.",
+                "Import representative execution traces and baseline outputs. Replay samples are bounded, sanitized and tied to the workload.",
+              ],
+              [
+                "03",
+                "Let the gates decide.",
+                "Platform replay uses your ZEVQORA account, plan and Zev credit. Model credentials stay on the server; a local key is optional.",
+              ],
+              [
+                "04",
+                "Inspect the worktree.",
+                "A candidate patch lands in an isolated worktree and branch. Review the diff, run your tests and open the pull request yourself.",
+              ],
+            ].map(([n, t, b]) => (
+              <div className="feature-row" key={n}>
+                <span>{n}</span>
+                <h3>{t}</h3>
+                <p>{b}</p>
+              </div>
             ))}
           </div>
         </div>
-      </Section>
-
-      <Section>
-        <div className="container-page grid gap-8 lg:grid-cols-2">
-          <Reveal>
-            <p className="text-eyebrow uppercase text-muted">Compute without a key on your device</p>
-            <h2 className="text-h2 mt-3 text-ink">Model calls go through your account.</h2>
-            <p className="text-body mt-4 max-w-[54ch] text-muted">The desktop engine never holds a provider credential. Replays and Zev requests are sent with your ZEVQORA session to the platform, which checks your plan and Zev credit, applies rate limits, calls the provider, and charges the provider-reported cost to your credit. A device-local OpenRouter key is optional and stays encrypted on that machine.</p>
-          </Reveal>
-          <Reveal>
-            <div className="plane rounded-lg p-5">
-              <ul className="text-caption space-y-3 text-muted">
-                {[
-                  'Read-only scans. Secret-like paths and files are skipped; nothing is uploaded during a scan.',
-                  'Replays send only the sampled task text you imported, bounded by a spend cap.',
-                  'Patches are written into an isolated Git worktree on a new branch. No auto-merge, no auto-deploy.',
-                  'Runtime telemetry uses scoped, hashed, revocable tokens. No SSH, no shell access.',
-                  'Admin and billing stay in the browser.',
-                ].map((line) => (
-                  <li key={line} className="flex items-start gap-2.5">
-                    <ShieldCheck size={15} className="mt-0.5 shrink-0 text-verified" aria-hidden /> {line}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </Reveal>
-        </div>
-      </Section>
+      </section>
+      <EndCta />
     </>
   );
 }

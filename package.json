@@ -15,10 +15,14 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run typecheck && npm run lint && npm run test && npm run build",
-    "verify:release": "node scripts/verify-release.mjs"
+    "verify:release": "node scripts/verify-release.mjs",
+    "staging:guard": "node scripts/staging/guard.mjs",
+    "test:staging": "node scripts/staging/guard.mjs && vitest run --config vitest.staging.config.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
+    "@xyflow/react": "^12.12.0",
+    "ajv": "^8.20.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.544.0",
     "motion": "^12.23.0",
@@ -29,16 +33,21 @@
     "tailwind-merge": "^3.3.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@eslint/js": "^9.35.0",
     "@tailwindcss/vite": "^4.1.0",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^24.3.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "axe-core": "^4.10.3",
     "eslint": "^9.35.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
+    "jsdom": "^25.0.1",
     "tailwindcss": "^4.1.0",
     "typescript": "^5.9.0",
     "typescript-eslint": "^8.43.0",

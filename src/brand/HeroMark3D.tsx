@@ -37,7 +37,8 @@ export function HeroMark3D({ size = 300, interactive = true }: { size?: number; 
 
   useEffect(() => {
     if (!interactive || reduced) return;
-    if (!window.matchMedia('(pointer: fine)').matches) return;
+    // matchMedia is missing in some embedded webviews and test DOMs: stay still rather than throw.
+    if (typeof window.matchMedia !== 'function' || !window.matchMedia('(pointer: fine)').matches) return;
     setEnabled(true);
     let frame = 0;
     const onMove = (e: PointerEvent) => {

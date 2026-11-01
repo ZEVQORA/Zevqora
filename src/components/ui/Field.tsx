@@ -23,7 +23,8 @@ export function Field({ id, label, hint, error, children, className }: { id: str
 }
 
 const control =
-  'w-full rounded-md border bg-surface text-body text-ink transition-control placeholder:text-subtle ' +
+  // 16px below sm so mobile Safari does not zoom into a focused field; the 15px body size from sm up.
+  'w-full rounded-md border bg-surface text-[16px] sm:text-body text-ink transition-control placeholder:text-subtle ' +
   'focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25 disabled:opacity-60 disabled:bg-sunken';
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean }>(function Input({ className, invalid, ...props }, ref) {

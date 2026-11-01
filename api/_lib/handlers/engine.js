@@ -10,6 +10,7 @@
  * Every write is workspace-scoped and authorized by membership; model spend goes
  * through platform compute (server credential, credit accounting).
  */
+import { fetchPaged } from '../paging.js';
 import { randomUUID } from 'node:crypto';
 import { on } from '../router.js';
 import { ApiError, readJson, str, num, uuid } from '../http.js';
@@ -20,11 +21,14 @@ import { resolveBilling, creditState, allowedCandidateModels, completeText, clou
 import { deterministicUuid } from '../product/hashing.js';
 import { classifyPath, containsSecretLikeValue, redactSecretLikeValues } from '../product/scanner.js';
 import { parseTraces, diagnoseRuntimeEvidence, economics } from '../product/traces.js';
-import { planExactReuse, planModelSubstitution, executionKeyFor } from '../product/strategies.js';
-import { executePlan } from '../product/executor.js';
-import { runEvaluation } from '../product/evaluator.js';
+import { planExactReuse, planModelSubstitution } from '../product/strategies.js';
+import { runEvaluation, enforceRequirements, sanitizeRequirements } from '../product/evaluator.js';
 import { unifiedDiff } from '../product/diff.js';
 import { runZev } from '../product/zev.js';
+import { mergeTrial } from '../product/trial.js';
+import { projectEngineProduct, zevirEnabled } from '../zevir/store.js';
+import { runPlanExecution } from '../product/run-plan.js';
+import { emitProductEvent } from '../analytics/product-events.js';
 
 const VERSION = 'platform-engine-1.0';
 const MAX_CALLS = 4000;
@@ -41,15 +45,20 @@ async function loadProduct(admin, user, productId, minRole = 'member') {
   return { product, role };
 }
 
+/** Every row of a product's table, paged (one response is capped at 1000 rows without an error). */
+const MAX_PRODUCT_ROWS = 20000;
 async function rows(admin, table, productId, order = 'created_at') {
-  const q = admin.from(table).select('*').eq('product_id', productId);
-  const { data, error } = order ? await q.order(order, { ascending: false }) : await q;
-  if (error) throw error;
-  return data || [];
+  const page = await fetchPaged((a, b) => {
+    let q = admin.from(table).select('*', { count: 'exact' }).eq('product_id', productId);
+    if (order) q = q.order(order, { ascending: false });
+    return q.order('id', { ascending: true }).range(a, b);
+  }, { max: MAX_PRODUCT_ROWS });
+  if (page.truncated) throw new ApiError(422, `This product has more than ${MAX_PRODUCT_ROWS} ${table.replace('engine_', '').replace(/_/g, ' ')}; refusing to work from a partial set.`, 'ROW_SET_TOO_LARGE');
+  return page.rows;
 }
 
 function productOut(p) {
-  return { id: p.id, name: p.name, root_path: p.root_path, monitoring_enabled: p.monitoring_enabled, created_at: p.created_at, last_scan_at: p.last_scan_at, source: p.source, workspace_id: p.workspace_id, project_id: p.project_id, files_scanned: p.files_scanned, skipped_sensitive_paths: p.skipped_sensitive_paths, detected_stack: p.detected_stack || [] };
+  return { id: p.id, name: p.name, root_path: p.root_path, monitoring_enabled: p.monitoring_enabled, created_at: p.created_at, last_scan_at: p.last_scan_at, source: p.source, workspace_id: p.workspace_id, project_id: p.project_id, files_scanned: p.files_scanned, skipped_sensitive_paths: p.skipped_sensitive_paths, detected_stack: p.detected_stack || [], evaluation_requirements: p.evaluation_requirements || {}, evaluation_trial: p.evaluation_trial || null };
 }
 
 function findingOut(f) {
@@ -101,7 +110,8 @@ function experimentFromEvaluation(e) {
 
 function canonicalVerified(evaluations) {
   const seen = new Map();
-  for (const e of evaluations.filter((x) => x.status === 'VERIFIED')) if (!seen.has(e.candidate_execution_id)) seen.set(e.candidate_execution_id, e);
+  // Same rule as the Savings ledger: only VERIFIED and execution-proven evaluations count.
+  for (const e of evaluations.filter((x) => x.status === 'VERIFIED' && x.execution_proven)) if (!seen.has(e.candidate_execution_id)) seen.set(e.candidate_execution_id, e);
   return [...seen.values()];
 }
 
@@ -168,7 +178,48 @@ on('POST', '/api/engine/products', async ({ request }) => {
   if (existing) return productOut(existing);
   const { count } = await admin.from('engine_products').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).is('archived_at', null);
   if ((count || 0) >= 25) throw new ApiError(409, 'A workspace can hold up to 25 connected repositories.', 'LIMIT_REACHED');
-  const { data, error } = await admin.from('engine_products').insert({ workspace_id: workspaceId, name, root_path: rootPath, source, created_by: user.id }).select('*').single();
+  let requirements = {};
+  try {
+    requirements = sanitizeRequirements(body?.evaluation_requirements);
+  } catch (error) {
+    throw new ApiError(422, String(error?.message || error), 'VALIDATION');
+  }
+  const row = { workspace_id: workspaceId, name, root_path: rootPath, source, created_by: user.id };
+  if (Object.keys(requirements).length) row.evaluation_requirements = { ...requirements, frozen_at: new Date().toISOString(), frozen_by: user.id };
+  const { data, error } = await admin.from('engine_products').insert(row).select('*').single();
+  if (error) throw error;
+  await emitProductEvent(admin, { event: 'project_created', workspaceId, userId: user.id, subjectType: 'workload', subjectId: data.id, properties: { source }, dedupeKey: `project_created:${data.id}` });
+  return productOut(data);
+});
+
+/** The design-partner evaluation record for this project. confirm_data_boundary stamps who confirmed it and when. */
+on('POST', '/api/engine/products/:id/trial', async ({ request, params }) => {
+  const { user, admin } = await requireUser(request);
+  const { product } = await loadProduct(admin, user, params.id, 'member');
+  const body = await readJson(request);
+  let trial;
+  try {
+    trial = mergeTrial(product.evaluation_trial, body?.trial || {}, { userId: user.id, confirmBoundary: body?.confirm_data_boundary === true });
+  } catch (error) {
+    throw new ApiError(422, String(error?.message || error), 'VALIDATION');
+  }
+  const { data, error } = await admin.from('engine_products').update({ evaluation_trial: trial }).eq('id', product.id).select('*').single();
+  if (error) throw error;
+  return productOut(data);
+});
+
+/** Changing the team's quality bar applies to experiments evaluated from now on; past verdicts keep theirs. */
+on('POST', '/api/engine/products/:id/requirements', async ({ request, params }) => {
+  const { user, admin } = await requireUser(request);
+  const { product } = await loadProduct(admin, user, params.id, 'admin');
+  const body = await readJson(request);
+  let requirements;
+  try {
+    requirements = sanitizeRequirements(body?.evaluation_requirements);
+  } catch (error) {
+    throw new ApiError(422, String(error?.message || error), 'VALIDATION');
+  }
+  const { data, error } = await admin.from('engine_products').update({ evaluation_requirements: { ...requirements, frozen_at: new Date().toISOString(), frozen_by: user.id } }).eq('id', product.id).select('*').single();
   if (error) throw error;
   return productOut(data);
 });
@@ -230,6 +281,7 @@ on('POST', '/api/engine/products/:id/scan', async ({ request, params }) => {
   }
   const { data: updated, error: updateError } = await admin.from('engine_products').update({ files_scanned: filesScanned, skipped_sensitive_paths: skipped, detected_stack: stack, last_scan_at: new Date().toISOString() }).eq('id', product.id).select('*').single();
   if (updateError) throw updateError;
+  await emitProductEvent(admin, { event: 'evidence_connected', workspaceId: product.workspace_id, userId: user.id, subjectType: 'workload', subjectId: product.id, properties: { source_kind: 'repository_scan' }, dedupeKey: `evidence_connected:${product.id}:repository_scan` });
   const storedCalls = await rows(admin, 'engine_ai_calls', product.id, null);
   const storedFindings = await rows(admin, 'engine_findings', product.id);
   return { product: productOut(updated), files_scanned: filesScanned, ai_calls: storedCalls.map(callOut), findings: storedFindings.map(findingOut), detected_stack: stack, skipped_sensitive_paths: skipped };
@@ -262,7 +314,7 @@ on('POST', '/api/engine/products/:id/traces/import', async ({ request, params })
   const body = await readJson(request, { maxBytes: 3_800_000 });
   const { rows: parsed, errors } = parseTraces({ jsonl: body?.jsonl, traces: body?.traces });
   if (parsed.length > MAX_TRACES_PER_IMPORT) throw new ApiError(413, `Import at most ${MAX_TRACES_PER_IMPORT} traces per request.`, 'PAYLOAD_TOO_LARGE');
-  const { data: existing } = await admin.from('engine_traces').select('request_id').eq('product_id', product.id);
+  const { rows: existing } = await fetchPaged((a, b) => admin.from('engine_traces').select('id,request_id', { count: 'exact' }).eq('product_id', product.id).order('id', { ascending: true }).range(a, b), { max: MAX_PRODUCT_ROWS });
   const seen = new Set((existing || []).map((r) => r.request_id));
   const fresh = [];
   for (const t of parsed) {
@@ -282,7 +334,25 @@ on('POST', '/api/engine/products/:id/traces/import', async ({ request, params })
     const { error } = await admin.from('engine_findings').insert(signals);
     if (error) throw error;
   }
-  return { imported: fresh.length, rejected: errors.length, errors: errors.slice(0, 5) };
+  // ZevIR shadow projection: observe-only and best-effort. The import above is
+  // already committed; a projection failure is reported, never raised.
+  let zevir = null;
+  try {
+    if (await zevirEnabled(admin, product.workspace_id)) {
+      const out = await projectEngineProduct({ admin, product, userId: user.id, traces: all, prune: true });
+      zevir = { status: out.run.status, run_id: out.run.id };
+    }
+  } catch (error) {
+    console.error('[zevir] shadow projection failed', error?.message || error);
+    zevir = { status: 'failed' };
+  }
+  if (fresh.length) {
+    // Keyed by the batch's first new request: a retried import adds nothing and records nothing.
+    const key = `trace_imported:${product.id}:${String(fresh[0].request_id).replace(/[^A-Za-z0-9_.:-]/g, '_').slice(0, 60)}`;
+    await emitProductEvent(admin, { event: 'trace_imported', workspaceId: product.workspace_id, userId: user.id, subjectType: 'workload', subjectId: product.id, properties: { imported: fresh.length, rejected: errors.length, source_kind: 'trace_file' }, dedupeKey: key });
+    await emitProductEvent(admin, { event: 'evidence_connected', workspaceId: product.workspace_id, userId: user.id, subjectType: 'workload', subjectId: product.id, properties: { source_kind: 'trace_file' }, dedupeKey: `evidence_connected:${product.id}:trace_file` });
+  }
+  return { imported: fresh.length, rejected: errors.length, errors: errors.slice(0, 5), ...(zevir ? { zevir } : {}) };
 });
 
 on('DELETE', '/api/engine/products/:id/traces', async ({ request, params }) => {
@@ -336,34 +406,10 @@ on('POST', '/api/engine/products/:id/optimization/plans/:planId/execute', async 
   const body = await readJson(request);
   const { data: plan } = await admin.from('engine_plans').select('*').eq('id', uuid(params.planId, 'plan')).eq('product_id', product.id).maybeSingle();
   if (!plan) throw new ApiError(404, 'Candidate plan not found.', 'NOT_FOUND');
-  if (plan.status === 'BLOCKED') throw new ApiError(422, plan.blocked_reason || 'Plan is BLOCKED and cannot execute.', 'PLAN_BLOCKED');
-  if (!['READY', 'COMPLETED', 'FAILED', 'EXECUTING'].includes(plan.status)) throw new ApiError(422, `Plan status ${plan.status} is not executable.`, 'VALIDATION');
+  // Same checks, same order, same executor as before; shared with the Optimization Run replay.
   const traces = await rows(admin, 'engine_traces', product.id);
-  const key = executionKeyFor(planOut(plan), traces);
-  if (!body?.force_rerun) {
-    const { data: existing } = await admin.from('engine_executions').select('*').eq('execution_key', key).in('status', ['RUNNING', 'SUCCEEDED']).order('created_at', { ascending: false }).limit(1).maybeSingle();
-    if (existing) return executionOut(existing);
-  }
-  const { pricing, allowed } = await pricingAndModels(admin);
-  const billing = await resolveBilling({ admin, user, workspaceId: product.workspace_id, projectId: product.project_id });
-  const complete = async (payload) => completeText({ admin, user, billing, payload, operation: 'replay', extraMeta: { product_id: product.id, plan_id: plan.id, strategy: plan.strategy } });
-
-  const { data: running, error: insertError } = await admin.from('engine_executions').insert({ candidate_plan_id: plan.id, product_id: product.id, workspace_id: product.workspace_id, status: 'RUNNING', execution_key: key, requested_model: plan.candidate_config?.model || null, baseline_trace_ids: plan.sample_scope || [], sample_results: [], started_at: new Date().toISOString() }).select('*').single();
-  if (insertError) throw insertError;
-  await admin.from('engine_plans').update({ status: 'EXECUTING' }).eq('id', plan.id);
-  let result;
-  try {
-    result = await executePlan({ plan: planOut(plan), traces, complete, pricing, allowedModels: allowed });
-  } catch (error) {
-    await admin.from('engine_executions').update({ status: 'FAILED', completed_at: new Date().toISOString(), error_category: 'unknown', error_detail: String(error?.message || error).slice(0, 500) }).eq('id', running.id);
-    await admin.from('engine_plans').update({ status: 'FAILED' }).eq('id', plan.id);
-    throw new ApiError(422, String(error?.message || error), 'EXECUTION_FAILED');
-  }
-  const { spent_usd: _spent, ...fields } = result;
-  const { data: done, error: updateError } = await admin.from('engine_executions').update(fields).eq('id', running.id).select('*').single();
-  if (updateError) throw updateError;
-  await admin.from('engine_plans').update({ status: result.status === 'SUCCEEDED' ? 'COMPLETED' : 'FAILED' }).eq('id', plan.id);
-  return executionOut(done);
+  const { execution } = await runPlanExecution({ admin, user, product, plan, traces, forceRerun: Boolean(body?.force_rerun) });
+  return executionOut(execution);
 });
 
 on('GET', '/api/engine/products/:id/optimization/executions', async ({ request, params }) => {
@@ -391,7 +437,9 @@ on('POST', '/api/engine/products/:id/evaluations', async ({ request, params }) =
   const traces = await rows(admin, 'engine_traces', product.id);
   let result;
   try {
-    result = runEvaluation({ execution: executionOut(execution), plan: plan ? planOut(plan) : null, traces, gateConfig: body?.gate_config || {}, cases: Array.isArray(body?.cases) ? body.cases : null });
+    // The project's frozen requirements are a floor: the request may tighten a gate, never loosen it.
+    const gateConfig = enforceRequirements(body?.gate_config || {}, product.evaluation_requirements || {});
+    result = runEvaluation({ execution: executionOut(execution), plan: plan ? planOut(plan) : null, traces, gateConfig, cases: Array.isArray(body?.cases) ? body.cases : null });
   } catch (error) {
     throw new ApiError(422, String(error?.message || error), 'VALIDATION');
   }

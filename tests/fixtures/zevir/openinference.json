@@ -1,0 +1,135 @@
+{
+  "spans": [
+    {
+      "name": "rag_pipeline",
+      "context": { "trace_id": "7c4a1f0e9b2d3c4e5f60718293a4b5c6", "span_id": "1000000000000001" },
+      "parent_id": null,
+      "span_kind": "CHAIN",
+      "start_time": "2026-10-01T09:00:00.000Z",
+      "end_time": "2026-10-01T09:00:04.000Z",
+      "status_code": "OK",
+      "attributes": {
+        "openinference": { "span": { "kind": "CHAIN" } },
+        "input": { "value": "SECRET-QUESTION what is our refund policy?", "mime_type": "text/plain" },
+        "output": { "value": "SECRET-ANSWER refunds within 30 days" },
+        "session": { "id": "sess_42" },
+        "user": { "id": "user-alice@example.com" },
+        "metadata": "{\"customer_tier\":\"gold\"}"
+      }
+    },
+    {
+      "name": "retrieve",
+      "context": { "trace_id": "7c4a1f0e9b2d3c4e5f60718293a4b5c6", "span_id": "1000000000000002" },
+      "parent_id": "1000000000000001",
+      "span_kind": "RETRIEVER",
+      "start_time": "2026-10-01T09:00:00.100Z",
+      "end_time": "2026-10-01T09:00:00.400Z",
+      "status_code": "OK",
+      "attributes": {
+        "openinference": { "span": { "kind": "RETRIEVER" } },
+        "input": { "value": "SECRET-QUESTION refund policy" },
+        "retrieval": {
+          "documents": [
+            { "document": { "id": "kb-17", "score": 0.91, "content": "SECRET-DOC refunds are allowed within 30 days" } },
+            { "document": { "id": "kb-03", "score": 0.42, "content": "SECRET-DOC shipping times" } }
+          ]
+        }
+      }
+    },
+    {
+      "name": "rerank",
+      "context": { "trace_id": "7c4a1f0e9b2d3c4e5f60718293a4b5c6", "span_id": "1000000000000003" },
+      "parent_id": "1000000000000001",
+      "span_kind": "RERANKER",
+      "start_time": "2026-10-01T09:00:00.500Z",
+      "end_time": "2026-10-01T09:00:00.600Z",
+      "attributes": {
+        "openinference": { "span": { "kind": "RERANKER" } },
+        "reranker": {
+          "model_name": "cohere-rerank-v4",
+          "top_k": 1,
+          "query": "SECRET-QUESTION refund policy",
+          "input_documents": [{ "document": { "id": "kb-17", "content": "SECRET-DOC a" } }, { "document": { "id": "kb-03", "content": "SECRET-DOC b" } }],
+          "output_documents": [{ "document": { "id": "kb-17", "content": "SECRET-DOC a" } }]
+        }
+      }
+    },
+    {
+      "name": "llm",
+      "context": { "trace_id": "7c4a1f0e9b2d3c4e5f60718293a4b5c6", "span_id": "1000000000000004" },
+      "parent_id": "1000000000000001",
+      "span_kind": "LLM",
+      "start_time": "2026-10-01T09:00:00.700Z",
+      "end_time": "2026-10-01T09:00:02.700Z",
+      "status_code": "OK",
+      "attributes": {
+        "openinference": { "span": { "kind": "LLM" } },
+        "llm": {
+          "model_name": "gpt-4o-mini",
+          "provider": "openai",
+          "token_count": { "prompt": 640, "completion": 48, "total": 688, "prompt_details": { "cache_read": 256 }, "completion_details": { "reasoning": 0 } },
+          "cost": { "total": 0.000125, "prompt": 0.0000960, "completion": 0.0000290 },
+          "input_messages": [{ "message": { "role": "user", "content": "SECRET-PROMPT what is the refund policy" } }],
+          "output_messages": [{ "message": { "role": "assistant", "content": "SECRET-OUTPUT refunds within 30 days" } }],
+          "invocation_parameters": "{\"temperature\":0}"
+        },
+        "input": { "value": "SECRET-PROMPT what is the refund policy" },
+        "output": { "value": "SECRET-OUTPUT refunds within 30 days" }
+      }
+    },
+    {
+      "name": "lookup_order",
+      "context": { "trace_id": "7c4a1f0e9b2d3c4e5f60718293a4b5c6", "span_id": "1000000000000005" },
+      "parent_id": "1000000000000001",
+      "span_kind": "TOOL",
+      "start_time": "2026-10-01T09:00:02.800Z",
+      "end_time": "2026-10-01T09:00:03.000Z",
+      "attributes": {
+        "openinference": { "span": { "kind": "TOOL" } },
+        "tool": { "name": "lookup_order", "description": "Fetch an order", "parameters": "{\"type\":\"object\"}" },
+        "tool_call": { "id": "tc_1", "function": { "name": "lookup_order", "arguments": "{\"order\":\"SECRET-ARG\"}" } }
+      }
+    },
+    {
+      "name": "pii_guard",
+      "context": { "trace_id": "7c4a1f0e9b2d3c4e5f60718293a4b5c6", "span_id": "1000000000000006" },
+      "parent_id": "1000000000000001",
+      "span_kind": "GUARDRAIL",
+      "start_time": "2026-10-01T09:00:03.100Z",
+      "end_time": "2026-10-01T09:00:03.150Z",
+      "attributes": { "openinference": { "span": { "kind": "GUARDRAIL" } } }
+    },
+    {
+      "name": "faithfulness_eval",
+      "context": { "trace_id": "7c4a1f0e9b2d3c4e5f60718293a4b5c6", "span_id": "1000000000000007" },
+      "parent_id": "1000000000000001",
+      "span_kind": "EVALUATOR",
+      "start_time": "2026-10-01T09:00:03.200Z",
+      "end_time": "2026-10-01T09:00:03.900Z",
+      "links": [{ "context": { "trace_id": "7c4a1f0e9b2d3c4e5f60718293a4b5c6", "span_id": "1000000000000004" } }],
+      "attributes": { "openinference": { "span": { "kind": "EVALUATOR" } }, "eval": { "name": "faithfulness", "label": "faithful", "score": 0.97 } }
+    },
+    {
+      "name": "embed_query",
+      "context": { "trace_id": "7c4a1f0e9b2d3c4e5f60718293a4b5c6", "span_id": "1000000000000008" },
+      "parent_id": "1000000000000002",
+      "span_kind": "EMBEDDING",
+      "start_time": "2026-10-01T09:00:00.110Z",
+      "end_time": "2026-10-01T09:00:00.150Z",
+      "attributes": {
+        "openinference": { "span": { "kind": "EMBEDDING" } },
+        "embedding": { "model_name": "text-embedding-3-small", "embeddings": [{ "embedding": { "text": "SECRET-QUESTION", "vector": [0.1, 0.2] } }] },
+        "llm": { "provider": "openai", "token_count": { "prompt": 6 } }
+      }
+    },
+    {
+      "name": "planner",
+      "context": { "trace_id": "7c4a1f0e9b2d3c4e5f60718293a4b5c6", "span_id": "1000000000000009" },
+      "parent_id": "1000000000000001",
+      "span_kind": "AGENT",
+      "start_time": "2026-10-01T09:00:03.950Z",
+      "end_time": "2026-10-01T09:00:03.990Z",
+      "attributes": { "openinference": { "span": { "kind": "AGENT" } }, "agent": { "name": "planner" } }
+    }
+  ]
+}

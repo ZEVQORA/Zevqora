@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zevqora.com/schemas/zevir/v0.1/graph.schema.json",
+  "title": "ZevIR v0.1 graph",
+  "description": "One execution trace as a canonical graph. Node and edge arrays are sorted canonically; graph_hash covers nodes, edges and evidence and does not depend on input order.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "adapter_version", "source_kind", "graph_key", "status", "graph_hash", "completeness", "nodes", "edges", "evidence"],
+  "properties": {
+    "schema_version": { "const": "zevir.v0.1" },
+    "adapter_version": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "source_kind": { "enum": ["zevqora_engine", "otel_genai", "openinference"] },
+    "source_version": { "type": ["string", "null"], "maxLength": 120 },
+    "graph_key": { "type": "string", "minLength": 1, "maxLength": 400 },
+    "source_trace_id": { "type": ["string", "null"], "maxLength": 200 },
+    "root": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+    "status": { "enum": ["complete", "incomplete"] },
+    "graph_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "capture_started_at": { "type": ["string", "null"] },
+    "capture_ended_at": { "type": ["string", "null"] },
+    "completeness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gaps"],
+      "properties": {
+        "gaps": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["code", "count"],
+            "properties": {
+              "code": { "type": "string", "pattern": "^[a-z_]{1,40}$" },
+              "count": { "type": "integer", "minimum": 1 },
+              "sample": { "type": "array", "maxItems": 5, "items": { "type": "string", "maxLength": 200 } }
+            }
+          }
+        }
+      }
+    },
+    "nodes": { "type": "array", "maxItems": 5000, "items": { "$ref": "node.schema.json" } },
+    "edges": { "type": "array", "maxItems": 20000, "items": { "$ref": "edge.schema.json" } },
+    "evidence": { "type": "array", "maxItems": 20000, "items": { "$ref": "evidence-ref.schema.json" } }
+  }
+}

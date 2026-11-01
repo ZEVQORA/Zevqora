@@ -16,6 +16,8 @@ import type {
   AICall,
   Economics,
   EngineHealth,
+  EvaluationRequirements,
+  EvaluationTrial,
   EnginePlatformStatus,
   Evaluation,
   Experiment,
@@ -28,7 +30,12 @@ import type {
   PushResult,
   ScanResult,
   ScanUpload,
+  ZevirNode,
+  ZevirNodeDetail,
+  ZevirProductView,
+  ZevirRun,
 } from './types';
+import { WORKLOAD_PREFIX } from './types';
 
 export type EngineKind = 'cloud' | 'local';
 
@@ -38,7 +45,12 @@ export interface Engine {
   platformStatus(): Promise<EnginePlatformStatus>;
   products(): Promise<Product[]>;
   /** Cloud: register a repository whose scan the browser performed locally. Local: the engine scans the folder itself. */
-  connect(input: { rootPath: string; name?: string; upload?: ScanUpload }): Promise<ScanResult>;
+  connect(input: { rootPath: string; name?: string; upload?: ScanUpload; requirements?: EvaluationRequirements }): Promise<ScanResult>;
+  /** A project with no repository; its evidence is imported traces. */
+  createWorkload(input: { name: string; requirements?: EvaluationRequirements }): Promise<Product>;
+  setRequirements(productId: string, requirements: EvaluationRequirements): Promise<Product>;
+  /** Update the design-partner evaluation record; confirmBoundary stamps who confirmed the data boundary. */
+  setTrial(productId: string, trial: EvaluationTrial, options?: { confirmBoundary?: boolean }): Promise<Product>;
   scan(productId: string, upload?: ScanUpload): Promise<ScanResult>;
   archiveProduct(productId: string): Promise<void>;
   monitoring(productId: string, enabled: boolean): Promise<Product>;
@@ -61,6 +73,11 @@ export interface Engine {
   recordPrLink(productId: string, implementationId: string, prUrl: string): Promise<Implementation>;
   patch(productId: string, implementationId: string): Promise<{ diff: string; replacement: string | null; target_file: string; branch_name: string }>;
   chat(productId: string | null, messages: { role: 'user' | 'assistant'; content: string }[], model?: string): Promise<AgentResponse>;
+  /** ZevIR (shadow mode): the canonical execution graphs projected from this product's evidence. Platform engine only. */
+  zevir(productId: string): Promise<ZevirProductView>;
+  zevirBuild(productId: string): Promise<{ run: ZevirRun; reused: boolean }>;
+  zevirNodes(graphId: string): Promise<ZevirNode[]>;
+  zevirNode(graphId: string, nodeId: string): Promise<ZevirNodeDetail>;
 }
 
 export class EngineError extends Error {
@@ -80,8 +97,8 @@ export function cloudEngine(workspaceId: string): Engine {
     health: () => api<EngineHealth>(`${base}/health`),
     platformStatus: () => api<EnginePlatformStatus>(`${base}/platform/status?workspace_id=${workspaceId}`),
     products: () => api<Product[]>(`${base}/products?workspace_id=${workspaceId}`),
-    connect: async ({ rootPath, name, upload }) => {
-      const product = await api<Product>(`${base}/products`, { method: 'POST', body: { workspace_id: workspaceId, root_path: rootPath, name: name || null, source: 'browser' } });
+    connect: async ({ rootPath, name, upload, requirements }) => {
+      const product = await api<Product>(`${base}/products`, { method: 'POST', body: { workspace_id: workspaceId, root_path: rootPath, name: name || null, source: 'browser', evaluation_requirements: requirements || null } });
       if (!upload) return { product, files_scanned: product.files_scanned || 0, ai_calls: [], findings: [], detected_stack: product.detected_stack || [], skipped_sensitive_paths: product.skipped_sensitive_paths || 0 };
       return api<ScanResult>(`${p(product.id)}/scan`, { method: 'POST', body: upload });
     },
@@ -89,6 +106,12 @@ export function cloudEngine(workspaceId: string): Engine {
       if (!upload) throw new EngineError(400, 'Pick the repository folder again so the browser can rescan it.');
       return api<ScanResult>(`${p(productId)}/scan`, { method: 'POST', body: upload });
     },
+    createWorkload: ({ name, requirements }) => {
+      const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'workload';
+      return api<Product>(`${base}/products`, { method: 'POST', body: { workspace_id: workspaceId, root_path: `${WORKLOAD_PREFIX}${slug}`, name: name.trim(), source: 'browser', evaluation_requirements: requirements || null } });
+    },
+    setRequirements: (productId, requirements) => api<Product>(`${p(productId)}/requirements`, { method: 'POST', body: { evaluation_requirements: requirements } }),
+    setTrial: (productId, trial, options = {}) => api<Product>(`${p(productId)}/trial`, { method: 'POST', body: { trial, confirm_data_boundary: Boolean(options.confirmBoundary) } }),
     archiveProduct: async (productId) => {
       await api(`${p(productId)}`, { method: 'DELETE' });
     },
@@ -112,6 +135,10 @@ export function cloudEngine(workspaceId: string): Engine {
     recordPrLink: (productId, implementationId, prUrl) => api<Implementation>(`${p(productId)}/implementations/${implementationId}/pr-link`, { method: 'POST', body: { pr_url: prUrl } }),
     patch: (productId, implementationId) => api(`${p(productId)}/implementations/${implementationId}/patch`),
     chat: (productId, messages, model) => api<AgentResponse>(`${base}/agent/chat`, { method: 'POST', body: { product_id: productId, workspace_id: workspaceId, messages, model: model || null } }),
+    zevir: (productId) => api<ZevirProductView>(`${p(productId)}/zevir`),
+    zevirBuild: (productId) => api<{ run: ZevirRun; reused: boolean }>(`${p(productId)}/zevir/build`, { method: 'POST', body: {} }),
+    zevirNodes: (graphId) => api<ZevirNode[]>(`/api/zevir/graphs/${graphId}/nodes?limit=500`),
+    zevirNode: (graphId, nodeId) => api<ZevirNodeDetail>(`/api/zevir/graphs/${graphId}/nodes/${nodeId}`),
   };
 }
 
@@ -162,6 +189,10 @@ export async function syncLocalEngineSession(workspaceId: string | null, user: {
   return true;
 }
 
+async function zevirPlatformOnly(): Promise<never> {
+  throw new EngineError(501, 'ZevIR graphs are built by the platform engine. Open this project in the web app.');
+}
+
 export function localEngine(): Engine {
   const p = (productId: string) => `/products/${productId}`;
   return {
@@ -179,6 +210,15 @@ export function localEngine(): Engine {
     platformStatus: () => localRequest<EnginePlatformStatus>('/platform/status'),
     products: () => localRequest<Product[]>('/products'),
     connect: ({ rootPath, name }) => localRequest<ScanResult>('/products/connect-local', { method: 'POST', body: JSON.stringify({ path: rootPath, name: name || null }) }),
+    createWorkload: async () => {
+      throw new EngineError(501, 'Workload-only projects run on the platform engine. Use the web app, or connect a repository here.');
+    },
+    setRequirements: async () => {
+      throw new EngineError(501, 'Evaluation requirements are enforced by the platform engine; the local engine applies the gates you set per experiment.');
+    },
+    setTrial: async () => {
+      throw new EngineError(501, 'Design-partner evaluation records are kept by the platform engine. Use the web app.');
+    },
     scan: (productId) => localRequest<ScanResult>(`${p(productId)}/scan`, { method: 'POST' }),
     archiveProduct: async (productId) => {
       await localRequest(`${p(productId)}`, { method: 'DELETE' });
@@ -208,6 +248,10 @@ export function localEngine(): Engine {
       return { diff: impl.diff_text, replacement: null, target_file: impl.target_file, branch_name: impl.branch_name };
     },
     chat: (productId, messages, model) => localRequest<AgentResponse>('/agent/chat', { method: 'POST', body: JSON.stringify({ product_id: productId, messages, model: model || null }) }),
+    zevir: zevirPlatformOnly,
+    zevirBuild: zevirPlatformOnly,
+    zevirNodes: zevirPlatformOnly,
+    zevirNode: zevirPlatformOnly,
   };
 }
 

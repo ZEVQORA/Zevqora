@@ -1,26 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Play, ScanSearch, Upload } from 'lucide-react';
-import { ProductFrame } from '../Frame';
+import { NoProject, ProductFrame } from '../Frame';
 import { useProduct } from '../store';
 import { useProductDialogs } from '../dialogs/context';
 import { Button, Empty, StatusChip } from '../ui';
 import { sourceLabel, titleCase } from '../format';
-import type { Finding } from '../types';
-
-const CATEGORY_STRATEGY: Record<string, string> = {
-  structured_task_candidate: 'Model substitution',
-  duplicate_work: 'Exact reuse (cache)',
-  cache_candidate: 'Exact reuse (cache)',
-  retry_storm: 'Retry policy',
-  context_bloat: 'Context reduction',
-  expensive_model_simple_task: 'Model substitution',
-  routing_candidate: 'Bounded routing',
-  cost_concentration: 'Model substitution or reuse',
-};
-
-function strategyFor(finding: Finding) {
-  return CATEGORY_STRATEGY[finding.category] || (finding.origin === 'runtime_evidence' ? 'Runtime candidate' : 'Model substitution');
-}
+import { candidateFor } from '../evidence';
 
 export default function OpportunitiesView() {
   const { selected, findings, evaluations, economics, aiCalls, setInspect, inspect, runScan, importTraceFile, health, zevState, runtime } = useProduct();
@@ -39,9 +24,9 @@ export default function OpportunitiesView() {
 
   if (!selected) {
     return (
-      <ProductFrame>
+      <NoProject>
         <Empty title="Connect a repository first" description="Opportunities are detected from your source and your execution traces." action={<Button onClick={dialogs.openConnect}>Connect repository</Button>} />
-      </ProductFrame>
+      </NoProject>
     );
   }
 
@@ -69,6 +54,10 @@ export default function OpportunitiesView() {
         <span className="ml-auto text-[12px] text-subtle">{findings.length} signals · {traces} execution traces · {aiCalls.length} call sites</span>
       </div>
 
+      {findings.length > 0 && !findings.some((f) => candidateFor(f, traces).strategy) && (
+        <div className="pnote pnote-warn mb-4"><b>No supported opportunity found.</b> These are signals ZEVQORA cannot test yet (supported today: model substitution and exact reuse). They are shown so nothing is hidden; none of them is savings.</div>
+      )}
+
       {!traces && findings.length > 0 && (
         <div className="pnote pnote-warn mb-4">Replays need baseline execution traces. Import a JSONL export from your runtime (request_id, input_text, output_text, expected_output, cost_usd, model) before testing a candidate.</div>
       )}
@@ -80,11 +69,12 @@ export default function OpportunitiesView() {
           <div className="popp-grid hidden py-0 text-[11px] font-semibold uppercase tracking-[0.08em] text-subtle xl:grid">
             <span>Issue · source</span>
             <span>Why it looks expensive</span>
-            <span>Strategy · confidence · risk</span>
+            <span>Strategy · tradeoff</span>
             <span className="text-right">Evidence</span>
           </div>
           {rows.map(({ finding, evaluations: evals }) => {
             const selectedRow = inspect?.kind === 'finding' && inspect.id === finding.id;
+            const candidate = candidateFor(finding, traces);
             return (
               <div key={finding.id} role="button" tabIndex={0} onClick={() => setInspect({ kind: 'finding', id: finding.id })} onKeyDown={(e) => { if (e.key === 'Enter') setInspect({ kind: 'finding', id: finding.id }); }} className={`plist-row is-clickable popp-grid ${selectedRow ? 'is-selected' : ''}`}>
                 <div className="min-w-0">
@@ -94,15 +84,17 @@ export default function OpportunitiesView() {
                 </div>
                 <div className="text-[12.5px] leading-relaxed text-muted">{finding.root_cause}</div>
                 <div className="grid content-start gap-1.5 text-[12px]">
-                  <span className="font-medium text-ink">{strategyFor(finding)}</span>
+                  <span className="font-medium text-ink">{candidate.family}</span>
+                  <span className="text-[11.5px] leading-snug text-subtle">{candidate.tradeoff}</span>
                   <span className="flex flex-wrap items-center gap-1.5">
+                    <span className={`pchip ${candidate.executable ? 'pchip-verified' : 'pchip-neutral'}`}>{candidate.executable ? 'candidate executable' : candidate.blocker}</span>
                     <span className="pchip pchip-neutral tnum">{Math.round(finding.confidence * 100)}% conf</span>
                     <span className={`pchip ${finding.risk === 'high' ? 'pchip-rejected' : finding.risk === 'low' ? 'pchip-verified' : 'pchip-warning'}`}>{finding.risk} risk</span>
                   </span>
                 </div>
                 <div className="flex flex-row items-center justify-between gap-2 xl:flex-col xl:items-end">
                   <StatusChip status={finding.evidence_status} />
-                  <Button size="xs" variant={finding.evidence_status === 'verified' ? 'secondary' : 'accent'} disabled={!canTest} title={canTest ? 'Replay a bounded candidate on your traces' : runtime === 'desktop' ? 'Local engine offline' : 'Engine unavailable'} onClick={(e) => { e.stopPropagation(); dialogs.openTest(finding); }}>
+                  <Button size="xs" variant={finding.evidence_status === 'verified' ? 'secondary' : 'accent'} disabled={!canTest || !candidate.strategy} title={!candidate.strategy ? 'Signal only: no supported strategy to test' : canTest ? 'Replay a bounded candidate on your traces' : runtime === 'desktop' ? 'Local engine offline' : 'Engine unavailable'} onClick={(e) => { e.stopPropagation(); dialogs.openTest(finding); }}>
                     <Play size={12} /> Let Zev test it
                   </Button>
                 </div>

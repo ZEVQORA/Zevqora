@@ -4,6 +4,7 @@ import { cloudEngine, localEngine, syncLocalEngineSession, engineErrorMessage, t
 import { desktopBridge, isDesktop } from './bridge';
 import { pickRepository, pickTraceFile, type PickedRepository } from './browserScan';
 import { useProductToast } from './ui';
+import { isWorkloadProduct } from './types';
 import type { AICall, Economics, EngineHealth, EnginePlatformStatus, Evaluation, Experiment, Finding, Implementation, OptimizationExecution, OptimizationPlan, Product, ScanResult } from './types';
 
 export type InspectTarget =
@@ -20,6 +21,8 @@ export type ZevState = 'idle' | 'thinking' | 'scanning' | 'experimenting' | 'ver
 interface ProductStore {
   engine: Engine;
   runtime: 'browser' | 'desktop';
+  /** False for workspace viewers: they can inspect evidence but not scan, import, test or prepare changes. */
+  canEdit: boolean;
   inspect: InspectTarget;
   setInspect: (target: InspectTarget) => void;
   health: EngineHealth | null;
@@ -40,6 +43,8 @@ interface ProductStore {
   executions: OptimizationExecution[];
   evaluations: Evaluation[];
   dataLoading: boolean;
+  /** Set when the selected project's evidence failed to load; views must not read as empty. */
+  dataError: string;
   refreshProducts: () => Promise<void>;
   refreshProductData: () => Promise<void>;
   /** Browser: folder picker + local scan + upload. Desktop: local engine scans the folder. */
@@ -67,11 +72,29 @@ export function useProduct() {
   return ctx;
 }
 
+/** Make a product the selection for its workspace before the product views mount (onboarding). */
+export function rememberSelectedProduct(workspaceId: string, productId: string) {
+  try {
+    localStorage.setItem(`zevqora.selectedProduct:${workspaceId}`, productId);
+  } catch {
+    /* storage unavailable: the first product is selected by default */
+  }
+}
+
+function readSelection(key: string) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
 export function ProductProvider({ children }: { children: ReactNode }) {
   const { me, activeWorkspace } = useSession();
   const toast = useProductToast();
   const runtime: 'browser' | 'desktop' = isDesktop() ? 'desktop' : 'browser';
   const workspaceId = activeWorkspace?.id || null;
+  const canEdit = runtime === 'desktop' || (activeWorkspace ? activeWorkspace.role !== 'viewer' : false);
   const engine = useMemo<Engine>(() => (runtime === 'desktop' ? localEngine() : cloudEngine(workspaceId || '')), [runtime, workspaceId]);
 
   const [inspect, setInspect] = useState<InspectTarget>(null);
@@ -80,13 +103,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const [platformStatus, setPlatformStatus] = useState<EnginePlatformStatus | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
-  const [selectedId, setSelectedId] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem('zevqora.selectedProduct');
-    } catch {
-      return null;
-    }
-  });
+  // The selection is remembered per workspace so switching workspaces never
+  // carries another workspace's product id along.
+  const selectionKey = `zevqora.selectedProduct:${workspaceId || 'none'}`;
+  const [selectedId, setSelectedId] = useState<string | null>(() => readSelection(selectionKey));
+  useEffect(() => {
+    setSelectedId(readSelection(selectionKey));
+  }, [selectionKey]);
   const [scan, setScan] = useState<ScanResult | null>(null);
   const [aiCalls, setAiCalls] = useState<AICall[]>([]);
   const [findings, setFindings] = useState<Finding[]>([]);
@@ -97,6 +120,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const [executions, setExecutions] = useState<OptimizationExecution[]>([]);
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
+  const [dataError, setDataError] = useState('');
   const [zevState, setZevState] = useState<ZevState>('idle');
   const [model, setModelState] = useState(() => {
     try {
@@ -156,19 +180,23 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     void refreshProducts().catch((error) => setEngineError(engineErrorMessage(error)));
   }, [refreshProducts]);
 
-  const selectProduct = useCallback((id: string | null) => {
-    setSelectedId(id);
-    try {
-      if (id) localStorage.setItem('zevqora.selectedProduct', id);
-      else localStorage.removeItem('zevqora.selectedProduct');
-    } catch {
-      /* ignore */
-    }
-    setInspect(null);
-  }, []);
+  const selectProduct = useCallback(
+    (id: string | null) => {
+      setSelectedId(id);
+      try {
+        if (id) localStorage.setItem(selectionKey, id);
+        else localStorage.removeItem(selectionKey);
+      } catch {
+        /* ignore */
+      }
+      setInspect(null);
+    },
+    [selectionKey],
+  );
 
   const refreshProductData = useCallback(async () => {
     if (!selectedId) {
+      setDataError('');
       setAiCalls([]);
       setFindings([]);
       setEconomics(null);
@@ -199,6 +227,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       setPlans(nextPlans);
       setExecutions(nextExecutions);
       setEvaluations(nextEvaluations);
+      setDataError('');
+    } catch (error) {
+      setDataError(engineErrorMessage(error));
+      throw error;
     } finally {
       setDataLoading(false);
     }
@@ -209,8 +241,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     void refreshProductData().catch(() => undefined);
   }, [refreshProductData]);
 
+  const viewOnly = useCallback(() => {
+    if (canEdit) return false;
+    toast({ tone: 'err', title: 'View only', description: 'Viewers can inspect evidence but not change it. Ask a workspace admin for a member role.' });
+    return true;
+  }, [canEdit, toast]);
+
   const connectRepository = useCallback(
     async (input?: { path?: string; name?: string }) => {
+      if (viewOnly()) return null;
       setZevState('scanning');
       try {
         let result: ScanResult;
@@ -243,11 +282,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    [engine, runtime, refreshProducts, selectProduct],
+    [engine, runtime, refreshProducts, selectProduct, viewOnly],
   );
 
   const runScan = useCallback(async () => {
-    if (!selected) return null;
+    if (!selected || viewOnly()) return null;
+    if (isWorkloadProduct(selected)) {
+      toast({ tone: 'err', title: 'No repository to scan', description: 'This project is a workload: its evidence is imported traces. Connect a repository as a separate project to scan code.' });
+      return null;
+    }
     setZevState('scanning');
     try {
       let result: ScanResult;
@@ -277,16 +320,16 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       toast({ tone: 'err', title: 'Scan failed', description: engineErrorMessage(error) });
       throw error;
     }
-  }, [engine, runtime, selected, refreshProducts, refreshProductData, toast]);
+  }, [engine, runtime, selected, refreshProducts, refreshProductData, toast, viewOnly]);
 
   const toggleMonitoring = useCallback(async () => {
-    if (!selected) return;
+    if (!selected || viewOnly()) return;
     await engine.monitoring(selected.id, !selected.monitoring_enabled);
     await refreshProducts();
-  }, [engine, selected, refreshProducts]);
+  }, [engine, selected, refreshProducts, viewOnly]);
 
   const importTraceFile = useCallback(async () => {
-    if (!selected) return;
+    if (!selected || viewOnly()) return;
     const file = runtime === 'desktop' ? await desktopBridge()?.selectTraceFile() : await pickTraceFile();
     if (!file) return;
     if (!file.content) {
@@ -305,7 +348,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       setZevState('idle');
       toast({ tone: 'err', title: 'Import failed', description: engineErrorMessage(error) });
     }
-  }, [engine, runtime, selected, refreshProductData, toast]);
+  }, [engine, runtime, selected, refreshProductData, toast, viewOnly]);
 
   const archiveProduct = useCallback(
     async (id: string) => {
@@ -340,8 +383,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<ProductStore>(
-    () => ({ engine, runtime, inspect, setInspect, health, engineError, platformStatus, refreshHealth, products, productsLoading, selected, selectProduct, scan, aiCalls, findings, economics, experiments, implementations, plans, executions, evaluations, dataLoading, refreshProducts, refreshProductData, connectRepository, runScan, toggleMonitoring, importTraceFile, archiveProduct, readRepositoryFile, ensureRepository, pickedRepository, zevState, setZevState, model, setModel }),
-    [engine, runtime, inspect, health, engineError, platformStatus, refreshHealth, products, productsLoading, selected, selectProduct, scan, aiCalls, findings, economics, experiments, implementations, plans, executions, evaluations, dataLoading, refreshProducts, refreshProductData, connectRepository, runScan, toggleMonitoring, importTraceFile, archiveProduct, readRepositoryFile, ensureRepository, pickedRepository, zevState, model, setModel],
+    () => ({ engine, runtime, canEdit, inspect, setInspect, health, engineError, platformStatus, refreshHealth, products, productsLoading, selected, selectProduct, scan, aiCalls, findings, economics, experiments, implementations, plans, executions, evaluations, dataLoading, dataError, refreshProducts, refreshProductData, connectRepository, runScan, toggleMonitoring, importTraceFile, archiveProduct, readRepositoryFile, ensureRepository, pickedRepository, zevState, setZevState, model, setModel }),
+    [engine, runtime, canEdit, inspect, health, engineError, platformStatus, refreshHealth, products, productsLoading, selected, selectProduct, scan, aiCalls, findings, economics, experiments, implementations, plans, executions, evaluations, dataLoading, dataError, refreshProducts, refreshProductData, connectRepository, runScan, toggleMonitoring, importTraceFile, archiveProduct, readRepositoryFile, ensureRepository, pickedRepository, zevState, model, setModel],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

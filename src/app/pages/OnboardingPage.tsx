@@ -1,64 +1,94 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Check, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Check, ArrowRight, ArrowLeft, FolderGit2, FileUp, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { ZevqoraLogo } from '@/brand/ZevqoraLogo';
-import { Zev } from '@/brand/Zev';
 import { Button } from '@/components/ui/Button';
-import { Field, Input, Select, Checkbox } from '@/components/ui/Field';
+import { Field, Input, Checkbox } from '@/components/ui/Field';
 import { InlineNotice } from '@/components/ui/States';
-import { CopyButton, Code } from '@/components/ui/Misc';
 import { useSession } from '@/lib/session';
 import { app } from '../data';
 import { errorMessage } from '@/lib/api';
-import { useToast } from '@/components/ui/Toast';
+import { cloudEngine, localEngine, engineErrorMessage } from '@/product/engine';
+import { desktopBridge, isDesktop } from '@/product/bridge';
+import { pickRepository, pickTraceFile } from '@/product/browserScan';
+import { rememberSelectedProduct } from '@/product/store';
+import { candidateFor, firstSupported } from '@/product/evidence';
+import type { EvaluationRequirements, Finding, Product } from '@/product/types';
 
-const STEPS = ['Welcome', 'Workspace', 'Project', 'Connect', 'Detect', 'Analyze', 'Review', 'Test', 'Verify'];
+const STEPS = ['Workspace', 'Evidence', 'Boundary', 'Requirements', 'First analysis'];
+type Source = 'repository' | 'workload';
+
+interface FirstResult {
+  product: Product;
+  findings: Finding[];
+  traceCount: number;
+  callSites: number;
+  elapsedMs: number;
+}
+
+function elapsed(msTotal: number) {
+  const s = Math.max(1, Math.round(msTotal / 1000));
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
+}
 
 export default function OnboardingPage() {
-  const { me, refreshMe, setActiveWorkspaceId, setActiveProjectId } = useSession();
+  const { me, refreshMe, setActiveWorkspaceId, activeWorkspace } = useSession();
   const navigate = useNavigate();
-  const toast = useToast();
   const [params] = useSearchParams();
+  const desktop = isDesktop();
+  const startedAt = useRef(Date.now());
+
   const [step, setStep] = useState(0);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [workspaceName, setWorkspaceName] = useState('');
+
+  const existing = useMemo(() => me?.workspaces || [], [me]);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [creatingWorkspace, setCreatingWorkspace] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState('');
+
+  const [source, setSource] = useState<Source>('repository');
   const [projectName, setProjectName] = useState('');
-  const [sourceKind, setSourceKind] = useState('runtime');
-  const [projectId, setProjectId] = useState<string | null>(null);
-  const [captureSamples, setCaptureSamples] = useState(true);
-  const [token, setToken] = useState<string | null>(null);
+  const [authorized, setAuthorized] = useState(false);
+
+  const [qualityFloor, setQualityFloor] = useState('0.95');
+  const [minSamples, setMinSamples] = useState('10');
+  const [requireProtected, setRequireProtected] = useState(false);
+  const [requireLatency, setRequireLatency] = useState(true);
+
+  const [result, setResult] = useState<FirstResult | null>(null);
 
   useEffect(() => {
-    document.title = 'Welcome — ZEVQORA';
+    document.title = 'Get started — ZEVQORA';
   }, []);
   useEffect(() => {
-    if (me?.workspaces.length && !workspaceId) {
-      setWorkspaceId(me.workspaces[0].id);
-      setWorkspaceName(me.workspaces[0].name);
-    }
-  }, [me, workspaceId]);
+    if (workspaceId || creatingWorkspace || !me) return;
+    if (existing.length) setWorkspaceId(activeWorkspace?.id || existing[0].id);
+    else setCreatingWorkspace(true);
+  }, [me, existing, activeWorkspace, workspaceId, creatingWorkspace]);
 
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://zevqora.vercel.app';
-  const snippet = useMemo(
-    () => `curl -X POST ${origin}/api/telemetry/ingest \\
-  -H "Authorization: Bearer ${token || 'zqt_…'}" \\
-  -H "Content-Type: application/json" \\
-  -d '{"events":[{"trace_id":"req_1","provider":"openai","model":"gpt-4o","operation":"classify.intent","status":"ok","input_tokens":812,"output_tokens":14,"latency_ms":1980}]}'`,
-    [origin, token],
-  );
+  const requirements = useMemo<EvaluationRequirements>(() => ({
+    quality_floor: Math.min(1, Math.max(0.5, Number(qualityFloor) || 0.95)),
+    min_samples: Math.max(3, Math.floor(Number(minSamples) || 10)),
+    require_protected_cases: requireProtected,
+    require_latency: requireLatency,
+  }), [qualityFloor, minSamples, requireProtected, requireLatency]);
 
-  async function createWorkspace() {
+  async function confirmWorkspace() {
     setPending(true);
     setError(null);
     try {
-      const { workspace } = await app.createWorkspace(workspaceName.trim());
-      setWorkspaceId(workspace.id);
-      setActiveWorkspaceId(workspace.id);
-      await refreshMe();
-      setStep(2);
+      if (creatingWorkspace) {
+        const { workspace } = await app.createWorkspace(workspaceName.trim());
+        setWorkspaceId(workspace.id);
+        setActiveWorkspaceId(workspace.id);
+        await refreshMe();
+      } else if (workspaceId) {
+        setActiveWorkspaceId(workspaceId);
+      }
+      void app.updateMe({ onboarding: { started_at: new Date(startedAt.current).toISOString() } }).catch(() => undefined);
+      setStep(1);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -66,49 +96,67 @@ export default function OnboardingPage() {
     }
   }
 
-  async function createProject() {
+  /** Connect the chosen evidence source and run the first analysis. */
+  async function connectAndAnalyze() {
     if (!workspaceId) return;
     setPending(true);
     setError(null);
+    const engine = desktop ? localEngine() : cloudEngine(workspaceId);
     try {
-      const { project } = await app.createProject(workspaceId, { name: projectName.trim(), source_kind: sourceKind });
-      setProjectId(project.id);
-      setActiveProjectId(project.id);
-      setStep(3);
+      let product: Product;
+      let traceCount = 0;
+      let callSites = 0;
+      if (source === 'repository') {
+        if (desktop) {
+          const path = await desktopBridge()?.selectFolder();
+          if (!path) return;
+          const scan = await engine.connect({ rootPath: path, name: projectName.trim() || undefined });
+          product = scan.product;
+          callSites = scan.ai_calls.length;
+        } else {
+          const repo = await pickRepository();
+          if (!repo) return;
+          const scan = await engine.connect({ rootPath: repo.rootPath, name: projectName.trim() || repo.name, upload: repo.upload, requirements });
+          product = scan.product;
+          callSites = scan.ai_calls.length;
+        }
+      } else {
+        const file = await pickTraceFile();
+        if (!file) return;
+        product = await engine.createWorkload({ name: projectName.trim() || file.name.replace(/\.(jsonl?|txt)$/i, ''), requirements });
+        const imported = await engine.importTraces(product.id, file.content);
+        if (!imported.imported) throw new Error(imported.errors[0] ? `No traces imported: ${imported.errors[0]}` : 'No traces imported. Check the file format in Docs.');
+      }
+      // Persist the boundary the user just confirmed as the start of this project's evaluation record.
+      if (!desktop) await engine.setTrial(product.id, { workload: product.name, status: 'active', data_boundary_note: source === 'workload' ? 'Imported traces, stored as exported. Redaction is the importer’s responsibility.' : 'Repository scanned locally; call locations and findings uploaded.' }, { confirmBoundary: true }).catch(() => undefined);
+      const [findings, economics] = await Promise.all([engine.findings(product.id), engine.economics(product.id)]);
+      traceCount = economics.trace_count;
+      const elapsedMs = Date.now() - startedAt.current;
+      rememberSelectedProduct(workspaceId, product.id);
+      void app.updateMe({ onboarding: { started_at: new Date(startedAt.current).toISOString(), first_evidence_at: new Date().toISOString(), evidence_source: source, time_to_first_evidence_ms: elapsedMs } }).catch(() => undefined);
+      setResult({ product, findings, traceCount, callSites, elapsedMs });
     } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setPending(false);
-    }
-  }
-
-  async function createConnection() {
-    if (!projectId) return;
-    setPending(true);
-    setError(null);
-    try {
-      const res = await app.createConnection(projectId, { kind: 'server_telemetry', name: `${projectName.trim() || 'Runtime'} telemetry`, capture_samples: captureSamples });
-      setToken(res.token);
-      setStep(4);
-    } catch (e) {
-      setError(errorMessage(e));
+      setError(engineErrorMessage(e));
     } finally {
       setPending(false);
     }
   }
 
   const finish = async () => {
-    await app.updateMe({ onboarding: { completed_at: new Date().toISOString(), plan_interest: params.get('plan') || null } }).catch(() => undefined);
+    await app.updateMe({ onboarding: { completed_at: new Date().toISOString(), plan_interest: params.get('plan') || null, intent: params.get('intent') || null } }).catch(() => undefined);
     await refreshMe();
-    toast({ tone: 'success', title: 'Welcome to ZEVQORA', description: 'Your workspace is ready.' });
-    navigate('/app', { replace: true });
+    navigate(result ? '/app' : '/app/connections', { replace: true });
   };
 
-  const canContinue = step === 1 ? workspaceName.trim().length >= 2 : step === 2 ? projectName.trim().length >= 2 : true;
+  const top = result ? firstSupported(result.findings, result.traceCount) : null;
+  const canContinue =
+    step === 0 ? (creatingWorkspace ? workspaceName.trim().length >= 2 : Boolean(workspaceId)) :
+    step === 2 ? authorized :
+    true;
 
   return (
     <main id="main" className="app-env min-h-dvh">
-      <header className="container-page flex items-center justify-between py-6">
+      <header className="container-page flex items-center justify-between gap-4 py-6">
         <Link to="/" aria-label="ZEVQORA home" className="rounded-sm">
           <ZevqoraLogo size={24} />
         </Link>
@@ -124,143 +172,158 @@ export default function OnboardingPage() {
         </ol>
       </header>
 
-      <div className="container-page grid gap-12 py-8 lg:grid-cols-[1fr_auto] lg:py-16">
-        <div className="max-w-[36rem]">
-          {step === 0 && (
-            <>
-              <p className="text-eyebrow uppercase text-muted">Welcome to ZEVQORA</p>
-              <h1 className="text-h1 mt-4 text-ink">Find the waste. Test the fix. Verify the savings.</h1>
-              <p className="text-body mt-4 max-w-[46ch] text-muted">In the next few minutes you will create a workspace, add a project, connect a runtime, and run your first analysis. Nothing changes in your system; ZEVQORA only reads what you send it.</p>
-            </>
-          )}
-          {step === 1 && (
-            <>
-              <h1 className="text-h1 text-ink">Create your workspace.</h1>
-              <p className="text-body mt-4 max-w-[42ch] text-muted">A workspace holds your team, projects, evidence and usage. You can invite teammates later.</p>
-              <div className="mt-8">
+      <div className="container-page max-w-[42rem] py-8 lg:py-14">
+        {step === 0 && (
+          <>
+            <p className="text-eyebrow uppercase text-muted">Step 1 · Workspace</p>
+            <h1 className="text-h1 mt-4 text-ink">Where should this evaluation live?</h1>
+            <p className="text-body mt-4 text-muted">A workspace holds your team, projects and evidence. The goal of the next few minutes is your first piece of evidence, not an account.</p>
+            <div className="mt-8 grid gap-2">
+              {existing.map((w) => (
+                <button key={w.id} type="button" onClick={() => { setCreatingWorkspace(false); setWorkspaceId(w.id); }} className={cn('flex items-center justify-between rounded-md border px-4 py-3 text-left transition-control', !creatingWorkspace && workspaceId === w.id ? 'border-accent bg-accent-subtle' : 'border-line bg-surface hover:border-line-control')}>
+                  <span className="text-caption font-medium text-ink">{w.name}</span>
+                  <span className="text-technical font-mono uppercase text-subtle">{w.role}</span>
+                </button>
+              ))}
+              {existing.length > 0 && !creatingWorkspace && (
+                <button type="button" onClick={() => setCreatingWorkspace(true)} className="text-caption mt-1 w-fit text-muted underline underline-offset-4 hover:text-ink">Create a new workspace instead</button>
+              )}
+              {creatingWorkspace && (
                 <Field id="ws" label="Workspace name" hint="Usually your company or team.">
                   <Input id="ws" value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} placeholder="Acme AI" autoFocus maxLength={80} />
                 </Field>
-              </div>
-            </>
-          )}
-          {step === 2 && (
-            <>
-              <h1 className="text-h1 text-ink">Add your first project.</h1>
-              <p className="text-body mt-4 max-w-[42ch] text-muted">A project is one AI product or service. Its telemetry, opportunities and experiments stay together.</p>
-              <div className="mt-8 grid gap-4">
-                <Field id="pn" label="Project name">
-                  <Input id="pn" value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="support-assistant" autoFocus maxLength={80} />
-                </Field>
-                <Field id="sk" label="Primary source">
-                  <Select id="sk" value={sourceKind} onChange={(e) => setSourceKind(e.target.value)}>
-                    <option value="runtime">Runtime API (server sends telemetry)</option>
-                    <option value="server">Server telemetry agent</option>
-                    <option value="repository">Repository (desktop engine)</option>
-                    <option value="github">GitHub (coming soon)</option>
-                  </Select>
-                </Field>
-              </div>
-            </>
-          )}
-          {step === 3 && (
-            <>
-              <h1 className="text-h1 text-ink">Connect a source.</h1>
-              <p className="text-body mt-4 max-w-[44ch] text-muted">Create a scoped telemetry token for this project. It is shown once. It can only write telemetry, and you can revoke it at any time.</p>
-              <div className="mt-8 rounded-lg border border-line bg-surface p-5">
-                <p className="text-caption font-medium text-ink">What this connection reads</p>
-                <ul className="text-technical mt-2 space-y-1 text-muted">
-                  <li>· provider, model, operation, status</li>
-                  <li>· token counts, latency, provider-reported cost</li>
-                  <li>· a hash of the prompt for repeat detection</li>
-                </ul>
-                <p className="text-caption mt-4 font-medium text-ink">Never</p>
-                <ul className="text-technical mt-2 space-y-1 text-muted">
-                  <li>· source code, environment variables, credentials</li>
-                  <li>· images, files or tool payloads</li>
-                </ul>
-                <div className="mt-5 border-t border-line pt-4">
-                  <Checkbox id="cap" checked={captureSamples} onChange={(e) => setCaptureSamples(e.target.checked)} label="Capture sanitized request and response samples" description="Required to replay candidates on real requests. Secrets are redacted; non-text content is dropped." />
-                </div>
-              </div>
-            </>
-          )}
-          {step === 4 && (
-            <>
-              <h1 className="text-h1 text-ink">Detect AI usage.</h1>
-              <p className="text-body mt-4 max-w-[44ch] text-muted">Send your first events. Copy the token now; it will not be shown again.</p>
-              {token && (
-                <div className="mt-6 rounded-lg border border-accent/30 bg-accent-subtle p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-eyebrow uppercase text-accent-text">Connection token · shown once</p>
-                    <CopyButton value={token} label="Copy token" size="xs" />
-                  </div>
-                  <code className="mt-2 block break-all font-mono text-technical text-ink">{token}</code>
-                </div>
               )}
-              <div className="mt-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-caption font-medium text-ink">Send an event</p>
-                  <CopyButton value={snippet} label="Copy" size="xs" />
-                </div>
-                <Code block>{snippet}</Code>
-                <p className="text-technical mt-2 text-subtle">
-                  Full payload reference in <Link to="/app/docs" className="underline underline-offset-4">Docs</Link>. You can continue now and send events later.
-                </p>
-              </div>
-            </>
-          )}
-          {step >= 5 && step <= 8 && (
-            <>
-              <h1 className="text-h1 text-ink">{['Run your first analysis.', 'Review an opportunity.', 'Let Zev test it.', 'See the verified result.'][step - 5]}</h1>
-              <p className="text-body mt-4 max-w-[46ch] text-muted">
-                {[
-                  'Once telemetry arrives, Opportunities → Run analysis maps spend and diagnoses waste deterministically. No model calls, no credit consumed.',
-                  'Each opportunity shows the issue, root cause, current model, candidate strategy, estimated savings, confidence, risk and how complete the evidence is.',
-                  'Testing replays your captured samples on the candidate. Provider cost is charged to Zev credit exactly once per run.',
-                  'A result is Verified only when every gate passes. If the quality floor is missed, ZEVQORA rejects the candidate and shows you why.',
-                ][step - 5]}
+            </div>
+          </>
+        )}
+
+        {step === 1 && (
+          <>
+            <p className="text-eyebrow uppercase text-muted">Step 2 · Evidence source</p>
+            <h1 className="text-h1 mt-4 text-ink">What can ZEVQORA look at?</h1>
+            <p className="text-body mt-4 text-muted">One authorized source is enough. You can add the other later.</p>
+            <div className="mt-8 grid gap-3 sm:grid-cols-2">
+              {([
+                ['repository', FolderGit2, 'A repository', 'Finds where your code calls models. Scanned on this machine; source is not uploaded.'],
+                ['workload', FileUp, 'A workload’s traces', 'A JSON / JSONL export of recorded requests and outputs. This is what baselines and replays run on.'],
+              ] as const).map(([key, Icon, title, body]) => (
+                <button key={key} type="button" disabled={key === 'workload' && desktop} onClick={() => setSource(key)} className={cn('rounded-lg border p-4 text-left transition-control disabled:opacity-50', source === key ? 'border-accent bg-accent-subtle' : 'border-line bg-surface hover:border-line-control')}>
+                  <Icon size={18} className="text-accent-text" aria-hidden />
+                  <p className="text-caption mt-3 font-semibold text-ink">{title}</p>
+                  <p className="text-technical mt-1 text-muted">{body}</p>
+                  {key === 'workload' && desktop && <p className="text-technical mt-2 text-subtle">Available in the web app.</p>}
+                </button>
+              ))}
+            </div>
+            <div className="mt-6">
+              <Field id="pn" label="Project name" hint={source === 'workload' ? 'Optional: defaults to the file name.' : 'Optional: defaults to the folder name.'}>
+                <Input id="pn" value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="support-assistant" maxLength={80} />
+              </Field>
+            </div>
+            {source === 'workload' && (
+              <p className="text-technical mt-4 text-subtle">
+                Each line needs <code>request_id</code>, <code>model</code>, <code>input_text</code> or <code>messages</code>, and <code>output_text</code>. Add <code>expected_output</code> to grade, <code>cost_usd</code> and <code>latency_ms</code> to measure, <code>&quot;protected&quot;: true</code> for cases that must never regress. <Link to="/app/docs" className="underline underline-offset-4">Full format</Link>.
               </p>
-              <ul className="mt-8 grid gap-3 sm:grid-cols-2">
-                {[
-                  ['Measure', 'Baseline from your telemetry'],
-                  ['Replay', 'Same samples, candidate model'],
-                  ['Verify', 'Named gates, all must pass'],
-                  ['Review', 'Report with evidence attached'],
-                ].map(([k, v], i) => (
-                  <li key={k} className={cn('rounded-md border px-4 py-3', i <= step - 5 ? 'border-accent/30 bg-accent-subtle' : 'border-line bg-surface')}>
-                    <p className="text-caption font-medium text-ink">{k}</p>
-                    <p className="text-technical text-muted">{v}</p>
-                  </li>
-                ))}
-              </ul>
-            </>
+            )}
+          </>
+        )}
+
+        {step === 2 && (
+          <>
+            <p className="text-eyebrow uppercase text-muted">Step 3 · Data boundary</p>
+            <h1 className="text-h1 mt-4 text-ink">Confirm what leaves your machine.</h1>
+            <div className="mt-8 rounded-lg border border-line bg-surface p-5">
+              {source === 'repository' ? (
+                <ul className="text-caption space-y-2 text-muted">
+                  <li>· The folder is read {desktop ? 'by the desktop engine' : 'in this browser'}, read-only. Nothing in it is changed.</li>
+                  <li>· Only AI call locations and findings are sent. Source files are not uploaded.</li>
+                  <li>· Paths that look sensitive (secrets, keys, environment files, dependencies) are skipped.</li>
+                  <li>· Later, preparing a change sends the one file being changed, and only when you ask.</li>
+                </ul>
+              ) : (
+                <ul className="text-caption space-y-2 text-muted">
+                  <li>· The traces you import are stored as they are, prompts and outputs included, so a replay can ask a candidate the same question.</li>
+                  <li>· Redact anything that must not leave before you export. Representative or redacted cases are enough.</li>
+                  <li>· Replays send the recorded prompt of each selected case to the candidate model through the ZEVQORA platform key.</li>
+                  <li>· Only members of this workspace can read them, through the API.</li>
+                </ul>
+              )}
+              <div className="mt-5 border-t border-line pt-4">
+                <Checkbox id="auth" checked={authorized} onChange={(e) => setAuthorized(e.target.checked)} label="I am authorized to share this evidence, and I have removed what must not leave." />
+              </div>
+            </div>
+          </>
+        )}
+
+        {step === 3 && (
+          <>
+            <p className="text-eyebrow uppercase text-muted">Step 4 · Evaluation requirements</p>
+            <h1 className="text-h1 mt-4 text-ink">What must a cheaper change still do?</h1>
+            <p className="text-body mt-4 text-muted">These become the floor for every experiment on this project. A single experiment can be stricter, never looser. Admins can change them later; past verdicts keep theirs.</p>
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              <Field id="qf" label="Quality floor (0.5 – 1)" hint="Share of graded cases the candidate must get right.">
+                <Input id="qf" type="number" min={0.5} max={1} step={0.01} value={qualityFloor} onChange={(e) => setQualityFloor(e.target.value)} />
+              </Field>
+              <Field id="ms" label="Minimum evaluated cases" hint="Fewer cases returns INCOMPLETE, not a verdict.">
+                <Input id="ms" type="number" min={3} step={1} value={minSamples} onChange={(e) => setMinSamples(e.target.value)} />
+              </Field>
+            </div>
+            <div className="mt-5 grid gap-3">
+              <Checkbox id="rp" checked={requireProtected} onChange={(e) => setRequireProtected(e.target.checked)} label="Require protected cases" description="Every experiment must include cases marked protected, and all of them must pass." />
+              <Checkbox id="rl" checked={requireLatency} onChange={(e) => setRequireLatency(e.target.checked)} label="Require latency evidence" description="Without latency on the cases, the verdict is INCOMPLETE rather than silently ignoring latency." />
+            </div>
+            {desktop && <InlineNotice tone="info" className="mt-5">On the desktop engine these are applied per experiment; the platform engine stores and enforces them.</InlineNotice>}
+          </>
+        )}
+
+        {step === 4 && (
+          <>
+            <p className="text-eyebrow uppercase text-muted">Step 5 · First analysis</p>
+            <h1 className="text-h1 mt-4 text-ink">{result ? `First evidence in ${elapsed(result.elapsedMs)}.` : source === 'repository' ? 'Pick the repository.' : 'Pick the trace file.'}</h1>
+            {!result && (
+              <p className="text-body mt-4 text-muted">{source === 'repository' ? 'Choose the folder you develop in. ZEVQORA scans it and lists where your product calls models.' : 'Choose a JSON or JSONL export. ZEVQORA imports it, builds the baseline and looks for supported opportunities.'}</p>
+            )}
+            {result && (
+              <div className="mt-6 grid gap-4">
+                <div className="rounded-lg border border-line bg-surface p-5">
+                  <p className="text-caption font-semibold text-ink">{result.product.name}</p>
+                  <p className="text-technical mt-1 text-muted">{result.callSites ? `${result.callSites} AI call sites · ` : ''}{result.traceCount} execution traces · {result.findings.length} signals</p>
+                </div>
+                {top ? (
+                  <div className="rounded-lg border border-accent/30 bg-accent-subtle p-5">
+                    <p className="text-eyebrow uppercase text-accent-text">First supported opportunity</p>
+                    <p className="text-caption mt-2 font-semibold text-ink">{top.title}</p>
+                    <p className="text-technical mt-1 text-muted">{top.root_cause}</p>
+                    <p className="text-technical mt-3 text-ink">{candidateFor(top, result.traceCount).family} · {candidateFor(top, result.traceCount).executable ? 'ready to test on your traces' : candidateFor(top, result.traceCount).blocker}</p>
+                    <p className="text-technical mt-1 text-subtle">This is a signal, not a saving. It becomes one only if a replay passes your requirements.</p>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-line bg-surface p-5">
+                    <p className="text-caption inline-flex items-center gap-2 font-semibold text-ink"><AlertTriangle size={14} className="text-warning" aria-hidden /> No supported opportunity found.</p>
+                    <p className="text-technical mt-2 text-muted">
+                      {result.findings.length
+                        ? `The ${result.findings.length} signal${result.findings.length === 1 ? '' : 's'} found are not ones ZEVQORA can test yet (supported today: model substitution and exact reuse).`
+                        : 'Nothing in this evidence points at a pattern ZEVQORA can test today.'}{' '}
+                      {source === 'repository' ? 'Import execution traces for the busiest call site next: replays and baselines run on traces.' : 'Try a larger or more repetitive sample, or a workflow on an expensive model.'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {error && <InlineNotice tone="danger" className="mt-6">{error}</InlineNotice>}
+
+        <div className="mt-10 flex flex-wrap items-center gap-3">
+          {step > 0 && !result && (
+            <Button variant="secondary" onClick={() => setStep((s) => s - 1)} disabled={pending}><ArrowLeft size={14} /> Back</Button>
           )}
-
-          {error && <InlineNotice tone="danger" className="mt-6">{error}</InlineNotice>}
-
-          <div className="mt-10 flex items-center gap-3">
-            {step > 0 && step !== 4 && (
-              <Button variant="secondary" onClick={() => setStep((s) => s - 1)} disabled={pending}>
-                <ArrowLeft size={14} /> Back
-              </Button>
-            )}
-            {step === 0 && <Button onClick={() => setStep(me?.workspaces.length ? 2 : 1)}>Get started <ArrowRight size={14} /></Button>}
-            {step === 1 && <Button onClick={createWorkspace} loading={pending} disabled={!canContinue}>Create workspace</Button>}
-            {step === 2 && <Button onClick={createProject} loading={pending} disabled={!canContinue}>Create project</Button>}
-            {step === 3 && (
-              <>
-                <Button onClick={createConnection} loading={pending}>Create telemetry token</Button>
-                <Button variant="ghost" onClick={() => setStep(5)}>Skip for now</Button>
-              </>
-            )}
-            {step === 4 && <Button onClick={() => setStep(5)}>I saved the token <ArrowRight size={14} /></Button>}
-            {step >= 5 && step < 8 && <Button onClick={() => setStep((s) => s + 1)}>Continue <ArrowRight size={14} /></Button>}
-            {step === 8 && <Button onClick={finish}>Open my workspace <ArrowRight size={14} /></Button>}
-          </div>
-        </div>
-        <div className="hidden items-end lg:flex">
-          <Zev view={step >= 8 ? 'pose-waving' : step >= 5 ? 'pose-thinking' : 'three-quarter-front'} height={230} />
+          {step === 0 && <Button onClick={() => void confirmWorkspace()} loading={pending} disabled={!canContinue}>{creatingWorkspace ? 'Create workspace' : 'Continue'} <ArrowRight size={14} /></Button>}
+          {(step === 1 || step === 2 || step === 3) && <Button onClick={() => setStep((s) => s + 1)} disabled={!canContinue}>Continue <ArrowRight size={14} /></Button>}
+          {step === 4 && !result && <Button onClick={() => void connectAndAnalyze()} loading={pending}>{source === 'repository' ? <><FolderGit2 size={14} /> Choose folder</> : <><FileUp size={14} /> Choose trace file</>}</Button>}
+          {step === 4 && result && <Button onClick={() => void finish()}>{top && candidateFor(top, result.traceCount).executable ? 'Open and test it' : 'Open the project'} <ArrowRight size={14} /></Button>}
+          {step === 4 && !result && <Button variant="ghost" onClick={() => void finish()}>Skip for now</Button>}
         </div>
       </div>
     </main>

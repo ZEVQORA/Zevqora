@@ -11,6 +11,15 @@
   font-display: swap;
 }
 
+/* Display face from the 2026-10-31 redesign (SIL OFL, public/fonts/space-grotesk/OFL.txt). Marketing headlines only. */
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("/fonts/space-grotesk/SpaceGrotesk-Variable.ttf") format("truetype");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ============================================================
    RAW PALETTE — from the brand board. Four brand colours only.
    ============================================================ */
@@ -129,6 +138,7 @@
   --color-brand-ink: #0f1115;
 
   --font-sans: "Satoshi", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Space Grotesk", "Satoshi", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
   --text-display: clamp(3rem, 5.2vw, 4.75rem);
@@ -239,6 +249,10 @@
   }
   input, select, textarea {
     font: inherit;
+  }
+  /* Absolutely positioned children (sr-only labels) stay inside a table's scroll container instead of widening the page. */
+  table {
+    position: relative;
   }
 }
 
@@ -352,6 +366,12 @@
 
 .live-dot { animation: zq-pulse-dot 2.2s ease-out infinite; }
 
+/* Execution flow along graph edges (website graphics). Content never depends on an animation running. */
+@keyframes zq-dash { to { stroke-dashoffset: -24; } }
+.zq-flow { stroke-dasharray: 6 6; animation: zq-dash 1.6s linear infinite; }
+@keyframes zq-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.zq-float { animation: zq-float 6s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -360,6 +380,7 @@
     scroll-behavior: auto !important;
   }
   .live-dot { animation: none; }
+  .zq-flow, .zq-float { animation: none; }
 }
 
 /* ============================================================
@@ -369,4 +390,9 @@
   .no-print { display: none !important; }
   body { background: #fff; }
   .print-page { box-shadow: none !important; border: none !important; }
+}
+
+/* Marketing display headings use the redesign display face; product and admin keep Satoshi throughout. */
+.marketing-type :is(.text-display, .text-h1, .text-h2) {
+  font-family: var(--font-display);
 }

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zevqora.com/schemas/zevir/v0.1/ingest-envelope.schema.json",
+  "title": "ZevIR v0.1 ingestion envelope",
+  "description": "A bounded external trace batch sent to POST /api/zevir/ingest. workspace_id is re-authorized server-side; content capture is not available in Part 1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "workspace_id", "source_kind", "payload"],
+  "properties": {
+    "schema_version": { "const": "zevir.v0.1" },
+    "workspace_id": { "$ref": "#/$defs/uuid" },
+    "product_id": { "anyOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] },
+    "source_kind": { "enum": ["otel_genai", "openinference"] },
+    "source_version": { "type": ["string", "null"], "maxLength": 120 },
+    "capture_content": { "const": false },
+    "payload": { "type": "object" }
+  },
+  "$defs": {
+    "uuid": { "type": "string", "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" }
+  }
+}

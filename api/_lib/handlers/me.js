@@ -3,6 +3,8 @@ import { ApiError, readJson, str } from '../http.js';
 import { accountStateForUser } from '../supabase.js';
 import { requireUser } from '../auth.js';
 import { sha256 } from '../tokens.js';
+import { emitProductEvent } from '../analytics/product-events.js';
+import { WORKSPACE_FLAGS as FLAG_KEYS, workspaceFlags } from '../flags.js';
 
 const USERNAME = /^[A-Za-z0-9._-]{3,30}$/;
 
@@ -28,6 +30,11 @@ async function acceptPendingInvites(admin, user) {
   return accepted;
 }
 
+/** Workspace-scoped flags, resolved server-side (override, then targeting, then enabled). The client only uses them to decide what to show. */
+async function workspaceFeatures(admin, workspaceId) {
+  return workspaceFlags(admin, workspaceId, FLAG_KEYS);
+}
+
 async function resolveFlags(admin, planId) {
   const { data: flags } = await admin.from('feature_flags').select('key,enabled,plan_overrides');
   const out = {};
@@ -41,6 +48,8 @@ async function resolveFlags(admin, planId) {
 on('GET', '/api/me', async ({ request }) => {
   const { user, profile, admin } = await requireUser(request);
   await acceptPendingInvites(admin, user);
+  // First authenticated load = signup completed; stamped with the account's creation time, recorded once.
+  await emitProductEvent(admin, { event: 'signup_completed', userId: user.id, subjectType: 'user', subjectId: user.id, properties: { provider: user.app_metadata?.provider || undefined }, dedupeKey: `signup_completed:${user.id}`, at: user.created_at && new Date(user.created_at) <= new Date() ? user.created_at : null });
   const [{ data: memberships }, { data: adminRole }, account] = await Promise.all([
     admin.from('workspace_members').select('role,workspace:workspaces(id,name,slug,owner_id,plan_override,data_retention_days,settings,created_at)').eq('user_id', user.id),
     admin.from('admin_roles').select('role').eq('user_id', user.id).maybeSingle(),
@@ -51,7 +60,7 @@ on('GET', '/api/me', async ({ request }) => {
     if (!m.workspace) continue;
     const { data: planId } = await admin.rpc('workspace_plan', { ws: m.workspace.id });
     const { count: projectCount } = await admin.from('projects').select('id', { count: 'exact', head: true }).eq('workspace_id', m.workspace.id).is('archived_at', null);
-    workspaces.push({ ...m.workspace, role: m.role, plan: planId || 'free', project_count: projectCount || 0 });
+    workspaces.push({ ...m.workspace, role: m.role, plan: planId || 'free', project_count: projectCount || 0, features: await workspaceFeatures(admin, m.workspace.id) });
   }
   workspaces.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   const flags = await resolveFlags(admin, account.plan);

@@ -4,6 +4,12 @@ import { loadPlan } from '../supabase.js';
 import { requireUser, requireWorkspaceRole, roleRank, rateLimit } from '../auth.js';
 import { generateInviteToken } from '../tokens.js';
 import { appUrl } from '../stripe.js';
+import { emitProductEvent } from '../analytics/product-events.js';
+import { recordSecurityEvent } from '../analytics/security.js';
+
+/** Audit record of a membership change (security_events, never throttled). */
+const auditMembership = (request, { user, workspaceId, action, metadata = {} }) =>
+  recordSecurityEvent(request, { kind: 'admin_action', severity: 'low', actorId: user.id, workspaceId, throttle: false, metadata: { action, ...metadata } });
 
 const MAX_OWNED_WORKSPACES = 5;
 
@@ -37,6 +43,7 @@ on('POST', '/api/workspaces', async ({ request }) => {
   if (error) throw error;
   const { error: memberError } = await admin.from('workspace_members').insert({ workspace_id: ws.id, user_id: user.id, role: 'owner' });
   if (memberError) throw memberError;
+  await emitProductEvent(admin, { event: 'workspace_created', workspaceId: ws.id, userId: user.id, subjectType: 'workspace', subjectId: ws.id, dedupeKey: `workspace_created:${ws.id}` });
   return { workspace: { ...ws, role: 'owner', plan: (await workspacePlan(admin, ws.id)).planId, project_count: 0 } };
 });
 
@@ -232,6 +239,7 @@ on('POST', '/api/workspaces/:id/invites', async ({ request, params }) => {
     if (already) throw new ApiError(409, 'That person is already a member of this workspace.', 'ALREADY_MEMBER');
     const { error } = await admin.from('workspace_members').insert({ workspace_id: workspaceId, user_id: existing.id, role, invited_by: user.id });
     if (error) throw error;
+    await auditMembership(request, { user, workspaceId, action: 'member_added', metadata: { target_user: existing.id, role } });
     return { added: true, email, role };
   }
 
@@ -245,6 +253,7 @@ on('POST', '/api/workspaces/:id/invites', async ({ request, params }) => {
     if (error.code === '23505') throw new ApiError(409, 'An invite for that email is already pending.', 'INVITE_PENDING');
     throw error;
   }
+  await auditMembership(request, { user, workspaceId, action: 'invite_created', metadata: { invite_id: invite.id, role } });
   // No transactional email provider is configured on this deployment; the
   // inviter shares the link. The invitee is also added automatically when
   // they sign in with the invited address.
@@ -255,7 +264,9 @@ on('DELETE', '/api/workspaces/:id/invites/:inviteId', async ({ request, params }
   const { user, admin } = await requireUser(request);
   const workspaceId = uuid(params.id, 'workspace');
   await requireWorkspaceRole(admin, workspaceId, user.id, 'admin');
-  await admin.from('workspace_invites').delete().eq('id', uuid(params.inviteId, 'invite')).eq('workspace_id', workspaceId);
+  const inviteId = uuid(params.inviteId, 'invite');
+  await admin.from('workspace_invites').delete().eq('id', inviteId).eq('workspace_id', workspaceId);
+  await auditMembership(request, { user, workspaceId, action: 'invite_revoked', metadata: { invite_id: inviteId } });
   return { ok: true };
 });
 
@@ -273,6 +284,7 @@ on('PATCH', '/api/workspaces/:id/members/:userId', async ({ request, params }) =
   if ((role === 'admin' || target.role === 'admin') && callerRole !== 'owner') throw new ApiError(403, 'Only the workspace owner can grant or revoke the admin role.', 'FORBIDDEN');
   const { error } = await admin.from('workspace_members').update({ role }).eq('workspace_id', workspaceId).eq('user_id', targetId);
   if (error) throw error;
+  if (role !== target.role) await auditMembership(request, { user, workspaceId, action: 'member_role_changed', metadata: { target_user: targetId, from: target.role, to: role } });
   return { ok: true, role };
 });
 
@@ -289,6 +301,7 @@ on('DELETE', '/api/workspaces/:id/members/:userId', async ({ request, params }) 
   if (!self && target.role === 'admin' && callerRole !== 'owner') throw new ApiError(403, 'Only the workspace owner can remove an admin.', 'FORBIDDEN');
   const { error } = await admin.from('workspace_members').delete().eq('workspace_id', workspaceId).eq('user_id', targetId);
   if (error) throw error;
+  await auditMembership(request, { user, workspaceId, action: self ? 'member_left' : 'member_removed', metadata: { target_user: targetId, role: target.role } });
   return { ok: true };
 });
 

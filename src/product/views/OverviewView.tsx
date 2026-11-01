@@ -2,11 +2,12 @@ import { ArrowRight, FolderGit2, Lightbulb, MessageSquare, ScanSearch, Upload } 
 import { useNavigate } from 'react-router';
 import { Zev } from '@/brand/Zev';
 import { useSession } from '@/lib/session';
-import { ProductFrame } from '../Frame';
+import { NoProject, ProductFrame } from '../Frame';
 import { useProduct } from '../store';
 import { useProductDialogs } from '../dialogs/context';
 import { Button, Card, CardHeader, Empty, Metric, StatusChip } from '../ui';
-import { costDeltaLabel, dateTime, money, pct, relativeTime, score, zeroCostReason } from '../format';
+import { costDeltaLabel, dateTime, money, relativeTime, score, zeroCostReason } from '../format';
+import { countsAsMeasuredSaving } from '../evidence';
 
 export default function OverviewView() {
   const store = useProduct();
@@ -17,25 +18,28 @@ export default function OverviewView() {
 
   if (!selected) {
     return (
-      <ProductFrame>
+      <NoProject>
         <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div>
-            <div className="peyebrow">AI Cost Optimization Engineer</div>
-            <h1 className="ph1 mt-2">Cut AI COGS without cutting product quality.</h1>
-            <p className="plede">Connect the repository you actually develop in. ZEVQORA finds where your product calls models, diagnoses spend, tests cheaper candidates on your own traces, and only calls a saving verified when every gate passes.</p>
+            <div className="peyebrow">Verified AI cost optimization</div>
+            <h1 className="ph1 mt-2">Make AI cheaper without guessing.</h1>
+            <p className="plede">Connect one authorized evidence source: the repository you develop in, or an export of a workload&rsquo;s traces. ZEVQORA establishes a baseline, tests supported candidates on the same cases, and only calls a saving verified when every gate passes.</p>
             <div className="mt-6 flex flex-wrap gap-2">
-              <Button onClick={dialogs.openConnect}>
+              <Button onClick={() => navigate('/app/onboarding')}>
+                <Upload size={15} /> Start from a trace export
+              </Button>
+              <Button variant="secondary" onClick={dialogs.openConnect}>
                 <FolderGit2 size={15} /> Connect a repository
               </Button>
-              <Button variant="secondary" onClick={() => navigate('/app/zev')}>
+              <Button variant="ghost" onClick={() => navigate('/app/zev')}>
                 <MessageSquare size={15} /> Ask Zev
               </Button>
             </div>
             <div className="mt-8 grid gap-2 sm:grid-cols-3">
               {[
-                ['01', 'Measure', 'Read-only scan + imported execution traces.'],
-                ['02', 'Replay', 'Bounded candidate on your real samples.'],
-                ['03', 'Verify', 'Quality gate decides. Then a reviewed patch.'],
+                ['01', 'Measure', 'A baseline from your traces, with where every number came from.'],
+                ['02', 'Replay', 'A supported candidate on the same representative cases.'],
+                ['03', 'Verify', 'Frozen gates decide: VERIFIED, REJECTED or INCOMPLETE.'],
               ].map(([n, t, d]) => (
                 <div key={n} className="pstep">
                   <span className="n">{n}</span>
@@ -49,15 +53,16 @@ export default function OverviewView() {
             <Zev view="pose-waving" height={240} alt="Zev" />
           </div>
         </div>
-      </ProductFrame>
+      </NoProject>
     );
   }
 
   const verified = evaluations.filter((e) => e.status === 'VERIFIED');
   const rejected = evaluations.filter((e) => e.status === 'REJECTED');
   const latest = evaluations[0] || null;
-  const verifiedSavingPct = verified.length ? Math.max(...verified.map((e) => e.raw_cost_delta_percent || 0)) : null;
-  const providers = Array.from(new Set(aiCalls.map((c) => c.provider)));
+  const incomplete = evaluations.filter((e) => e.status === 'INCOMPLETE');
+  const latestCounted = evaluations.find(countsAsMeasuredSaving) || null;
+  const baseline = economics?.baseline;
   const openChanges = implementations.filter((i) => i.status !== 'REJECTED').length;
   const steps = [
     { n: '01', t: 'Connect', d: selected.name, done: true },
@@ -100,16 +105,30 @@ export default function OverviewView() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card className="p-5">
-          <Metric label="Observed cost" value={money(economics?.observed_cost_usd, { digits: 4 })} hint={economics?.trace_count ? `${economics.trace_count} execution traces · ${economics.avg_cost_per_trace_usd != null ? money(economics.avg_cost_per_trace_usd, { digits: 5 }) + ' per trace' : ''}` : 'Import traces to measure spend'} />
+          <Metric
+            label="Measurable cost signal"
+            value={economics?.observed_cost_usd == null ? '—' : `${baseline && !baseline.cost.complete ? '≥ ' : ''}${money(economics.observed_cost_usd, { digits: 4 })}`}
+            hint={!economics?.trace_count ? 'Import execution traces to measure cost' : baseline ? `${baseline.cost.known} of ${baseline.trace_count} traces priced${baseline.cost.complete ? '' : ' · total is a lower bound'}` : `${economics.trace_count} execution traces`}
+          />
         </Card>
         <Card className="p-5">
-          <Metric label="AI call sites" value={String(aiCalls.length)} hint={providers.length ? providers.join(' · ') : scan ? 'None detected in scanned files' : 'Run a scan'} />
+          <Metric
+            label="Evidence completeness"
+            value={!baseline ? '—' : baseline.gaps.length ? `${baseline.gaps.length} gap${baseline.gaps.length === 1 ? '' : 's'}` : 'Complete'}
+            hint={!baseline ? (economics?.trace_count ? 'Baseline detail not reported by this engine' : 'No baseline yet') : baseline.gaps.length ? baseline.gaps[0].split(':')[0].replace(/_/g, ' ') + (baseline.gaps.length > 1 ? ` and ${baseline.gaps.length - 1} more · see Projects` : ' · see Projects') : `${baseline.evaluation_coverage.with_expected_output} gradable · ${baseline.evaluation_coverage.protected} protected`}
+            tone={baseline && !baseline.gaps.length ? 'verified' : undefined}
+          />
         </Card>
         <Card className="p-5">
-          <Metric label="Potential opportunities" value={String(findings.length)} hint="Signals, not savings, until replayed and graded" tone="accent" />
+          <Metric label="Open opportunities" value={String(findings.length)} hint="Signals, not savings, until replayed and graded" tone="accent" />
         </Card>
         <Card className="p-5">
-          <Metric label="Verified cost reduction" value={verifiedSavingPct === null ? '—' : pct(verifiedSavingPct)} hint={verified.length ? `best verified replay · ${verified.length} verified · ${rejected.length} rejected · ${money(economics?.verified_savings_usd, { digits: 4 })} saved on samples` : `${rejected.length ? rejected.length + ' rejected · ' : ''}nothing verified yet`} tone={verified.length ? 'verified' : undefined} />
+          <Metric
+            label="Latest verified impact"
+            value={latestCounted ? money(-(latestCounted.raw_cost_delta_usd as number), { digits: 6 }) : '—'}
+            hint={latestCounted ? `lower cost on ${latestCounted.sample_count} evaluated cases · measured, not projected` : `${rejected.length ? `${rejected.length} rejected · ` : ''}${incomplete.length ? `${incomplete.length} incomplete · ` : ''}nothing verified yet`}
+            tone={latestCounted ? 'verified' : undefined}
+          />
         </Card>
       </div>
 
@@ -135,7 +154,7 @@ export default function OverviewView() {
                 </div>
                 <div className="flex flex-col items-end justify-between gap-2">
                   <StatusChip status={latest.status} />
-                  <div className={`text-right text-[14px] font-semibold ${latest.status === 'VERIFIED' ? 'text-verified' : 'text-rejected'}`}>{latest.status === 'VERIFIED' ? 'Quality gate passed.' : latest.status === 'REJECTED' ? 'Cheaper isn’t verified.' : latest.rejection_reason || 'Evidence incomplete.'}</div>
+                  <div className={`text-right text-[14px] font-semibold ${latest.status === 'VERIFIED' ? 'text-verified' : latest.status === 'REJECTED' ? 'text-rejected' : 'text-warning'}`}>{latest.status === 'VERIFIED' ? 'Quality gate passed.' : latest.status === 'REJECTED' ? 'Cheaper isn’t verified.' : latest.rejection_reason || 'Evidence incomplete.'}</div>
                 </div>
               </div>
             )}

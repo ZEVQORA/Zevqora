@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { Archive, FolderOpen, ScanSearch, ShieldCheck, Upload } from 'lucide-react';
-import { ProductFrame } from '../Frame';
+import { NoProject, ProductFrame } from '../Frame';
 import { useProduct } from '../store';
 import { useProductDialogs } from '../dialogs/context';
 import { engineErrorMessage } from '../engine';
-import { Button, Card, CardHeader, Empty, KeyValue, Modal, Note, StatusChip, useProductToast } from '../ui';
-import { dateTime, money, ms, relativeTime } from '../format';
+import { Button, Card, CardHeader, Empty, Modal, StatusChip, useProductToast } from '../ui';
+import { BaselineCard, RequirementsCard } from './BaselineCards';
+import { ZevirPanel } from './ZevirPanel';
+import { isWorkloadProduct } from '../types';
+import { ms, relativeTime } from '../format';
 
 export default function ProjectView() {
-  const { selected, scan, aiCalls, findings, economics, runScan, toggleMonitoring, importTraceFile, archiveProduct, zevState, runtime } = useProduct();
+  const { selected, scan, aiCalls, economics, runScan, toggleMonitoring, importTraceFile, archiveProduct, zevState, runtime } = useProduct();
   const dialogs = useProductDialogs();
   const toast = useProductToast();
   const [confirmArchive, setConfirmArchive] = useState(false);
@@ -16,9 +19,9 @@ export default function ProjectView() {
 
   if (!selected) {
     return (
-      <ProductFrame>
+      <NoProject>
         <Empty title="No repository connected" description="Connect the folder you actually develop in. ZEVQORA inspects supported source files read-only and never changes code during this step." action={<Button onClick={dialogs.openConnect}><FolderOpen size={15} /> Connect repository</Button>} />
-      </ProductFrame>
+      </NoProject>
     );
   }
 
@@ -41,6 +44,37 @@ export default function ProjectView() {
       setArchiving(false);
     }
   };
+
+  const archiveModal = (
+    <Modal open={confirmArchive} onClose={() => setConfirmArchive(false)} size="sm" title="Disconnect this repository?" description={`${selected.name} will leave the switcher. Evaluations and evidence it produced remain stored and unchanged.`} footer={<><Button variant="ghost" onClick={() => setConfirmArchive(false)}>Cancel</Button><Button variant="danger" onClick={() => void archive()} loading={archiving}>Disconnect</Button></>}>
+        <div className="text-caption text-muted">Nothing is deleted from the folder itself. Read-only access stops.</div>
+      </Modal>
+  );
+
+  if (isWorkloadProduct(selected)) {
+    return (
+      <ProductFrame>
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0">
+            <div className="peyebrow">Workload</div>
+            <h1 className="ph1">{selected.name}</h1>
+            <p className="plede">Evidence for this project is the traces you import. There is no repository to scan, so it can be evaluated but cannot produce a code change.</p>
+          </div>
+          <Button size="sm" onClick={() => void importTraceFile()}><Upload size={14} /> Import traces</Button>
+        </div>
+        <BaselineCard />
+        <div className="mt-4"><ZevirPanel /></div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <RequirementsCard />
+          <Card>
+            <CardHeader title="Disconnect" description="Remove this workload from the switcher. Evidence is kept." />
+            <div className="pcard-body"><Button variant="danger" size="sm" onClick={() => setConfirmArchive(true)}><Archive size={14} /> Disconnect workload</Button></div>
+          </Card>
+        </div>
+        {archiveModal}
+      </ProductFrame>
+    );
+  }
 
   return (
     <ProductFrame>
@@ -83,6 +117,9 @@ export default function ProjectView() {
         </Card>
       </div>
 
+      <div className="mt-4"><BaselineCard /></div>
+      <div className="mt-4"><ZevirPanel /></div>
+
       <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Card>
           <CardHeader title="AI usage locations" description="Every detected model call site in the scanned source. Read-only." />
@@ -113,27 +150,12 @@ export default function ProjectView() {
             <div className="pcard-body grid gap-2 text-[12.5px] text-muted">
               <div className="flex items-start gap-2"><ShieldCheck size={15} className="mt-0.5 shrink-0 text-verified" /><span><b className="text-ink">Reads</b> .py, .js, .jsx, .ts, .tsx, .mjs, .cjs sources up to 1 MB each.</span></div>
               <div className="flex items-start gap-2"><ShieldCheck size={15} className="mt-0.5 shrink-0 text-verified" /><span><b className="text-ink">Skips</b> .git, node_modules, venvs, build output, and anything named like .env, secret, credential, token, key, private, backup, dump.</span></div>
-              <div className="flex items-start gap-2"><ShieldCheck size={15} className="mt-0.5 shrink-0 text-verified" /><span><b className="text-ink">Never</b> uploads source during a scan. Replays send only the sampled task text you imported, through your account.</span></div>
+              <div className="flex items-start gap-2"><ShieldCheck size={15} className="mt-0.5 shrink-0 text-verified" /><span><b className="text-ink">Never</b> uploads source during a scan. Replays send the recorded prompt of each selected case, through your account.</span></div>
               <div className="flex items-start gap-2"><ShieldCheck size={15} className="mt-0.5 shrink-0 text-verified" /><span><b className="text-ink">Writes</b> {runtime === 'desktop' ? 'only into an isolated Git worktree when you explicitly prepare a change.' : 'nothing to your files. Prepared changes are patches you apply yourself.'} No merge. No deploy. No SSH.</span></div>
             </div>
           </Card>
 
-          <Card>
-            <CardHeader title="Economics" description="Only from imported execution evidence." />
-            <div className="pcard-body">
-              <KeyValue
-                items={[
-                  ['Observed cost', money(economics?.observed_cost_usd, { digits: 4 })],
-                  ['Per trace', money(economics?.avg_cost_per_trace_usd, { digits: 5 })],
-                  ['Avg latency', ms(economics?.avg_latency_ms)],
-                  ['Window', economics?.first_evidence_at ? `${dateTime(economics.first_evidence_at)} → ${dateTime(economics.latest_evidence_at)}` : '—'],
-                  ['Verified savings', money(economics?.verified_savings_usd, { digits: 4 })],
-                  ['Opportunities', `${findings.length} (${findings.filter((f) => f.evidence_status === 'verified').length} verified)`],
-                ]}
-              />
-              {economics?.note && <Note tone="info" className="mt-3">{economics.note}</Note>}
-            </div>
-          </Card>
+          <RequirementsCard />
 
           <Card>
             <CardHeader title="Disconnect" description="Detach this repository. Evidence is kept." />
@@ -144,9 +166,7 @@ export default function ProjectView() {
         </div>
       </div>
 
-      <Modal open={confirmArchive} onClose={() => setConfirmArchive(false)} size="sm" title="Disconnect this repository?" description={`${selected.name} will leave the switcher. Evaluations and evidence it produced remain stored and unchanged.`} footer={<><Button variant="ghost" onClick={() => setConfirmArchive(false)}>Cancel</Button><Button variant="danger" onClick={() => void archive()} loading={archiving}>Disconnect</Button></>}>
-        <div className="text-caption text-muted">Nothing is deleted from the folder itself. Read-only access stops.</div>
-      </Modal>
+      {archiveModal}
     </ProductFrame>
   );
 }

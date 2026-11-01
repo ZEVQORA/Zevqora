@@ -65,7 +65,7 @@ export function Tabs<T extends string>({ value, onChange, items, className }: { 
 
 export function Table({ children, className, minWidth = 640 }: { children: ReactNode; className?: string; minWidth?: number }) {
   return (
-    <div className={cn('scrollbar-thin -mx-1 overflow-x-auto px-1', className)}>
+    <div className={cn('scrollbar-thin relative -mx-1 overflow-x-auto px-1', className)}>
       <table className="w-full border-collapse" style={{ minWidth }}>
         {children}
       </table>

@@ -1,113 +1,256 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { Check, Star } from 'lucide-react';
-import { cn } from '@/lib/cn';
-import { Button, ButtonAnchor } from '@/components/ui/Button';
-import { NumberTicker } from '@/components/ui/Metric';
-import { Skeleton } from '@/components/ui/States';
-import { planPrice, usePlans } from '@/lib/site';
-import { useSession } from '@/lib/session';
-import type { Plan } from '@/lib/types';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router";
+import {
+  ArrowUpRight,
+  Check,
+  Command,
+  Layers3,
+  ShieldCheck,
+} from "lucide-react";
+import { planPrice, usePlans, useSiteContent } from "@/lib/site";
+import { useSession } from "@/lib/session";
+import type { Plan } from "@/lib/types";
+import { RollingPrice } from "@/brand/RollingPrice";
+import { Kicker } from "./Editorial";
 
-export function BillingToggle({ annual, onChange }: { annual: boolean; onChange: (v: boolean) => void }) {
+/** The yearly badge reads the discount from the plans themselves, so it can never disagree with the prices. */
+export function BillingToggle({
+  annual,
+  onChange,
+  discount,
+  plans,
+}: {
+  annual: boolean;
+  onChange: (v: boolean) => void;
+  discount?: number;
+  plans?: Plan[] | null;
+}) {
+  if (discount === undefined)
+    discount = Math.max(0, ...(plans || []).filter((p) => p.visible && p.monthly_price_cents > 0).map((p) => Number(p.annual_discount_pct) || 0));
   return (
-    <div role="group" aria-label="Billing period" className="inline-flex items-center rounded-full border border-line bg-sunken p-1">
-      {[
-        { v: false, label: 'Monthly' },
-        { v: true, label: 'Annual' },
-      ].map((o) => (
-        <button key={String(o.v)} type="button" aria-pressed={annual === o.v} onClick={() => onChange(o.v)} className={cn('text-caption relative h-9 rounded-full px-4 transition-control', annual === o.v ? 'bg-surface text-ink shadow-[0_1px_2px_rgb(15_17_21/0.1)]' : 'text-muted hover:text-ink')}>
-          {o.label}
-          {o.v && <span className="ml-2 rounded-full bg-verified-bg px-1.5 py-0.5 font-mono text-[10px] text-verified">−20%</span>}
+    <div className="billing-toggle" role="group" aria-label="Billing interval">
+      {[false, true].map((v) => (
+        <button
+          key={String(v)}
+          type="button"
+          aria-pressed={annual === v}
+          onClick={() => onChange(v)}
+        >
+          {v ? "Yearly" : "Monthly"}
+          {v && discount > 0 && (
+            <>
+              {" "}
+              <span>Save {discount}%</span>
+            </>
+          )}
         </button>
       ))}
     </div>
   );
 }
 
-export function PlanCard({ plan, annual, currentPlanId }: { plan: Plan; annual: boolean; currentPlanId?: string | null }) {
+export function PlanCard({
+  plan,
+  annual,
+  currentPlanId,
+  referenceContact,
+}: {
+  plan: Plan;
+  annual: boolean;
+  currentPlanId?: string | null;
+  /** Set when live plans failed to load: the card is a reference and never starts checkout. */
+  referenceContact?: string;
+}) {
+  const price = planPrice(plan, annual);
   const { status } = useSession();
   const navigate = useNavigate();
-  const price = planPrice(plan, annual);
-  const current = currentPlanId === plan.id;
-  const onChoose = () => {
-    if (plan.contact_sales) return;
-    if (status === 'signed_in') navigate(`/app/usage?plan=${plan.id}&interval=${annual ? 'annual' : 'monthly'}`);
-    else navigate(`/signup?plan=${plan.id}`);
-  };
+  const interval = annual ? "annual" : "monthly";
+  const target =
+    status === "signed_in"
+      ? `/app/usage?plan=${plan.id}&interval=${interval}`
+      : `/signup?plan=${plan.id}&interval=${interval}`;
+  const Icon = plan.contact_sales
+    ? ShieldCheck
+    : plan.popular
+      ? Command
+      : Layers3;
+  const savings = (planPrice(plan, false) - price) * 12;
   return (
-    <div className={cn('relative flex flex-col rounded-xl border bg-surface p-7', plan.popular ? 'border-accent/50 shadow-[0_24px_60px_-30px_rgba(47,111,220,0.45)]' : 'border-line')}>
-      {plan.popular && (
-        <span className="absolute -top-3 left-6 inline-flex items-center gap-1 rounded-full bg-cta px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-white">
-          <Star size={10} fill="currentColor" aria-hidden /> Popular
+    <article className={`plan-card ${plan.popular ? "popular" : ""}`}>
+      <div className="plan-card-top">
+        <span className="plan-icon">
+          <Icon size={19} />
         </span>
+        {plan.popular && <span className="plan-badge">Most popular</span>}
+      </div>
+      <h3>
+        {plan.name}
+        {currentPlanId === plan.id && (
+          <span className="plan-current">Current plan</span>
+        )}
+      </h3>
+      <p>{plan.tagline}</p>
+      <div className="plan-price">
+        {plan.contact_sales && <span className="plan-from">from</span>}
+        <RollingPrice value={price} />
+        <small>/ month</small>
+      </div>
+      <div className="plan-billing-note">
+        <span>
+          {annual
+            ? `$${(price * 12).toFixed(2)} billed yearly`
+            : "Billed monthly"}
+        </span>
+        <span
+          className={
+            annual && savings > 0 ? "plan-savings is-visible" : "plan-savings"
+          }
+        >
+          {annual && savings > 0
+            ? `Save $${savings.toFixed(2)} a year`
+            : "Switch to yearly for more value"}
+        </span>
+      </div>
+      {referenceContact ? (
+        <a
+          className="z-button z-button-line"
+          href={`mailto:${referenceContact}?subject=${encodeURIComponent(`ZEVQORA ${plan.name} plan`)}`}
+        >
+          Confirm current pricing
+          <ArrowUpRight size={16} />
+        </a>
+      ) : plan.contact_sales ? (
+        <a className="z-button z-button-line" href={plan.cta_href}>
+          {plan.cta_label}
+          <ArrowUpRight size={16} />
+        </a>
+      ) : (
+        <button
+          type="button"
+          className={`z-button ${plan.popular ? "z-button-blue" : "z-button-line"}`}
+          onClick={() => navigate(target)}
+          aria-label={`${currentPlanId === plan.id ? "Manage" : "Choose"} ${plan.name} · ${interval}`}
+        >
+          {currentPlanId === plan.id ? "Manage plan" : plan.cta_label}
+          <ArrowUpRight size={16} />
+        </button>
       )}
-      <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-h3 text-ink">{plan.name}</h3>
-        {current && <span className="font-mono text-technical uppercase text-verified">Current</span>}
+      <div className="plan-feature-label">
+        {plan.contact_sales
+          ? "Built around your team"
+          : "Your workspace includes"}
       </div>
-      <p className="text-caption mt-2 min-h-[2.6em] text-muted">{plan.tagline}</p>
-      <div className="mt-6 flex items-baseline gap-1.5">
-        {plan.contact_sales && <span className="text-caption text-muted">from</span>}
-        <span className="text-[2.5rem] font-semibold leading-none tracking-[-0.035em] text-ink">
-          <NumberTicker value={price} format={(v) => `$${Math.round(v)}`} />
-        </span>
-        <span className="text-caption text-subtle">/ month</span>
-      </div>
-      <p className="text-technical mt-2 font-mono text-subtle">{annual ? `Billed annually · $${Math.round(price * 12)} / year` : 'Billed monthly'}</p>
-      <ul className="mt-7 flex flex-1 flex-col gap-2.5 border-t border-line pt-6">
-        {plan.features.map((f) => (
-          <li key={f} className="flex items-start gap-2.5 text-caption text-muted">
-            <Check size={14} className="mt-0.5 shrink-0 text-accent" aria-hidden />
-            <span>{f}</span>
+      <ul>
+        {plan.features.map((feature) => (
+          <li key={feature}>
+            <Check size={14} />
+            {feature}
           </li>
         ))}
       </ul>
-      <div className="mt-8">
-        {plan.contact_sales ? (
-          <ButtonAnchor href={plan.cta_href} variant="secondary" className="w-full">
-            {plan.cta_label}
-          </ButtonAnchor>
-        ) : (
-          <Button variant={plan.popular ? 'primary' : 'secondary'} className="w-full" onClick={onChoose} disabled={current}>
-            {current ? 'Your current plan' : plan.cta_label}
-          </Button>
-        )}
-      </div>
-    </div>
+    </article>
   );
 }
 
-export function PricingGrid({ heading = true, currentPlanId }: { heading?: boolean; currentPlanId?: string | null }) {
-  const [annual, setAnnual] = useState(true);
-  const { plans, error } = usePlans();
-  const visible = (plans || []).filter((p) => p.visible);
+export function PricingGrid({
+  heading = true,
+  currentPlanId,
+  page = false,
+}: {
+  heading?: boolean;
+  currentPlanId?: string | null;
+  page?: boolean;
+}) {
+  const [annual, setAnnual] = useState(false);
+  const { plans, isReference } = usePlans({ referenceFallback: true });
+  const { contact } = useSiteContent();
+  const visible = (plans || []).filter((plan) => plan.visible);
+  const discount = Math.max(
+    0,
+    ...visible.map((plan) => plan.annual_discount_pct),
+  );
+  const Heading = page ? "h1" : "h2";
   return (
-    <div className="container-page">
-      {heading && (
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-eyebrow uppercase text-muted">Pricing</p>
-            <h2 className="text-h1 mt-5 max-w-[16ch] text-ink">Start light. Scale when Zev earns it.</h2>
-            <p className="text-body mt-5 max-w-[48ch] text-muted">Every plan includes Zev credit for analysis and replay. Verified Savings is based on your own replay evidence; ZEVQORA never promises a savings percentage.</p>
-          </div>
-          <BillingToggle annual={annual} onChange={setAnnual} />
+    <div
+      className={`z-wrap pricing-surface ${page ? "pricing-full" : "pricing-compact"}`}
+    >
+      <div className="pricing-title">
+        <div>
+          {heading && (
+            <>
+              <Kicker>
+                {page ? "STRAIGHTFORWARD PRICING" : "PLANS THAT GIVE YOU ROOM"}
+              </Kicker>
+              <Heading className="z-heading">
+                {page ? (
+                  <>
+                    Simple plans.
+                    <br />
+                    <span>Room to grow.</span>
+                  </>
+                ) : (
+                  <>
+                    A lighter bill.
+                    <br />
+                    <span>A little more possibility.</span>
+                  </>
+                )}
+              </Heading>
+              <p className="z-body">
+                One workload or your whole team. Start where you are.
+              </p>
+            </>
+          )}
         </div>
-      )}
-      {!heading && (
-        <div className="mb-6 flex justify-end">
-          <BillingToggle annual={annual} onChange={setAnnual} />
+        <div className="pricing-billing-control">
+          <BillingToggle
+            annual={annual}
+            onChange={setAnnual}
+            discount={discount}
+          />
+          <p>
+            {annual
+              ? "A year to build. A better monthly rate."
+              : "Choose the rhythm that works for you."}
+          </p>
         </div>
-      )}
-      <div className="mt-10 grid gap-5 lg:grid-cols-3">
-        {!plans && !error && [0, 1, 2].map((i) => <Skeleton key={i} className="h-[440px] rounded-xl" />)}
-        {error && <p className="text-caption text-muted">{error}</p>}
-        {visible.map((p) => (
-          <PlanCard key={p.id} plan={p} annual={annual} currentPlanId={currentPlanId} />
+      </div>
+      <p className="sr-only" aria-live="polite">
+        {annual
+          ? "Yearly billing selected. Prices show the monthly equivalent."
+          : "Monthly billing selected."}
+      </p>
+      <div className="plans-grid">
+        {visible.map((plan) => (
+          <PlanCard
+            key={plan.id}
+            plan={plan}
+            annual={annual}
+            currentPlanId={currentPlanId}
+            referenceContact={isReference ? contact.email : undefined}
+          />
         ))}
       </div>
-      <p className="text-technical mt-8 font-mono text-subtle">
-        Subscriptions renew until cancelled. Zev credit resets each billing period and is consumed only by provider cost during replay. <Link to="/security" className="underline underline-offset-4 hover:text-ink">Security overview</Link>.
+      <div className="pricing-bottom-note">
+        <span>
+          <ShieldCheck size={14} /> Every plan keeps quality in the decision.
+        </span>
+        {!page && (
+          <Link to="/pricing">
+            Compare all plans <ArrowUpRight size={14} />
+          </Link>
+        )}
+      </div>
+      {isReference && (
+        <p className="plan-reference">
+          Live plans could not be loaded. These are reference prices, not a
+          confirmed offer; contact the team to confirm current pricing.
+        </p>
+      )}
+      <p className="plans-fineprint">
+        Zev credit covers provider cost during replay and resets each billing
+        period. Analysis, telemetry and reports do not use replay credit.
+        Subscriptions renew until cancelled.
       </p>
     </div>
   );

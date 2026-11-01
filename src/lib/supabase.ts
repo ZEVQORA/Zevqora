@@ -48,3 +48,30 @@ export async function accessToken(): Promise<string | null> {
   const { data } = await sb.auth.getSession();
   return data.session?.access_token || null;
 }
+
+export type OAuthProvider = 'google' | 'github';
+let providers: Promise<OAuthProvider[]> | null = null;
+
+/**
+ * The social providers this Supabase project has enabled, read from its public
+ * Auth settings. Empty when Auth is unconfigured or the settings cannot be read,
+ * so a button is never shown for a provider that would fail.
+ */
+export function getEnabledOAuthProviders(): Promise<OAuthProvider[]> {
+  if (providers) return providers;
+  providers = loadConfig()
+    .then(async (cfg) => {
+      if (!usable(cfg.supabaseUrl, cfg.supabaseAnonKey)) return [];
+      const res = await fetch(`${cfg.supabaseUrl.replace(/\/$/, '')}/auth/v1/settings`, { headers: { apikey: cfg.supabaseAnonKey } });
+      if (!res.ok) return [];
+      const external = ((await res.json()) as { external?: Record<string, boolean> }).external || {};
+      return (['google', 'github'] as const).filter((p) => external[p] === true);
+    })
+    .catch(() => []);
+  return providers;
+}
+
+/** Test hook: forget the cached provider list. */
+export function resetOAuthProvidersForTests() {
+  providers = null;
+}

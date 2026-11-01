@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Download, GitBranch, Play } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import { ProductFrame } from '../Frame';
+import { NoProject, ProductFrame } from '../Frame';
 import { useProduct } from '../store';
 import { useProductDialogs } from '../dialogs/context';
 import { Button, Card, CardHeader, Empty, Note, StatusChip, saveTextFile, useProductToast } from '../ui';
@@ -41,9 +41,9 @@ export default function ExperimentsView() {
 
   if (!selected) {
     return (
-      <ProductFrame>
+      <NoProject>
         <Empty title="Connect a repository first" action={<Button onClick={dialogs.openConnect}>Connect repository</Button>} />
-      </ProductFrame>
+      </NoProject>
     );
   }
 
@@ -137,14 +137,14 @@ export default function ExperimentsView() {
                         <td />
                         <td />
                         <td />
-                        <td className={`right tnum font-semibold ${current.raw_cost_delta_percent !== null && current.raw_cost_delta_percent > 0 ? 'text-verified' : 'text-rejected'}`}>{costDeltaLabel(current, { digits: 2, zeroReason: zeroCostReason(execution?.cost_source) })}</td>
+                        <td className={`right tnum font-semibold ${current.raw_cost_delta_percent === null ? 'text-subtle' : current.raw_cost_delta_percent > 0 ? 'text-verified' : 'text-rejected'}`}>{costDeltaLabel(current, { digits: 2, zeroReason: zeroCostReason(execution?.cost_source) })}</td>
                         <td className="right tnum">{current.baseline_latency_ms && current.candidate_latency_ms ? pct(((current.candidate_latency_ms - current.baseline_latency_ms) / current.baseline_latency_ms) * 100) : '—'}</td>
                         <td className={`right tnum font-semibold ${current.quality_delta !== null && current.quality_delta < 0 ? 'text-rejected' : 'text-verified'}`}>{current.quality_delta === null ? '—' : (current.quality_delta >= 0 ? '+' : '') + current.quality_delta.toFixed(3)}</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
-                <div className="px-5 pb-4 text-[11.5px] text-subtle">Cost source: {execution?.cost_source || 'n/a'}{execution?.pricing_version ? ` · pricing ${execution.pricing_version}` : ''} · evidence {current.evidence_version} · {current.verification_source === 'EXECUTION_EVALUATION' ? 'execution-proven' : 'legacy evidence'}</div>
+                <div className="break-all px-5 pb-4 text-[11.5px] text-subtle">Cost source: {execution?.cost_source || 'n/a'}{execution?.pricing_version ? ` · pricing ${execution.pricing_version}` : ''} · evidence {current.evidence_version} · {current.verification_source === 'EXECUTION_EVALUATION' ? 'execution-proven' : 'legacy evidence'}</div>
               </Card>
 
               <Card>
