@@ -134,7 +134,7 @@ grant select on public.site_content to anon, authenticated;
 grant all on public.profiles, public.admin_roles, public.admin_audit_log, public.site_content to service_role;
 `;
 
-export async function createDb({ zevir = true, optimize = true, intelligence = true, experience = true }: { zevir?: boolean; optimize?: boolean; intelligence?: boolean; experience?: boolean } = {}) {
+export async function createDb({ zevir = true, optimize = true, intelligence = true, experience = true, userDeletion = true }: { zevir?: boolean; optimize?: boolean; intelligence?: boolean; experience?: boolean; userDeletion?: boolean } = {}) {
   const db = new PGlite();
   await db.exec(PLATFORM);
   await db.exec(migration('009_product_engine.sql'));
@@ -149,6 +149,7 @@ export async function createDb({ zevir = true, optimize = true, intelligence = t
     await db.exec(PLATFORM_V3);
     await db.exec(migration('019_product_experience.sql'));
   }
+  if (zevir && optimize && intelligence && userDeletion) await db.exec(migration('020_user_deletion_guards.sql'));
   return db;
 }
 

@@ -16,8 +16,9 @@ All proposed objects below are **schema proposals**, not existing migrations. Ex
 | `017_verified_optimization.sql` | `evaluation_contracts`, `optimization_runs`, `performance_snapshots`, `optimization_diagnoses` + nullable lineage columns on `engine_*` | 4 enabled | `017_…rollback.sql` | Not applied |
 | `018_optimization_intelligence.sql` | `plan_searches`, `execution_plans`, `plan_calibrations`, `plan_decisions`, `bad_day_profiles`, `bad_day_results` | 6 enabled | `018_…rollback.sql` | Not applied |
 | `019_product_experience.sql` | `site_events`, `product_events`, `security_events`, `evaluation_requests`, `site_content_revisions`, flag targeting, `cms_publish()` | 5 enabled | `019_…rollback.sql` | Not applied |
+| `020_user_deletion_guards.sql` | No tables: the 017/018 guards accept the user-deletion `set null`; `execution_plans_evaluation_fk` becomes `on delete cascade` | n/a | `020_…rollback.sql` | Not applied in production; applied on staging |
 
-Order on an empty staging DB: 001 → … → 013 → 016 → 017 → 018 → 019 (see `docs/staging-runbook.md` §2). `supabase/tests/rls_privilege_check.sql` is the existing privilege check. Real-Postgres RLS has never been exercised — prior gates ran on PGlite.
+Order on an empty staging DB: 001 → … → 013 → 016 → 017 → 018 → 019 → 020 (see `docs/staging-runbook.md` §2). `supabase/tests/rls_privilege_check.sql` is the existing privilege check. Real-Postgres RLS has never been exercised — prior gates ran on PGlite.
 
 The new frontend adds **no** table, column or policy. `evidence-sources.ts` reads `zevir_graphs` only through the server route.
 

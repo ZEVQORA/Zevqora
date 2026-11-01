@@ -145,7 +145,7 @@ Role rank `owner 4 > admin 3 > member 2 > viewer 1` (`auth.js:4`). Platform `adm
 Other prerequisites:
 - A **separate** Supabase project for staging. The staging guard refuses the production ref.
 - A database backup before any migration.
-- Migrations in order 001 … 013, 016, 017, 018, 019, then `supabase/tests/rls_privilege_check.sql`.
+- Migrations in order 001 … 013, 016, 017, 018, 019, 020, then `supabase/tests/rls_privilege_check.sql`.
 - Two test workspaces with four users each, on `STAGING_EMAIL_DOMAIN` addresses only.
 - A Vercel preview whose environment points at staging, with preview protection left on.
 - Founder approvals recorded before each step.
@@ -162,4 +162,4 @@ Other prerequisites:
 8. **First vendor OAuth**: only after one provider is chosen and reviewed.
 9. **Public generative support**: optional, last; FAQ ships first.
 
-Production (013 first, then 016–019, flags per workspace) only after 1–4 pass and all three sign-offs exist.
+Production (013 first, then 016–020, flags per workspace) only after 1–4 pass and all three sign-offs exist.

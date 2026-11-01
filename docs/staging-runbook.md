@@ -12,7 +12,7 @@ founder approval.
 | Local branch | `nero/vnext-part3` — commits since `origin/nero/mvp-proof-engine` (ZevIR Part 1 → Part 3.5) are on no remote; list them with `git log --oneline origin/nero/mvp-proof-engine..HEAD` |
 | GitHub `ZEVQORA/Zevqora` | **public**; no `nero/vnext-*` branches; `main` = `97079d5` |
 | Supabase production | project ref `czhufhufvwvgyhjuaauo` (`Zevqora`, ACTIVE_HEALTHY) |
-| Production migration history | 003–012, 014, 015 tracked. **013 (`site_hero_copy`) is not in the history.** 016–019 not applied. (001/002 predate tracking.) |
+| Production migration history | 003–012, 014, 015 tracked. **013 (`site_hero_copy`) is not in the history.** 016–020 not applied. (001/002 predate tracking.) |
 | Vercel | serves older `main` builds; no Part 3 preview |
 
 ## 1. Staging environment (choose one; both need approval)
@@ -35,7 +35,7 @@ Apply every file in `supabase/migrations/` in numeric order:
 
 ```
 001 → 002 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012
-→ 013 → 014 → 015 → 016 → 017 → 018 → 019
+→ 013 → 014 → 015 → 016 → 017 → 018 → 019 → 020
 ```
 
 Dependencies:
