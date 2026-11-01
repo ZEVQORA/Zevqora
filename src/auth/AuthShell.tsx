@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowLeft, ArrowRight, ArrowUpRight, Info } from "lucide-react";
 import { ZevqoraLogo } from "@/brand/ZevqoraLogo";
+import { getEnabledOAuthProviders, type OAuthProvider } from "@/lib/supabase";
 
 export function AuthShell({
   title,
@@ -159,6 +160,21 @@ export function AuthPreviewNote() {
     </p>
   );
 }
+/** Providers enabled in Supabase Auth; null while loading. */
+function useOAuthProviders(): OAuthProvider[] | null {
+  const [providers, setProviders] = useState<OAuthProvider[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    getEnabledOAuthProviders().then((list) => {
+      if (live) setProviders(list);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  return providers;
+}
+
 export function OAuthButtons({
   onClick,
   disabled,
@@ -168,9 +184,11 @@ export function OAuthButtons({
   disabled?: boolean;
   pending?: string | null;
 }) {
+  const providers = useOAuthProviders();
+  if (!providers?.length) return null;
   return (
     <div className="auth-oauth-buttons">
-      {(["google", "github"] as const).map((provider) => (
+      {providers.map((provider) => (
         <button
           type="button"
           key={provider}
@@ -198,6 +216,8 @@ export function OAuthButtons({
   );
 }
 export function OrDivider() {
+  const providers = useOAuthProviders();
+  if (!providers?.length) return null;
   return (
     <div className="auth-or-divider" aria-hidden>
       <span />

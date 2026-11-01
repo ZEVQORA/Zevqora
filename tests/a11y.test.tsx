@@ -17,7 +17,7 @@ class IO { observe() {} unobserve() {} disconnect() {} takeRecords() { return []
 afterEach(() => cleanup());
 
 vi.mock('@/lib/session', () => ({ useSession: () => ({ status: 'signed_out', me: null, activeWorkspace: { id: 'w', name: 'W', role: 'owner', plan: 'free', features: {} } }) }));
-vi.mock('@/lib/supabase', () => ({ getSupabase: async () => null, supabaseSync: () => null, accessToken: async () => null }));
+vi.mock('@/lib/supabase', () => ({ getSupabase: async () => null, supabaseSync: () => null, accessToken: async () => null, getEnabledOAuthProviders: async () => [] }));
 vi.mock('@/lib/analytics', () => ({ track: vi.fn(), trackProductView: vi.fn(), installCtaTracking: () => () => undefined, isWebsitePath: () => true, analyticsOptedOut: () => true }));
 
 vi.mock('@/product/store', () => ({ useProduct: () => ({ selectProduct: vi.fn() }) }));
