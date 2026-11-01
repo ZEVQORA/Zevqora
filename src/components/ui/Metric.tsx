@@ -51,7 +51,7 @@ export function Metric({
 }) {
   const color = tone === 'verified' ? 'text-verified' : tone === 'accent' ? 'text-accent-text' : tone === 'warning' ? 'text-warning' : tone === 'muted' ? 'text-muted' : 'text-ink';
   return (
-    <div className={cn('flex min-w-0 flex-col gap-2', className)}>
+    <div className={cn('ui-metric flex min-w-0 flex-col gap-2', className)}>
       <div className="flex items-center justify-between gap-2">
         <span className="text-eyebrow uppercase text-subtle">{label}</span>
         {icon && <span className="text-subtle">{icon}</span>}

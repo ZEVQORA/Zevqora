@@ -48,9 +48,9 @@ describe('axe (WCAG 2.2 A/AA, contrast excluded)', () => {
     expect(await violations(container)).toEqual([]);
   });
 
-  it('product and technology pages', async () => {
+  it('product and how-it-works pages', async () => {
     const { default: ProductPage } = await import('@/marketing/ProductPage');
-    const { default: TechnologyPage } = await import('@/marketing/TechnologyPage');
+    const { default: TechnologyPage } = await import('@/marketing/HowItWorksPage');
     const a = page(<ProductPage />);
     expect(await violations(a.container)).toEqual([]);
     cleanup();

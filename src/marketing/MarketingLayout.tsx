@@ -1,164 +1,229 @@
-import { useEffect, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router';
-import { Menu, X } from 'lucide-react';
-import { ZevqoraLogo } from '@/brand/ZevqoraLogo';
-import { ButtonLink } from '@/components/ui/Button';
-import { useSession } from '@/lib/session';
-import { useSiteContent } from '@/lib/site';
-import { cn } from '@/lib/cn';
+import { useEffect, useState } from "react";
+import {
+  Link,
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigationType,
+} from "react-router";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { ArrowUpRight, Menu, X } from "lucide-react";
+import { ZevqoraLogo } from "@/brand/ZevqoraLogo";
+import { ZevqoraWordmark } from "@/brand/ZevqoraWordmark";
+import { useSession } from "@/lib/session";
+import { useSiteContent } from "@/lib/site";
 
 const NAV = [
-  { label: 'Product', href: '/product' },
-  { label: 'Technology', href: '/technology' },
-  { label: 'Security', href: '/security' },
-  { label: 'Company', href: '/company' },
+  ["Product", "/product"],
+  ["The engine", "/how-it-works"],
+  ["Evidence", "/proof"],
+  ["Pricing", "/pricing"],
+  ["Security", "/security"],
 ];
-
 export function SiteHeader() {
-  const [scrolled, setScrolled] = useState(false);
-  const [open, setOpen] = useState(false);
-  const { status } = useSession();
-  const location = useLocation();
-  const content = useSiteContent();
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-  useEffect(() => setOpen(false), [location]);
+  const [open, setOpen] = useState(false),
+    { status } = useSession(),
+    location = useLocation(),
+    reduced = useReducedMotion();
+  useEffect(() => setOpen(false), [location.pathname]);
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const close = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", close);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", close);
+    };
   }, [open]);
-
-  const signedIn = status === 'signed_in';
+  const target = status === "signed_in" ? "/app" : "/signup";
+  const { status: siteStatus } = useSiteContent();
   return (
-    <header className={cn('sticky top-0 z-40 transition-[background-color,border-color,box-shadow] duration-[320ms] ease-[cubic-bezier(0.2,0,0,1)]', scrolled || open ? 'glass-strong rounded-none border-x-0 border-t-0 border-b border-b-line/70' : 'border-b border-transparent')}>
-      {content.status.banner && <div className="border-b border-line bg-ink px-4 py-2 text-center text-caption text-[#F7F8FA]">{content.status.banner}</div>}
-      <div className="container-wide flex h-[68px] items-center justify-between gap-6">
-        <Link to="/" aria-label="ZEVQORA home" className="rounded-sm py-2">
-          <ZevqoraLogo size={26} />
+    <header className="engine-header">
+      {siteStatus.banner && (
+        <div className="engine-status-banner" role="status">
+          {siteStatus.banner}
+        </div>
+      )}
+      <div className="engine-header-inner">
+        <Link className="engine-header-logo" to="/" aria-label="ZEVQORA home">
+          <ZevqoraLogo variant="inverse" size={24} />
         </Link>
-        <nav aria-label="Primary" className="hidden lg:block">
-          <ul className="flex items-center gap-9">
-            {NAV.map((item) => (
-              <li key={item.href}>
-                <NavLink to={item.href} className={({ isActive }) => cn('text-nav rounded-sm py-2 transition-control hover:text-ink', isActive ? 'text-ink' : 'text-muted')}>
-                  {item.label}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
+        <nav aria-label="Primary">
+          {NAV.map(([label, to]) => (
+            <NavLink key={to} to={to}>
+              {label}
+            </NavLink>
+          ))}
         </nav>
-        <div className="flex items-center gap-2">
-          {signedIn ? (
-            <ButtonLink to="/app" size="sm" className="hidden sm:inline-flex">Open ZEVQORA</ButtonLink>
-          ) : (
-            <>
-              <NavLink to="/login" className="text-nav hidden rounded-sm px-3 py-2 text-muted transition-control hover:text-ink md:inline-block">Sign in</NavLink>
-              <ButtonLink to={content.hero.secondary_cta.href} size="sm" variant="secondary" className="hidden xl:inline-flex" data-cta="nav.secondary">{content.hero.secondary_cta.label}</ButtonLink>
-              <ButtonLink to={content.hero.primary_cta.href} size="sm" className="hidden sm:inline-flex" data-cta="nav.primary">{content.hero.primary_cta.label}</ButtonLink>
-            </>
-          )}
-          <button type="button" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} aria-controls="mobile-nav" onClick={() => setOpen((v) => !v)} className="-mr-2 inline-flex h-11 w-11 items-center justify-center rounded-md text-ink lg:hidden">
-            {open ? <X size={20} aria-hidden /> : <Menu size={20} aria-hidden />}
+        <div className="engine-header-actions">
+          <Link to={status === "signed_in" ? "/app" : "/login"}>
+            {status === "signed_in" ? "Workspace" : "Sign in"}
+          </Link>
+          <Link className="engine-button" to={target}>
+            Start optimizing
+            <ArrowUpRight size={14} />
+          </Link>
+          <button
+            className="engine-menu-toggle"
+            type="button"
+            aria-label={open ? "Close navigation" : "Open navigation"}
+            aria-expanded={open}
+            aria-controls="engine-mobile-menu"
+            onClick={() => setOpen((v) => !v)}
+          >
+            {open ? <X size={18} /> : <Menu size={18} />}
           </button>
         </div>
       </div>
-      {open && (
-        <div id="mobile-nav" className="border-t border-t-line lg:hidden">
-          <nav aria-label="Mobile" className="container-wide py-4">
-            <ul className="flex flex-col">
-              {NAV.map((item) => (
-                <li key={item.href} className="border-b border-line">
-                  <Link to={item.href} className="text-h4 block py-3.5 text-ink">{item.label}</Link>
-                </li>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            id="engine-mobile-menu"
+            className="engine-mobile-menu"
+            initial={reduced ? false : { opacity: 0, y: -15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.25 }}
+          >
+            <div role="navigation" aria-label="Mobile">
+              {[
+                ...NAV,
+                ["Our team", "/team"],
+                ["Evaluate your workload", "/evaluation"],
+              ].map(([label, to], i) => (
+                <Link to={to} key={to}>
+                  <small>0{i + 1}</small>
+                  <span>{label}</span>
+                  <ArrowUpRight size={22} />
+                </Link>
               ))}
-              {!signedIn && (
-                <li className="border-b border-line">
-                  <Link to="/login" className="text-h4 block py-3.5 text-ink">Sign in</Link>
-                </li>
-              )}
-            </ul>
-            <div className="mt-4 grid gap-2">
-              <ButtonLink to={signedIn ? '/app' : content.hero.primary_cta.href} size="lg" className="w-full" data-cta="mobile.primary">{signedIn ? 'Open ZEVQORA' : content.hero.primary_cta.label}</ButtonLink>
-              {!signedIn && <ButtonLink to={content.hero.secondary_cta.href} size="lg" variant="secondary" className="w-full" data-cta="mobile.secondary">{content.hero.secondary_cta.label}</ButtonLink>}
             </div>
-          </nav>
-        </div>
-      )}
+            <Link to={target}>
+              Let’s get lighter
+              <ArrowUpRight size={25} />
+            </Link>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }
-
 export function SiteFooter() {
-  const content = useSiteContent();
-  const groups: Record<string, Array<{ label: string; href: string; external?: boolean }>> = {
-    Product: [
-      { label: 'Product', href: '/product' },
-      { label: 'Technology', href: '/technology' },
-      { label: 'Pricing', href: '/pricing' },
-      { label: 'Desktop engine', href: '/download' },
-    ],
-    Company: [
-      { label: 'Company', href: '/company' },
-      { label: 'Team', href: '/team' },
-      { label: 'Evaluate your workload', href: '/evaluation' },
-      { label: 'Contact', href: `mailto:${content.contact.email}`, external: true },
-    ],
-    Trust: [
-      { label: 'Security', href: '/security' },
-      { label: 'Privacy', href: '/privacy' },
-      { label: 'Terms', href: '/terms' },
-    ],
-  };
+  const { contact, footer } = useSiteContent();
+  const groups = [
+    {
+      name: "ENGINEERED FOR AI",
+      links: [
+        ["The product", "/product"],
+        ["How it works", "/how-it-works"],
+        ["Evidence", "/proof"],
+        ["Desktop engine", "/download"],
+        ["Evaluate your workload", "/evaluation"],
+      ],
+    },
+    {
+      name: "BEHIND ZEVQORA",
+      links: [
+        ["The team", "/team"],
+        ["Company", "/company"],
+        ["Security", "/security"],
+        ["Pricing", "/pricing"],
+        ["Say hello", `mailto:${contact.email}`],
+        ["GitHub", "https://github.com/ZEVQORA/Zevqora"],
+      ],
+    },
+    {
+      name: "THE DETAILS",
+      links: [
+        ["Privacy", "/privacy"],
+        ["Terms", "/terms"],
+      ],
+    },
+  ];
   return (
-    <footer data-surface="ink" className="bg-canvas">
-      <div className="container-page py-16">
-        <div className="grid gap-12 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
-          <div>
+    <footer className="engine-footer">
+      <div className="engine-footer-top">
+        <div className="engine-footer-brand">
+          <Link to="/" aria-label="ZEVQORA home">
             <ZevqoraLogo variant="inverse" size={26} />
-            <p className="text-caption mt-5 max-w-[34ch] text-muted">{content.footer.tagline}</p>
-            <p className="text-technical mt-4 font-mono text-subtle">Measure. Replay. Verify. Then optimize.</p>
-          </div>
-          {Object.entries(groups).map(([group, links]) => (
-            <nav key={group} aria-label={group}>
-              <h2 className="text-eyebrow uppercase text-subtle">{group}</h2>
-              <ul className="mt-5 flex flex-col gap-3">
-                {links.map((l) => (
-                  <li key={l.href}>
-                    {l.external ? (
-                      <a href={l.href} className="text-caption rounded-sm text-muted transition-control hover:text-ink">{l.label}</a>
-                    ) : (
-                      <Link to={l.href} className="text-caption rounded-sm text-muted transition-control hover:text-ink">{l.label}</Link>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          ))}
+          </Link>
+          <p>
+            Intelligence, unburdened.
+            <br />A lighter way to build with AI.
+          </p>
+          <span>MEASURE. REPLAY. VERIFY. THEN OPTIMIZE.</span>
         </div>
-        <div className="mt-14 flex flex-col gap-3 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-technical font-mono text-subtle">© {new Date().getFullYear()} ZEVQORA. {content.footer.note}</p>
-          <p className="text-technical font-mono text-subtle">First-party analytics without cookies; Do Not Track and GPC are respected. See Privacy.</p>
-        </div>
+        {groups.map((g) => (
+          <nav className="engine-footer-group" aria-label={g.name} key={g.name}>
+            <h2>{g.name}</h2>
+            <ul>
+              {g.links.map(([label, to]) => (
+                <li key={label}>
+                  {to.startsWith("http") || to.startsWith("mailto:") ? (
+                    <a
+                      href={to}
+                      target={to.startsWith("http") ? "_blank" : undefined}
+                      rel="noreferrer"
+                    >
+                      {label}
+                    </a>
+                  ) : (
+                    <Link to={to}>{label}</Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))}
       </div>
+      <div className="engine-footer-wordmark" aria-hidden>
+        <ZevqoraWordmark height={150} />
+      </div>
+      <div className="engine-footer-bottom">
+        <span>© {new Date().getFullYear()} ZEVQORA. MAKE AI LIGHTER.</span>
+        <span>
+          <i />
+          ULAANBAATAR, MONGOLIA / BUILT FOR WHAT’S NEXT.
+        </span>
+      </div>
+      <p className="engine-footer-disclosure">
+        {footer.note} First-party analytics without cookies; Do Not Track and
+        GPC are respected. See <Link to="/privacy">Privacy</Link>.
+      </p>
     </footer>
   );
 }
-
 export function MarketingLayout() {
+  const location = useLocation();
+  const navigation = useNavigationType();
+  const reduced = useReducedMotion();
+  const page = location.pathname.split("/")[1] || "home";
   return (
-    <div className="flex min-h-dvh flex-col">
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-surface focus:px-4 focus:py-2 focus:text-button focus:shadow-lift">Skip to content</a>
+    <div className={`marketing-app engine-world page-${page}`}>
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[90] focus:bg-white focus:p-4"
+      >
+        Skip to content
+      </a>
       <SiteHeader />
-      <main id="main" className="flex-1">
+      <motion.main
+        id="main"
+        key={location.pathname}
+        initial={
+          reduced
+            ? false
+            : { y: navigation === "POP" ? -42 : 58, opacity: 0.75 }
+        }
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+      >
         <Outlet />
-      </main>
+      </motion.main>
       <SiteFooter />
     </div>
   );

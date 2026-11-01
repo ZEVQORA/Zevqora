@@ -8,7 +8,8 @@ import { installCtaTracking, isWebsitePath, track } from '@/lib/analytics';
 
 const HomePage = lazy(() => import('@/marketing/HomePage'));
 const ProductPage = lazy(() => import('@/marketing/ProductPage'));
-const TechnologyPage = lazy(() => import('@/marketing/TechnologyPage'));
+const HowItWorksPage = lazy(() => import('@/marketing/HowItWorksPage'));
+const ProofPage = lazy(() => import('@/marketing/ProofPage'));
 const EvaluationPage = lazy(() => import('@/marketing/EvaluationPage'));
 const CompanyPage = lazy(() => import('@/marketing/CompanyPage'));
 const PricingPage = lazy(() => import('@/marketing/PricingPage'));
@@ -77,7 +78,9 @@ export function App() {
           <Route element={<MarketingLayout />}>
             <Route index element={<HomePage />} />
             <Route path="product" element={<ProductPage />} />
-            <Route path="technology" element={<TechnologyPage />} />
+            <Route path="how-it-works" element={<HowItWorksPage />} />
+            <Route path="technology" element={<Navigate to="/how-it-works" replace />} />
+            <Route path="proof" element={<ProofPage />} />
             <Route path="evaluation" element={<EvaluationPage />} />
             <Route path="company" element={<CompanyPage />} />
             <Route path="pricing" element={<PricingPage />} />
@@ -87,6 +90,7 @@ export function App() {
             <Route path="terms" element={<LegalPage kind="terms" />} />
             <Route path="download" element={<DownloadPage />} />
           </Route>
+          <Route path="demo/*" element={<Navigate to="/product" replace />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="signup" element={<SignupPage />} />
           <Route path="forgot-password" element={<ForgotPasswordPage />} />

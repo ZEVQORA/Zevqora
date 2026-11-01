@@ -1,7 +1,10 @@
 # vNext Part 3 — rollout and rollback
 
 Nothing in this document has been run against production. Every step needs
-founder approval. Order matters: 016 → 017 → 018 → 019, then the application.
+founder approval. Order matters: 016 → 017 → 018 → 019 → 020, then the application.
+020 (`020_user_deletion_guards.sql`) lets users, workspaces and products with
+optimization evidence be deleted; it only replaces guard functions and one
+foreign-key rule (see `docs/handoff/12-LAUNCH-STATUS.md`).
 
 ## Preconditions
 

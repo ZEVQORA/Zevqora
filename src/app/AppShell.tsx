@@ -28,6 +28,7 @@ export const NAV: Array<{ to: string; label: string; Icon: typeof Home; end?: bo
   { to: '/app/connections', label: 'Connections', Icon: Plug },
   { to: '/app/team', label: 'Team', Icon: Users, section: 'Workspace' },
   { to: '/app/settings', label: 'Settings', Icon: Settings },
+  { to: '/app/enterprise', label: 'Enterprise', Icon: Shield },
   { to: '/app/project', label: 'Repository', Icon: FolderGit2, section: 'More' },
   { to: '/app/opportunities', label: 'Opportunities', Icon: Lightbulb, end: true },
   { to: '/app/evaluation', label: 'Evaluation', Icon: ClipboardCheck },
@@ -233,10 +234,10 @@ export function AppShell() {
   const productRoute = isProductPath(location.pathname);
 
   const sidebar = (
-    <aside className={cn('glass-sidebar flex h-full flex-col', collapsed ? 'w-[68px]' : 'w-[248px]')}>
+    <aside data-surface="ink" className={cn('glass-sidebar flex h-full flex-col', collapsed ? 'w-[68px]' : 'w-[248px]')}>
       <div className={cn('flex h-14 items-center border-b border-line/60 px-3', collapsed ? 'justify-center' : 'justify-between')}>
         <Link to="/app" aria-label="ZEVQORA overview" className="inline-flex items-center rounded-sm">
-          {collapsed ? <ZevqoraMark height={22} /> : <ZevqoraLogo size={22} />}
+          {collapsed ? <ZevqoraMark height={22} /> : <ZevqoraLogo variant="inverse" size={22} />}
         </Link>
         <button type="button" onClick={() => setCollapsed((v) => !v)} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} className={cn('hidden h-8 w-8 items-center justify-center rounded-md text-subtle transition-control hover:bg-ink/5 hover:text-ink lg:inline-flex', collapsed && 'absolute left-[70px] top-3 glass rounded-md')}>
           {collapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
@@ -283,7 +284,7 @@ export function AppShell() {
 
   return (
     <PresentationModeProvider>
-        <div className="app-env flex min-h-dvh">
+        <div className="app-env workspace-experience flex min-h-dvh">
           <div className="sticky top-0 hidden h-dvh shrink-0 lg:block">{sidebar}</div>
           <AnimatePresence>
             {mobileOpen && (

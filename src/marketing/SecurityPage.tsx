@@ -1,107 +1,164 @@
-import { Check, X } from 'lucide-react';
-import { Section, Reveal } from './Sections';
-import { PageHero } from './PageHero';
-import { useSeo } from '@/lib/seo';
-import { useSiteContent } from '@/lib/site';
-import { Code } from '@/components/ui/Misc';
+import {
+  ArrowUpRight,
+  Database,
+  EyeOff,
+  Fingerprint,
+  KeyRound,
+  LockKeyhole,
+  ShieldCheck,
+} from "lucide-react";
+import { Code } from "@/components/ui/Misc";
+import { useSiteContent } from "@/lib/site";
+import { EndCta, Kicker, PageTitle, Rise } from "./Editorial";
+import { SecurityBoundary } from "./ExperienceSections";
+
+const CONTROLS = [
+  {
+    Icon: Fingerprint,
+    title: "Identity & workspace access",
+    body: "Supabase Auth with Google, GitHub or email/password. Workspace membership is checked with row-level security on reads and server-enforced roles on writes. Sensitive admin changes are audited.",
+  },
+  {
+    Icon: KeyRound,
+    title: "Scoped, revocable tokens",
+    body: "Telemetry tokens use 256-bit random secrets. Only their SHA-256 hashes are stored, and each token is shown once. Connections are scoped to one project and can be revoked or rotated.",
+  },
+  {
+    Icon: EyeOff,
+    title: "Less data, by design",
+    body: "Repository scans run on your device and upload only AI call locations and findings. Runtime samples are opt-in, size-limited and secret-redacted. Imported traces are stored as you export them, prompts and outputs included, so redact before import.",
+  },
+  {
+    Icon: LockKeyhole,
+    title: "Credentials stay server-side",
+    body: "Platform replays use a server-held provider credential. The API checks session, role, plan, credit and rate limits before calling the provider. Provider errors are sanitized.",
+  },
+  {
+    Icon: Database,
+    title: "Retention you can see",
+    body: "Runtime telemetry is purged at the plan retention window or your shorter workspace setting. Imported traces, and the candidate outputs a replay was graded on, are kept as evidence until you ask us to delete them.",
+  },
+  {
+    Icon: ShieldCheck,
+    title: "Evidence you can inspect",
+    body: "Experiments keep the gate and grader versions, samples, models and provenance hash. Historical benchmark packs are immutable and checked in CI. Shipping a change still requires a person.",
+  },
+];
+// Icons for the editable `security_page` points, in order.
+const POINT_ICONS = [EyeOff, Fingerprint, LockKeyhole, ShieldCheck, Database, KeyRound];
 
 export default function SecurityPage() {
   const { contact, security_page: page } = useSiteContent();
-  useSeo({ title: 'Security — ZEVQORA', description: page.intro || 'Metadata-first evidence, provenance, tenant isolation, human approval and no blind production changes.', path: '/security' });
-  const reads = ['Provider and model per call', 'Input, output and cached token counts', 'Latency and status (ok, error, timeout)', 'Provider-reported cost, or a labelled estimate', 'A hash of the prompt for repeat detection', 'Opt-in, sanitized request and response samples'];
-  const never = ['Your source code (the desktop engine scans it locally)', 'Environment variables or credentials', 'Images, files or tool payloads inside prompts', 'Anything from a revoked connection'];
   return (
     <>
-      <PageHero eyebrow="Security" title={page.title} intro={page.intro} />
-      <Section rule={false}>
-        <div className="container-page">
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {page.points.map((pt) => (
-              <li key={pt.title} className="rounded-[18px] border border-line bg-surface p-5 shadow-[0_1px_2px_rgb(15_17_21/0.04)]">
-                <h2 className="text-[15px] font-semibold text-ink">{pt.title}</h2>
-                <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">{pt.body}</p>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-10 text-eyebrow uppercase text-subtle">How it is built today</p>
+      <PageTitle title="Security" description={page.intro ?? undefined} />
+      <section
+        className="z-wrap security-layout"
+        style={{ paddingBlock: "80px 70px" }}
+      >
+        <div>
+          <Kicker>TRUSTED BY DESIGN</Kicker>
+          <h1 className="z-display" style={{ marginTop: 26 }}>
+            Built to respect
+            <br />
+            <span>your boundaries.</span>
+          </h1>
+          <p className="z-lede" style={{ marginTop: 28 }}>
+            What we read. What stays local. Who gets to change what. Security
+            should be understandable before you connect a thing.
+          </p>
+          <a className="z-text-link" href="#controls" style={{ marginTop: 22 }}>
+            Read the controls
+            <ArrowUpRight size={15} />
+          </a>
         </div>
-      </Section>
-      <Section surface="sunken">
-        <div className="container-page grid gap-8 lg:grid-cols-2">
-          <div className="rounded-xl border border-line bg-surface p-7">
-            <h2 className="text-h3 text-ink">What a telemetry connection reads</h2>
-            <ul className="mt-5 space-y-2.5">
-              {reads.map((t) => (
-                <li key={t} className="flex items-start gap-2.5 text-caption text-muted">
-                  <Check size={14} className="mt-0.5 shrink-0 text-verified" aria-hidden /> {t}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="rounded-xl border border-line bg-surface p-7">
-            <h2 className="text-h3 text-ink">What it never touches</h2>
-            <ul className="mt-5 space-y-2.5">
-              {never.map((t) => (
-                <li key={t} className="flex items-start gap-2.5 text-caption text-muted">
-                  <X size={14} className="mt-0.5 shrink-0 text-rejected" aria-hidden /> {t}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </Section>
-      <Section>
-        <div className="container-page grid gap-12 lg:grid-cols-2 lg:gap-16">
-          {[
-            ['Identity and access', ['Supabase Auth with Google, GitHub and email/password. Sessions use the PKCE flow.', 'Workspaces isolate all data. Row-level security policies enforce membership on every read; every write goes through the server API, which re-checks the caller&rsquo;s role.', 'Roles: owner, admin, member, viewer. Only the owner can grant or revoke admin.', 'The internal admin panel is gated by a server-enforced admin role and every sensitive action is written to an audit log.']],
-            ['Connection tokens', ['Tokens are 256-bit random secrets. Only a SHA-256 hash is stored; the token is shown exactly once at creation.', 'Every token is scoped to one project and one purpose (telemetry write). A workspace id is never accepted as authorization on its own.', 'Tokens can be rotated and revoked at any time. Revocation is immediate and deletes the stored hash.']],
-            ['Platform provider credential', ['Replays run on ZEVQORA&rsquo;s own OpenRouter credential, held only in server environment variables.', 'The browser never receives a provider key. Requests flow browser → authenticated ZEVQORA API → authorization → plan and credit checks → rate limits → provider → normalized response → usage accounting.', 'Provider errors are sanitized before they reach a client.']],
-            ['Data minimization and retention', ['Repository scans run on your device. Only AI call locations and findings are uploaded; preparing a change sends the one file being changed.', 'Runtime samples are opt-in per connection, capped in size, stripped of non-text content, and passed through secret redaction before storage.', 'Imported execution traces are stored as you export them, prompts and outputs included, so a replay can ask the candidate the same question. Redact before import. Browsers cannot read them directly; only the API serves them, to members of the workspace.', 'Replays store the candidate outputs they were graded on, so every verdict can be re-checked.', 'Runtime telemetry is purged at the end of the plan retention window (7 to 365 days) or the shorter workspace setting. Imported traces and evaluations are kept as evidence until you ask us to delete them.']],
-            ['Evidence integrity', ['Every experiment records its gate version, grader version, sample ids, models and a provenance hash of its cases.', 'Historical benchmark evidence in the repository is immutable and verified in CI.', 'A candidate can only become Verified Savings by passing every named gate on a replay.']],
-            ['Transport and headers', ['HTTPS everywhere with HSTS preload. Strict Content Security Policy, no third-party scripts, self-hosted fonts.', 'The API accepts JSON only, with body size limits and per-route rate limits.']],
-          ].map(([title, points]) => (
-            <Reveal key={title as string}>
-              <h2 className="text-h3 text-ink">{title as string}</h2>
-              <ul className="mt-4 space-y-3">
-                {(points as string[]).map((p) => (
-                  <li key={p} className="text-caption text-muted" dangerouslySetInnerHTML={{ __html: p }} />
-                ))}
-              </ul>
-            </Reveal>
+        <Rise>
+          <SecurityBoundary />
+        </Rise>
+      </section>
+      <section className="z-section" id="controls">
+        <div className="z-wrap security-details">
+          {CONTROLS.map(({ Icon, title, body }) => (
+            <Rise key={title} className="security-detail">
+              <Icon size={29} />
+              <h3>{title}</h3>
+              <p>{body}</p>
+            </Rise>
           ))}
         </div>
-      </Section>
-      <Section surface="sunken">
-        <div className="container-page grid gap-10 lg:grid-cols-[1fr_1fr]">
-          <div>
-            <p className="text-eyebrow uppercase text-muted">Telemetry payload</p>
-            <h2 className="text-h2 mt-4 text-ink">Exactly what leaves your server.</h2>
-            <p className="text-caption mt-3 max-w-[50ch] text-muted">One HTTPS POST per batch, authenticated with the connection token. The sample block is only sent if you choose to include it.</p>
+      </section>
+      <section className="z-section proof-section">
+        <div className="z-wrap">
+          <div className="z-section-head">
+            <div>
+              <Kicker>EVIDENCE AND OPTIMIZATION BOUNDARIES</Kicker>
+              <h2 className="z-heading">{page.title}</h2>
+            </div>
+            <p>{page.intro}</p>
           </div>
-          <Code block>{`POST /api/telemetry/ingest
-Authorization: Bearer zqt_••••••••_••••
-
-{ "events": [{
-  "trace_id": "req_8f2c44",
-  "occurred_at": "2026-09-06T09:41:12Z",
-  "provider": "openai",
-  "model": "gpt-4o",
-  "operation": "classify.intent",
-  "status": "ok",
-  "input_tokens": 812, "output_tokens": 14,
-  "latency_ms": 1980,
-  "cost_usd": 0.0188
-}] }`}</Code>
+          <div className="security-details">
+            {page.points.map((point, i) => {
+              const Icon = POINT_ICONS[i % POINT_ICONS.length];
+              return (
+                <Rise key={point.title} className="security-detail">
+                  <Icon size={28} />
+                  <h3>{point.title}</h3>
+                  <p>{point.body}</p>
+                </Rise>
+              );
+            })}
+          </div>
         </div>
-      </Section>
-      <Section>
-        <div className="container-page">
-          <h2 className="text-h3 text-ink">Responsible disclosure</h2>
-          <p className="text-caption mt-3 max-w-[56ch] text-muted">
-            Found a vulnerability? Email <a className="text-ink underline underline-offset-4" href={`mailto:${contact.email}`}>{contact.email}</a>. We acknowledge reports within two business days and never take action against good-faith research.
+      </section>
+      <section className="z-section">
+        <div className="z-wrap loop-layout">
+          <div>
+            <Kicker>THE PAYLOAD, IN PLAIN SIGHT</Kicker>
+            <h2 className="z-heading" style={{ marginTop: 24 }}>
+              Exactly what
+              <br />
+              leaves your runtime.
+            </h2>
+            <p className="z-body" style={{ marginTop: 23 }}>
+              A batch of call metadata over HTTPS, authenticated with a
+              connection token. A sample block is only sent when you choose to
+              include one.
+            </p>
+            <p className="z-body" style={{ marginTop: 15 }}>
+              No SSH access. No remote shell. No platform scan of your source
+              code.
+            </p>
+          </div>
+          <div className="security-code">
+            <Code
+              block
+            >{`POST /api/telemetry/ingest\nAuthorization: Bearer zqt_••••••••_••••\n\n{ "events": [{\n  "trace_id": "req_8f2c44",\n  "provider": "openai",\n  "model": "gpt-4o",\n  "operation": "classify.intent",\n  "status": "ok",\n  "input_tokens": 812,\n  "output_tokens": 14,\n  "latency_ms": 1980,\n  "cost_usd": 0.0188\n}] }`}</Code>
+          </div>
+        </div>
+      </section>
+      <section className="z-section">
+        <div className="z-wrap">
+          <Kicker>RESPONSIBLE DISCLOSURE</Kicker>
+          <h2 className="z-heading" style={{ marginTop: 24 }}>
+            A direct line
+            <br />
+            to the people building it.
+          </h2>
+          <p className="z-lede" style={{ marginTop: 25 }}>
+            Found a vulnerability? Send the details to the team. We acknowledge
+            reports within two business days and welcome good-faith research.
           </p>
+          <a
+            className="z-text-link"
+            href={`mailto:${contact.email}`}
+            style={{ marginTop: 20 }}
+          >
+            {contact.email}
+            <ArrowUpRight size={15} />
+          </a>
         </div>
-      </Section>
+      </section>
+      <EndCta />
     </>
   );
 }

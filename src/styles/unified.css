@@ -1,0 +1,82 @@
+/*
+ * Additions for the unified product, written in the design branch's language
+ * (design/zevqora-frontend-refresh 207cab5). The design stylesheets are kept
+ * verbatim; only surfaces the design never had are styled here.
+ */
+
+/* Operational status banner from site_content.status.banner. */
+.engine-status-banner {
+  background: #468bff;
+  color: #fff;
+  font: 500 12px/1.5 var(--font-mono);
+  letter-spacing: 0.04em;
+  text-align: center;
+  padding: 8px 4.4vw;
+}
+
+/* Claim and privacy disclosure under the oversized footer wordmark. */
+.engine-footer-disclosure {
+  margin-top: 18px;
+  max-width: 920px;
+  font: 10px/1.7 var(--font-mono);
+  color: #8d9bb1;
+}
+.engine-footer-disclosure a {
+  color: #b1bfd5;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.engine-footer-disclosure a:hover {
+  color: #fff;
+}
+
+/* Three founders: three columns where they fit, the design's two below that. */
+@media (min-width: 1100px) {
+  .founder-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Evaluation request (release feature) on the design's section grid. */
+.evaluation-layout {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 80px;
+  align-items: start;
+}
+.evaluation-includes {
+  margin-top: 28px;
+  display: grid;
+  gap: 14px;
+}
+.evaluation-includes li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #0f1115;
+}
+.evaluation-form-card {
+  background: #fff;
+  border: 1px solid #e2e6ec;
+  padding: 36px;
+}
+@media (max-width: 900px) {
+  .evaluation-layout {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  .evaluation-form-card {
+    padding: 22px;
+  }
+}
+
+/* Phones: 16px form text so iOS does not zoom the page on focus (the design uses 14px). */
+@media (max-width: 640px) {
+  .z-auth input:not([type="checkbox"]),
+  .z-auth select,
+  .z-auth textarea {
+    font-size: 16px;
+  }
+}

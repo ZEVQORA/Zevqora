@@ -28,17 +28,17 @@ vi.mock('@/lib/analytics', () => ({ track: vi.fn(), trackProductView: vi.fn(), i
 const wrap = (ui: React.ReactNode, path = '/') => render(<ToastProvider><MemoryRouter initialEntries={[path]}>{ui}</MemoryRouter></ToastProvider>);
 
 describe('website', () => {
-  it('homepage leads with the approved headline and the internal REJECTED example, labelled as internal', async () => {
+  it('homepage leads with the design headline and the internal REJECTED example, labelled as internal', async () => {
     const { default: HomePage } = await import('@/marketing/HomePage');
     wrap(<HomePage />);
-    const h1 = screen.getByRole('heading', { level: 1 });
-    expect(h1.textContent).toBe('Make AI cheaper without guessing.');
-    expect(screen.getAllByText(/42\.01%/).length).toBeGreaterThan(0);
+    // The design (207cab5) hero sets its two-line headline as one accessible name.
+    expect(screen.getByRole('heading', { level: 1, name: 'Make AI lighter.' })).toBeTruthy();
+    expect(document.body.textContent).toMatch(/42\.01\s*%/);
     expect(screen.getByText(/Internal 50-case dogfooding benchmark\. Not customer evidence\./)).toBeTruthy();
     const text = document.body.textContent || '';
     expect(text).not.toMatch(/our customers|trusted by|paying customers|saved \$|realized savings of/i);
-    expect(screen.getAllByText(/Synthetic illustration/i).length).toBeGreaterThan(0);
-    expect(document.title).toMatch(/Make AI cheaper without guessing/);
+    expect(screen.getAllByText(/Illustrative values|SAMPLE DATA/i).length).toBeGreaterThan(0);
+    expect(document.title).toMatch(/Make AI lighter/);
     expect(document.querySelector('link[rel=canonical]')?.getAttribute('href')).toBe('https://zevqora.vercel.app');
   });
 
@@ -124,7 +124,8 @@ describe('admin', () => {
     session.value = { status: 'signed_in', me: { isAdmin: false, user: { id: 'u' }, workspaces: [] }, activeWorkspace: null };
     const { default: AdminRoutes } = await import('@/admin/AdminRoutes');
     wrap(<Routes><Route path="/admin/*" element={<AdminRoutes />} /></Routes>, '/admin/content');
-    expect(await screen.findByText(/not found|doesn.t exist|can.t find/i)).toBeTruthy();
+    expect(await screen.findByText('404')).toBeTruthy();
+    expect(document.title).toMatch(/Page not found/);
     expect(screen.queryByText('Website content')).toBeNull();
     expect(v3.cms).not.toHaveBeenCalled();
   });

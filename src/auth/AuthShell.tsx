@@ -1,72 +1,208 @@
-import type { ReactNode } from 'react';
-import { Link } from 'react-router';
-import { ZevqoraLogo } from '@/brand/ZevqoraLogo';
-import { Zev } from '@/brand/Zev';
-import { StatusChip } from '@/components/ui/StatusChip';
+import { useState, type ReactNode } from "react";
+import { Link, useLocation } from "react-router";
+import { motion, useReducedMotion } from "motion/react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, Info } from "lucide-react";
+import { ZevqoraLogo } from "@/brand/ZevqoraLogo";
 
-export function AuthShell({ title, subtitle, children, footer, aside }: { title: string; subtitle?: ReactNode; children: ReactNode; footer?: ReactNode; aside?: ReactNode }) {
+export function AuthShell({
+  title,
+  subtitle,
+  children,
+  footer,
+  aside,
+}: {
+  title: string;
+  subtitle?: ReactNode;
+  children: ReactNode;
+  footer?: ReactNode;
+  aside?: ReactNode;
+}) {
+  const location = useLocation();
+  const signup = location.pathname === "/signup";
+  const reduced = useReducedMotion();
+  const [engaged, setEngaged] = useState(false);
+  const words = signup
+    ? ["BUILD", "WHAT’S", "NEXT."]
+    : ["BACK TO", "BIG", "IDEAS."];
   return (
-    <main id="main" className="studio min-h-dvh lg:grid lg:grid-cols-[1fr_1fr]">
-      <div className="flex flex-col px-6 py-8 lg:px-14 lg:py-12">
-        <Link to="/" aria-label="ZEVQORA home" className="inline-flex w-fit rounded-sm">
-          <ZevqoraLogo size={26} />
+    <main
+      id="main"
+      className={`z-auth auth-editorial ${signup ? "is-signup" : "is-login"}`}
+    >
+      <header className="account-header">
+        <Link to="/" aria-label="ZEVQORA home">
+          <ZevqoraLogo size={27} />
         </Link>
-        <div className="mx-auto flex w-full max-w-[26rem] flex-1 flex-col justify-center py-12">
-          <h1 className="text-h2 text-ink">{title}</h1>
-          {subtitle && <p className="text-body mt-3 max-w-[40ch] text-muted">{subtitle}</p>}
-          <div className="mt-8">{children}</div>
-          {footer && <div className="mt-8">{footer}</div>}
-        </div>
-      </div>
-      <div data-surface="ink" className="hidden flex-col justify-between bg-canvas px-14 py-12 lg:flex">
-        <p className="text-eyebrow uppercase text-subtle">AI cost optimization engineer</p>
         <div>
-          {aside ?? (
-            <>
-              <p className="text-h2 max-w-[16ch] text-ink">Cheaper isn&rsquo;t verified.</p>
-              <p className="text-body mt-6 max-w-[42ch] text-muted">Measure. Replay. Verify. Then optimize. ZEVQORA rejects changes that fail your verification gates, including the ones that would have saved the most.</p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <div className="rounded-md border border-line bg-surface px-4 py-3">
-                  <StatusChip status="rejected" />
-                  <p className="mt-2 font-mono text-technical text-muted tnum">42.01% cheaper · quality 0.87 &lt; 0.95</p>
-                </div>
-                <div className="rounded-md border border-line bg-surface px-4 py-3">
-                  <StatusChip status="verified" />
-                  <p className="mt-2 font-mono text-technical text-muted tnum">12.32% cheaper · quality 0.97 ≥ 0.95</p>
-                </div>
-              </div>
-              <p className="text-technical mt-4 font-mono text-subtle">Internal benchmark. Not customer results.</p>
-            </>
+          <Link className="account-home-link" to="/">
+            <ArrowLeft size={14} />
+            Website
+          </Link>
+          <Link
+            className="account-alternate"
+            to={`${signup ? "/login" : "/signup"}${location.search}`}
+          >
+            <span>{signup ? "Already with us?" : "New here?"}</span>
+            <b>{signup ? "Sign in" : "Create account"}</b>
+            <ArrowUpRight size={17} />
+          </Link>
+        </div>
+      </header>
+      <div className="account-editorial-stage">
+        <aside
+          className="account-type-poster"
+          data-engaged={engaged}
+          aria-label="Make AI lighter."
+        >
+          <div className="account-poster-top">
+            <span>MAKE AI LIGHTER.</span>
+            <span>ZEVQORA / YOUR NEXT CHAPTER</span>
+          </div>
+          {aside ? (
+            <div className="account-custom-aside">{aside}</div>
+          ) : (
+            <h2 aria-label={words.join(" ")}>
+              {words.map((word, index) => (
+                <span className="account-word-mask" key={word}>
+                  <motion.span
+                    initial={reduced ? false : { y: "110%" }}
+                    animate={{ y: 0 }}
+                    transition={{
+                      duration: 0.9,
+                      delay: 0.1 + index * 0.09,
+                      ease: [0.16, 1, 0.3, 1],
+                    }}
+                  >
+                    {word}
+                  </motion.span>
+                </span>
+              ))}
+            </h2>
           )}
-        </div>
-        <div className="flex items-end justify-between">
-          <Zev view="pose-sitting" height={150} />
-          <p className="text-technical max-w-[26ch] text-right font-mono text-subtle">Private beta</p>
-        </div>
+          <div className="account-poster-bottom">
+            <p>
+              {signup ? (
+                <>
+                  More room for
+                  <br />
+                  what you’ll build next.
+                </>
+              ) : (
+                <>
+                  Good to have you back.
+                  <br />
+                  Let’s make room for more.
+                </>
+              )}
+            </p>
+            <ArrowRight size={44} strokeWidth={1.1} />
+          </div>
+          <span className="account-focus-rule" aria-hidden />
+        </aside>
+        <motion.section
+          className="account-form-surface"
+          aria-label={signup ? "Create account" : "Sign in"}
+          initial={reduced ? false : { opacity: 0, y: 28 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.18 }}
+        >
+          <div className="auth-form-wrap">
+            <div className="account-form-kicker">
+              <span>YOUR WORKSPACE STARTS HERE</span>
+              <span>
+                {signup ? "CREATE" : "ENTER"}
+                <ArrowUpRight size={12} />
+              </span>
+            </div>
+            <h1>{title}</h1>
+            {subtitle && <p className="auth-subtitle">{subtitle}</p>}
+            <div
+              className="auth-form"
+              onFocusCapture={() => setEngaged(true)}
+              onBlurCapture={(event) => {
+                if (
+                  !event.currentTarget.contains(
+                    event.relatedTarget as Node | null,
+                  )
+                )
+                  setEngaged(false);
+              }}
+            >
+              {children}
+            </div>
+            {footer && <div className="auth-form-footer">{footer}</div>}
+            <Link className="auth-demo-link" to="/product">
+              Explore the product first
+              <ArrowUpRight size={15} />
+            </Link>
+          </div>
+        </motion.section>
       </div>
+      <footer className="account-footer">
+        <span>© {new Date().getFullYear()} ZEVQORA</span>
+        <Link to="/privacy">
+          Your privacy
+          <ArrowUpRight size={12} />
+        </Link>
+        <span>BIG IDEAS. A LIGHTER WAY.</span>
+      </footer>
     </main>
   );
 }
-
-export function OAuthButtons({ onClick, disabled, pending }: { onClick: (provider: 'google' | 'github') => void; disabled?: boolean; pending?: string | null }) {
+export function AuthPreviewNote() {
   return (
-    <div className="grid grid-cols-2 gap-3">
-      {(['google', 'github'] as const).map((p) => (
-        <button key={p} type="button" disabled={disabled} onClick={() => onClick(p)} className="text-caption inline-flex h-11 items-center justify-center gap-2.5 rounded-md border border-line-control bg-surface font-medium text-ink transition-control hover:bg-canvas disabled:opacity-50">
-          <img src={`/brand/${p}.svg`} alt="" width={16} height={16} aria-hidden />
-          {pending === p ? 'Opening…' : p === 'google' ? 'Google' : 'GitHub'}
+    <p className="auth-preview-note" role="status">
+      <Info size={14} />
+      <span>
+        Design preview. Sign-in connects on the configured application.
+      </span>
+    </p>
+  );
+}
+export function OAuthButtons({
+  onClick,
+  disabled,
+  pending,
+}: {
+  onClick: (provider: "google" | "github") => void;
+  disabled?: boolean;
+  pending?: string | null;
+}) {
+  return (
+    <div className="auth-oauth-buttons">
+      {(["google", "github"] as const).map((provider) => (
+        <button
+          type="button"
+          key={provider}
+          disabled={disabled}
+          onClick={() => onClick(provider)}
+        >
+          <img
+            src={`/brand/${provider}.svg`}
+            alt=""
+            width={19}
+            height={19}
+            aria-hidden
+          />
+          <span>
+            {pending === provider
+              ? "Opening…"
+              : provider === "google"
+                ? "Google"
+                : "GitHub"}
+          </span>
+          <ArrowUpRight size={14} />
         </button>
       ))}
     </div>
   );
 }
-
 export function OrDivider() {
   return (
-    <div className="my-6 flex items-center gap-4" aria-hidden>
-      <span className="h-px flex-1 bg-line" />
-      <span className="text-technical uppercase text-subtle">or</span>
-      <span className="h-px flex-1 bg-line" />
+    <div className="auth-or-divider" aria-hidden>
+      <span />
+      <span>or with email</span>
+      <span />
     </div>
   );
 }

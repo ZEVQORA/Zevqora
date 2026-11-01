@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
-import { Section } from './Sections';
-import { useSiteContent } from '@/lib/site';
+import { useEffect } from "react";
+import { Intro } from "./Editorial";
+import { useSiteContent } from "@/lib/site";
 
 const PRIVACY = [
   ['What we collect', 'Account data (email, name, username, login provider), workspace and project metadata, AI call telemetry sent by connections you create (provider, model, token counts, latency, status, cost, prompt hashes), optional sanitized samples you choose to capture, execution traces you import (including the prompts and outputs they contain), candidate outputs from replays you run, usage and credit records, and standard server logs.'],
@@ -24,30 +24,50 @@ const TERMS = [
   ['Liability', 'To the extent permitted by law, ZEVQORA&rsquo;s liability is limited to the fees you paid in the three months before a claim.'],
 ];
 
-export default function LegalPage({ kind }: { kind: 'privacy' | 'terms' }) {
+export default function LegalPage({ kind }: { kind: "privacy" | "terms" }) {
   const { contact } = useSiteContent();
-  const items = kind === 'privacy' ? PRIVACY : TERMS;
+  const items = kind === "privacy" ? PRIVACY : TERMS;
   useEffect(() => {
-    document.title = `${kind === 'privacy' ? 'Privacy' : 'Terms'} — ZEVQORA`;
+    document.title = `${kind === "privacy" ? "Privacy" : "Terms"} — ZEVQORA`;
   }, [kind]);
+  const title =
+    kind === "privacy" ? "Your data. Your trust." : "A clear agreement.";
   return (
-    <Section rule={false} className="pt-14 lg:pt-20">
-      <div className="container-page max-w-[76ch]">
-        <p className="text-eyebrow uppercase text-muted">{kind === 'privacy' ? 'Privacy policy' : 'Terms of service'}</p>
-        <h1 className="text-h1 mt-4 text-ink">{kind === 'privacy' ? 'How ZEVQORA handles your data.' : 'The terms you accept when you use ZEVQORA.'}</h1>
-        <p className="text-technical mt-3 font-mono text-subtle">Last updated 2026-10-12</p>
-        <div className="mt-10 space-y-8">
-          {items.map(([t, b]) => (
-            <div key={t}>
-              <h2 className="text-h4 text-ink">{t}</h2>
-              <p className="text-caption mt-2 text-muted" dangerouslySetInnerHTML={{ __html: b }} />
+    <>
+      <Intro
+        kicker={kind === "privacy" ? "PRIVACY POLICY" : "TERMS OF SERVICE"}
+        title={title}
+        body={
+          kind === "privacy"
+            ? "What we collect, why we collect it, and the choices you keep."
+            : "The terms you accept when using ZEVQORA."
+        }
+      >
+        <p className="plan-reference">Last updated 2026-10-12</p>
+      </Intro>
+      <div className="z-wrap legal-layout">
+        <nav className="legal-nav" aria-label="On this page">
+          {items.map(([t], i) => (
+            <a href={`#legal-${i}`} key={t}>
+              {String(i + 1).padStart(2, "0")} / {t}
+            </a>
+          ))}
+        </nav>
+        <article className="legal-article">
+          {items.map(([t, b], i) => (
+            <div id={`legal-${i}`} key={t}>
+              <h2>{t}</h2>
+              <p dangerouslySetInnerHTML={{ __html: b }} />
             </div>
           ))}
-          <p className="text-caption text-muted">
-            Questions: <a href={`mailto:${contact.email}`} className="text-ink underline underline-offset-4">{contact.email}</a>
+          <p style={{ marginTop: 25 }}>
+            Questions:{" "}
+            <a className="z-text-link" href={`mailto:${contact.email}`}>
+              {contact.email}
+            </a>
           </p>
-        </div>
+        </article>
       </div>
-    </Section>
+    </>
   );
 }

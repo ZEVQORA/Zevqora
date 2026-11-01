@@ -3,4 +3,6 @@ Allow: /
 Disallow: /app/
 Disallow: /admin/
 Disallow: /desktop-auth
+Disallow: /demo
+Disallow: /design
 Sitemap: https://zevqora.vercel.app/sitemap.xml

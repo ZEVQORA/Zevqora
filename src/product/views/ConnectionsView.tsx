@@ -5,6 +5,7 @@ import { useProduct } from '../store';
 import { useProductDialogs } from '../dialogs/context';
 import { Button, Card, CardHeader, Empty, KeyValue, StatusChip } from '../ui';
 import { relativeTime } from '../format';
+import IntegrationCatalog from './IntegrationCatalog';
 
 /** Evidence sources for the selected project, what each one sends, and its state. */
 export default function ConnectionsView() {
@@ -15,6 +16,7 @@ export default function ConnectionsView() {
     return (
       <NoProject>
         <Empty title="Nothing connected yet" description="Connect the repository you develop in, or a workload you can export traces from. ZEVQORA reads what you give it and changes nothing." action={<Button onClick={dialogs.openConnect}><FolderGit2 size={15} /> Connect evidence</Button>} />
+        <div className="mt-6"><IntegrationCatalog /></div>
       </NoProject>
     );
   }
@@ -97,6 +99,8 @@ export default function ConnectionsView() {
           </div>
         </Card>
       </div>
+
+      <div className="mt-8"><IntegrationCatalog /></div>
     </ProductFrame>
   );
 }
