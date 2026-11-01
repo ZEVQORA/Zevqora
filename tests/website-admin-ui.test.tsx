@@ -20,7 +20,7 @@ afterEach(() => cleanup());
 
 const session = { value: { status: 'signed_out', me: null as null | Record<string, unknown>, activeWorkspace: null } };
 vi.mock('@/lib/session', () => ({ useSession: () => session.value }));
-vi.mock('@/lib/supabase', () => ({ getSupabase: async () => null, supabaseSync: () => null, accessToken: async () => null }));
+vi.mock('@/lib/supabase', () => ({ getSupabase: async () => null, supabaseSync: () => null, accessToken: async () => null, getEnabledOAuthProviders: async () => [] }));
 const apiMock = vi.fn();
 vi.mock('@/lib/api', async (orig) => ({ ...(await orig<typeof import('@/lib/api')>()), api: (...a: unknown[]) => apiMock(...a) }));
 vi.mock('@/lib/analytics', () => ({ track: vi.fn(), trackProductView: vi.fn(), installCtaTracking: () => () => undefined, isWebsitePath: () => true, analyticsOptedOut: () => true }));

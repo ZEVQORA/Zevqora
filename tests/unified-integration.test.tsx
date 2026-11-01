@@ -20,7 +20,7 @@ afterEach(() => cleanup());
 
 const session = vi.hoisted(() => ({ current: { status: 'signed_in', activeWorkspace: { id: 'ws-a', name: 'Workspace A', role: 'viewer', plan: 'free', features: { zevir_shadow: true } as Record<string, boolean> } } }));
 vi.mock('@/lib/session', () => ({ useSession: () => session.current }));
-vi.mock('@/lib/supabase', () => ({ getSupabase: async () => null, supabaseSync: () => null, accessToken: async () => null }));
+vi.mock('@/lib/supabase', () => ({ getSupabase: async () => null, supabaseSync: () => null, accessToken: async () => null, getEnabledOAuthProviders: async () => [] }));
 const apiMock = vi.hoisted(() => ({ fn: vi.fn() }));
 vi.mock('@/lib/api', async (orig) => ({ ...(await orig<typeof import('@/lib/api')>()), api: (...args: unknown[]) => apiMock.fn(...args) }));
 
