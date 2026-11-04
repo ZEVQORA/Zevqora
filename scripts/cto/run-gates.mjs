@@ -43,6 +43,7 @@ export const STEPS = [
   { id: 'web.verify_release', cwd: '.', cmd: 'npm run verify:release', kind: 'plain' },
   { id: 'web.build', cwd: '.', cmd: 'npm run build', kind: 'plain' },
   { id: 'web.bundle_scan', cwd: '.', cmd: 'node scripts/cto/scan-bundle.mjs dist', kind: 'plain' },
+  { id: 'web.build_isolation', cwd: '.', cmd: 'node scripts/cto/check-build-isolation.mjs', kind: 'plain' },
   { id: 'web.api_load', cwd: '.', cmd: `node --input-type=module -e "await import('./api/index.js'); console.log('api ok')"`, kind: 'plain' },
   { id: 'web.secret_scan', cwd: '.', cmd: `git grep -nIE "sk-or-[A-Za-z0-9]{10,}|sk-[A-Za-z0-9]{24,}|-----BEGIN [A-Z ]*PRIVATE KEY|ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}" -- . ":!docs" ":!tests" ":!api/_lib/sanitize.js" ":!desktop-app/backend/artifacts"`, kind: 'secret_scan' },
   { id: 'backend.ruff_check', cwd: BACKEND, cmd: `${py} -m ruff check .`, kind: 'plain' },

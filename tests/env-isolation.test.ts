@@ -5,7 +5,7 @@
  * preview build would otherwise run with production service-role access.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { assertEnvironmentIsolation, isolationStatus, keyClaims, PRODUCTION_SUPABASE_REF, supabaseRef } from '../api/_lib/env-isolation.js';
+import { assertBuildIsolation, assertEnvironmentIsolation, isolationStatus, keyClaims, PRODUCTION_SUPABASE_REF, supabaseRef } from '../api/_lib/env-isolation.js';
 import { PRODUCTION_PROJECT_REF } from '../scripts/staging/guard.mjs';
 
 const STAGING_REF = 'lxbcynzgeuqzmynkuzqg';
@@ -68,6 +68,19 @@ describe('isolationStatus / assertEnvironmentIsolation', () => {
     expect(isolationStatus(env)).toMatchObject({ service_key_project: 'unverifiable', violation: null });
   });
 
+  it('refuses a preview whose browser anon key belongs to production even if every URL is staging', () => {
+    const env = { VERCEL_ENV: 'preview', SUPABASE_URL: url(STAGING_REF), PUBLIC_SUPABASE_URL: url(STAGING_REF), PUBLIC_SUPABASE_ANON_KEY: fakeKey(PRODUCTION_SUPABASE_REF, 'anon'), SUPABASE_SERVICE_ROLE_KEY: fakeKey(STAGING_REF) };
+    expect(isolationStatus(env).violation).toBe('PREVIEW_USES_PRODUCTION_SUPABASE');
+  });
+
+  it('build-time check: an unsafe preview build throws; production, local and an isolated preview build', () => {
+    expect(() => assertBuildIsolation({ VERCEL_ENV: 'preview', PUBLIC_SUPABASE_URL: url(PRODUCTION_SUPABASE_REF), PUBLIC_SUPABASE_ANON_KEY: fakeKey(PRODUCTION_SUPABASE_REF, 'anon') })).toThrow(/refusing to build: PREVIEW_USES_PRODUCTION_SUPABASE/);
+    expect(() => assertBuildIsolation({ VERCEL_ENV: 'preview', PUBLIC_SUPABASE_URL: url(STAGING_REF), PUBLIC_SUPABASE_ANON_KEY: fakeKey(PRODUCTION_SUPABASE_REF, 'anon') })).toThrow(/refusing to build/);
+    expect(assertBuildIsolation({ VERCEL_ENV: 'production', PUBLIC_SUPABASE_URL: url(PRODUCTION_SUPABASE_REF), PUBLIC_SUPABASE_ANON_KEY: fakeKey(PRODUCTION_SUPABASE_REF, 'anon') }).violation).toBeNull();
+    expect(assertBuildIsolation({}).violation).toBeNull();
+    expect(assertBuildIsolation({ VERCEL_ENV: 'preview', PUBLIC_SUPABASE_URL: url(STAGING_REF), PUBLIC_SUPABASE_ANON_KEY: fakeKey(STAGING_REF, 'anon') }).violation).toBeNull();
+  });
+
   it('never blocks production or local development', () => {
     const prod = { VERCEL_ENV: 'production', SUPABASE_URL: url(PRODUCTION_SUPABASE_REF), PUBLIC_SUPABASE_URL: url(PRODUCTION_SUPABASE_REF), SUPABASE_SERVICE_ROLE_KEY: fakeKey(PRODUCTION_SUPABASE_REF) };
     expect(assertEnvironmentIsolation(prod)).toMatchObject({ environment: 'production', violation: null });
@@ -108,5 +121,29 @@ describe('the API fails closed in a preview pointed at production', () => {
 
     const me = await dispatch(new Request('https://preview.test/api/me', { headers: { authorization: 'Bearer anything' } }));
     expect(me.status).toBe(503);
+
+    // The browser talks to Supabase directly: /api/public-config must not hand it the production project.
+    const cfg = await dispatch(new Request('https://preview.test/api/public-config'));
+    const text = await cfg.text();
+    expect(cfg.status).toBe(503);
+    expect(cfg.headers.get('cache-control')).toBe('no-store');
+    expect(JSON.parse(text)).toMatchObject({ code: 'ENVIRONMENT_ISOLATION_VIOLATION', supabaseUrl: '', supabaseAnonKey: '' });
+    expect(text).not.toContain(PRODUCTION_SUPABASE_REF);
+    expect(text).not.toContain(process.env.PUBLIC_SUPABASE_ANON_KEY);
+  });
+
+  it('keeps serving /api/public-config unchanged in production', async () => {
+    process.env.VERCEL_ENV = 'production';
+    process.env.PUBLIC_SUPABASE_URL = url(PRODUCTION_SUPABASE_REF);
+    process.env.PUBLIC_SUPABASE_ANON_KEY = fakeKey(PRODUCTION_SUPABASE_REF, 'anon');
+    process.env.SUPABASE_SERVICE_ROLE_KEY = fakeKey(PRODUCTION_SUPABASE_REF);
+    vi.resetModules();
+    const { dispatch, resetRoutesForTests } = await import('../api/_lib/router.js');
+    resetRoutesForTests();
+    await import('../api/_lib/handlers/public.js');
+    const cfg = await dispatch(new Request('https://zevqora.test/api/public-config'));
+    expect(cfg.status).toBe(200);
+    expect(cfg.headers.get('cache-control')).toBe('public, max-age=60');
+    expect(await cfg.json()).toMatchObject({ supabaseUrl: url(PRODUCTION_SUPABASE_REF), supabaseAnonKey: process.env.PUBLIC_SUPABASE_ANON_KEY });
   });
 });

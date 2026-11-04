@@ -12,6 +12,15 @@ function stripeConfigured() {
 }
 
 on('GET', '/api/public-config', async () => {
+  const isolation = isolationStatus();
+  if (isolation.violation) {
+    // The browser would talk to Supabase directly with these values: give it nothing.
+    return json(
+      { error: 'This deployment is not configured with an isolated database.', code: 'ENVIRONMENT_ISOLATION_VIOLATION', supabaseUrl: '', supabaseAnonKey: '', environment: isolation.environment },
+      503,
+      { 'cache-control': 'no-store' },
+    );
+  }
   return json(
     {
       appUrl: process.env.PUBLIC_APP_URL || 'https://zevqora.vercel.app',

@@ -1,11 +1,13 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { getConfigSync, loadConfig } from './config';
+import { browserIsolationViolation, DEPLOY_ENV } from './isolation';
 
 let client: SupabaseClient | null = null;
 let ready: Promise<SupabaseClient | null> | null = null;
 
-function usable(url: string, key: string) {
-  return /^https?:\/\/[^\s"']+$/.test(url) && key.length > 20 && !key.includes('[');
+/** Exported for tests. A preview never treats the production project as usable (config.ts already withholds it). */
+export function usable(url: string, key: string, deployEnv: string = DEPLOY_ENV) {
+  return /^https?:\/\/[^\s"']+$/.test(url) && key.length > 20 && !key.includes('[') && !browserIsolationViolation(deployEnv, url, key);
 }
 
 function build(url: string, key: string) {

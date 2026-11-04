@@ -48,12 +48,26 @@ export function isolationStatus(env = process.env) {
   const serverRef = supabaseRef(env.SUPABASE_URL || env.PUBLIC_SUPABASE_URL);
   const publicRef = supabaseRef(env.PUBLIC_SUPABASE_URL);
   const key = keyClaims(env.SUPABASE_SERVICE_ROLE_KEY);
+  const anon = keyClaims(env.PUBLIC_SUPABASE_ANON_KEY);
   const serviceKeyProject = !env.SUPABASE_SERVICE_ROLE_KEY ? 'missing' : !key.ref ? 'unverifiable' : key.ref === serverRef ? 'matches_url' : 'mismatch';
-  const usesProduction = [serverRef, publicRef, key.ref].includes(PRODUCTION_SUPABASE_REF);
+  const usesProduction = [serverRef, publicRef, key.ref, anon.ref].includes(PRODUCTION_SUPABASE_REF);
   let violation = null;
   if (environment === 'preview' && usesProduction) violation = 'PREVIEW_USES_PRODUCTION_SUPABASE';
   else if (environment === 'preview' && serviceKeyProject === 'mismatch') violation = 'SERVICE_KEY_PROJECT_MISMATCH';
   return { environment, supabase_ref: serverRef, public_supabase_ref: publicRef, service_key_project: serviceKeyProject, uses_production_supabase: usesProduction, violation };
+}
+
+/**
+ * Build-time check (vite.config.ts): PUBLIC_* values are inlined into the
+ * browser bundle, so a preview configured with the production project must not
+ * build at all. Throws a plain Error so the build fails.
+ */
+export function assertBuildIsolation(env = process.env) {
+  const status = isolationStatus(env);
+  if (status.violation) {
+    throw new Error(`[isolation] refusing to build: ${status.violation} (VERCEL_ENV=${status.environment}). Preview builds must use the staging Supabase project; see docs/handoff/16-STAGING-ISOLATION-PLAN.md.`);
+  }
+  return status;
 }
 
 /** Throws 503 before any database client is created when a preview points at production. */
