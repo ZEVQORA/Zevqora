@@ -12,7 +12,10 @@ Branch `cto/release-gates-audit-2026-11-04` (local only), from `main@4d5de6f`:
 | `2e0f878` | Staging guard: loopback local API mode (no Vercel deployment needed) |
 | `7b39771` | `docs/handoff/11–15`, `test-summary-2026-11-04.json`, `artifacts/proof-loop-2026-11-04.json` |
 | `b1a443a` | `scripts/cto/build-summary.mjs` (summary records the exact tested commit) — **tested code head** |
-| (evidence commit) | `16-STAGING-ISOLATION-PLAN.md`, `test-summary-2026-11-04-b1a443a.json`, `artifacts/gates-b1a443a/` |
+| `5dde020` | `16-STAGING-ISOLATION-PLAN.md`, `test-summary-2026-11-04-b1a443a.json`, `artifacts/gates-b1a443a/` |
+| `9b9b49e` | PR #14 review fix: browser path of preview isolation (build refusal, `/api/public-config` 503, browser backstop) + tests |
+| `40f4aac` | Local API + isolated staging E2E harness (`npm run staging:local`), dated write approval — **tested code head** |
+| (evidence commit) | `test-summary-2026-11-04-40f4aac.json`, `artifacts/gates-40f4aac/`, doc revisions (no merge-first) |
 
 ## Evidence index (exact commits)
 
@@ -21,9 +24,10 @@ Branch `cto/release-gates-audit-2026-11-04` (local only), from `main@4d5de6f`:
 | `test-summary-2026-11-04.json` (preserved, unchanged) | `2e0f878` | last code commit at the time; `7b39771` added only `docs/handoff/` (verify: `git diff --stat 2e0f878 7b39771`) |
 | **`test-summary-2026-11-04-b1a443a.json`** + `artifacts/gates-b1a443a/` (17 sanitized step logs + proof-loop artifact) | **`b1a443a`** | re-run of every gate on the actual code head; 16/16 PASS, staging BLOCKED by design |
 | `artifacts/proof-loop-2026-11-04.json` (preserved) | `2e0f878` | same invariant hash `ac50f86d…` as the `b1a443a` run |
+| **`test-summary-2026-11-04-40f4aac.json`** + `artifacts/gates-40f4aac/` (18 step logs, proof loop, local staging dry run) | **`40f4aac`** | after the PR #14 review fix; 17/17 PASS, staging BLOCKED by design |
 
-The commit that adds this evidence cannot contain its own SHA. It changes only `docs/handoff/`
-(verify: `git diff --stat b1a443a HEAD -- . ':!docs/handoff'` prints nothing). GitHub CI on the draft PR tests the exact final head.
+Each evidence commit cannot contain its own SHA; it changes only `docs/handoff/`
+(verify for the latest: `git diff --stat 40f4aac HEAD -- . ':!docs/handoff'` prints nothing). GitHub CI on the draft PR tests the exact final head.
 
 ## DONE
 - Inventory: git, CI runs, Vercel deployments and env records (no values), Supabase projects, migrations, advisors — read-only.
@@ -41,16 +45,16 @@ The commit that adds this evidence cannot contain its own SHA. It changes only `
 ## BLOCKED (and the approval each needs)
 | # | Blocked item | Approval needed from Khuslen / Nero |
 |---|---|---|
-| A1 | Staging E2E (Gate 1) | (a) choose local-API mode or Vercel Preview mode; (b) provide the staging service-role key in an untracked local env file (never in chat or git); (c) approve disposable test writes on staging `lxbcynzgeuqzmynkuzqg` |
+| A1 | Staging E2E (Gate 1) — **still BLOCKED**; local harness ready and dry-run verified (`npm run staging:local`) | (a) fill `.env.staging.local` from `scripts/staging/staging.env.example` with the staging anon and service-role keys (never in chat or git); (b) approve disposable test writes on staging `lxbcynzgeuqzmynkuzqg` and set `STAGING_WRITES_APPROVED=<approver>@<today UTC>`; then `npm run staging:local -- --env-file .env.staging.local --execute` |
 | A2 | Preview isolation | approve Vercel env changes (remove Preview from shared production records, add staging-valued Preview records), deletion of preview `dpl_D8yCisRHAzPUzRH26VLU2VCfUvGW`, and optionally production service-role key rotation |
 | A3 | Leaked-password protection | approve the Auth setting change on staging, then production (paid-plan feature) |
 | A4 | Staging tooling cleanup | approve dropping `ops.apply_pinned`, schema `ops` and (if unused) the `http` extension on staging |
-| A5 | Publishing the branch | approve `git push -u origin cto/release-gates-audit-2026-11-04` and a **draft** PR into `main` (repository is public; diff reviewed for secrets: none) so Linux CI runs the new tests |
+| A5 | ~~Publishing the branch~~ — done: draft [PR #14](https://github.com/ZEVQORA/Zevqora/pull/14); **do not merge** (merging is a separate production decision) | — |
 
 Not requested and not done: any production migration, deploy, data access or setting change.
 
 ## NEXT (in order)
-1. A5 → CI on the branch → code review → merge (the guard is then live for every future preview).
+1. ~~A5 → merge~~ (withdrawn after the PR #14 review). PR #14 stays a draft; merging to `main` is a separate production decision.
 2. A2 → verify `/api/health` on a staging preview → A1 → `npm run test:staging` (expect 17/17, cleanup 0 problems).
 3. A3 on staging → verify advisors → production.
 4. Configure custom SMTP (signup on the built-in mailer failed on 2026-11-01) and re-run the signup test.

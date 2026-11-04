@@ -41,9 +41,11 @@ deployment URLs except custom domains.
 
 ## 3. Preconditions
 
-1. Draft PR from `cto/release-gates-audit-2026-11-04` reviewed; merging it is recommended **before** step 4 so every new preview
-   runs `api/_lib/env-isolation.js` (503 if it ever points at production again). Merging to `main` triggers a normal
-   production build of `main`; schedule it as its own decision.
+1. **Do not merge to `main` as part of this plan** (revised after the PR #14 review). Merging triggers a production build and is
+   not authorized. The isolation code is exercised on a **preview of the PR branch itself** (step 7), created only with its own
+   approval. With the PR branch, an unsafe preview cannot even build: `vite.config.ts` refuses it
+   (`refusing to build: PREVIEW_USES_PRODUCTION_SUPABASE`), and at runtime the API returns 503 on every DB route and on
+   `/api/public-config`, and the browser never creates a production client.
 2. Staging values gathered by Khuslen directly from the Supabase dashboard of `lxbcynzgeuqzmynkuzqg` (Settings → API) and typed into
    Vercel by him/Nero. **Never pasted into chat, tickets or git.**
 3. New random staging secrets (≥ 32 chars) for `DESKTOP_HANDOFF_SECRET`, `CRON_SECRET`, `ANALYTICS_SECRET`, `SECURITY_HASH_SECRET`
@@ -65,12 +67,14 @@ deployment URLs except custom domains.
 5. **Delete the stale preview** `dpl_D8yCisRHAzPUzRH26VLU2VCfUvGW` (it was built with the production key).
 6. **OpenRouter in Preview**: remove the preview `OPENROUTER_API_KEY` record (keeps staging deterministic and avoids paid calls) —
    or keep it only with an explicit spend approval.
-7. **Create one staging preview**: either a CLI preview of the merged branch, or allow a `staging` branch in `vercel.json`'s ignore
-   step (code change via PR: add `|| [ "$VERCEL_GIT_COMMIT_REF" = "staging" ]`) — never broaden it to all branches.
+7. **Create one staging preview of the PR branch** (separate approval): a CLI preview (`vercel deploy` without `--prod`, target
+   preview) of `cto/release-gates-audit-2026-11-04` — never `main`, never `--prod`. Changing `vercel.json`'s ignore step to build
+   a `staging` branch would be a further code change via PR — never broaden it to all branches.
 8. **Verify isolation at runtime** (read-only):
    `GET <preview>/api/health` (with `x-vercel-protection-bypass` if needed) → `environment: "preview"`,
    `isolation.supabase_ref` and `public_supabase_ref` = `lxbcynzgeuqzmynkuzqg`, `service_key_project` ≠ `mismatch`, `violation: null`;
-   `GET <preview>/api/public-config` → staging URL; then `npm run staging:guard` → `STAGING_GUARD PASS`.
+   `GET <preview>/api/public-config` → 200 with the staging URL (an unsafe preview answers 503 `ENVIRONMENT_ISOLATION_VIOLATION`
+   with empty Supabase values); then `node scripts/staging/guard.mjs --preflight-only` → `STAGING_GUARD PASS`.
 9. **Production check** (read-only): production deployment id unchanged; `https://zevqora.vercel.app/api/health` 200; site loads.
 10. Only then: run Gate 1 (`npm run test:staging`) with the approved disposable staging writes.
 
@@ -86,10 +90,12 @@ the production record + redeploy production in a maintenance window. Recommended
 
 ## 6. Alternative without any Vercel change (for Gate 1 only)
 
-Serve the API locally against staging: put staging values for `SUPABASE_URL`, `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_ANON_KEY`,
-`SUPABASE_SERVICE_ROLE_KEY` in an untracked `.env.staging.local`, run `node --env-file=.env.staging.local scripts/dev-api.mjs`,
-`npm run build`, then run `npm run test:staging` with `STAGING_APP_URL=http://127.0.0.1:3000` (loopback mode, guarded). This proves
-the API and RLS against hosted staging; it does **not** fix B1 (previews still hold production credentials until steps 2–5).
+`npm run staging:local -- --env-file .env.staging.local` (`scripts/staging/local-e2e.mjs`; template
+`scripts/staging/staging.env.example`). It starts the API on 127.0.0.1 with an environment derived only from `STAGING_*` values
+(inherited Supabase/OpenRouter/Stripe/Vercel variables removed), runs the read-only preflight, and stops (dry run). The write-capable
+suite runs only with `--execute` **and** `STAGING_WRITES_APPROVED=<approver>@<today UTC>`. Dry run verified on `40f4aac` with
+placeholder keys (`docs/handoff/artifacts/gates-40f4aac/staging.local_dryrun.log`). This proves the API and RLS against hosted
+staging; it does **not** fix B1 (previews still hold production credentials until steps 2–5).
 
 ## 7. Status markers (until genuinely verified)
 

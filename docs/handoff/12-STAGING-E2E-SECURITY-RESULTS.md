@@ -80,10 +80,30 @@ Existing users are unaffected until they change their password.
 2. Add Preview-scoped records (optionally restricted to a `staging` git branch) with **staging** values; set `SUPABASE_URL` for Preview to the staging URL.
 3. Delete the stale CLI preview `dpl_D8yCisRHAzPUzRH26VLU2VCfUvGW` (or redeploy it after step 2).
 4. Optional, recommended after step 1: rotate the production service-role key (the shared record dates from project creation, 2026-08-14).
-5. Merge the audit branch so every future preview fails closed if the variables regress.
+5. ~~Merge the audit branch~~ — withdrawn after the PR #14 review: merging to `main` triggers a production build and is not part of
+   isolation. The guard is verified on a separately approved preview of the PR branch (`16-…` step 7).
 6. Verify: `GET <preview>/api/health` → `environment: "preview"`, `isolation.supabase_ref: "lxbcynzgeuqzmynkuzqg"`, `violation: null`; then `npm run staging:guard` passes.
 
+## 4a. Addendum — browser path of preview isolation (PR #14 review, fixed in `9b9b49e`)
+
+Review finding (confirmed): the server guard protected only server-side Supabase clients. An unsafe preview still (1) returned the
+production `PUBLIC_SUPABASE_URL` + anon key from `/api/public-config`, (2) had those values inlined into its bundle at build time
+(`src/lib/config.ts`), and (3) let `src/lib/supabase.ts` connect the browser directly to production Auth/PostgREST; on a config
+error `loadConfig` also fell back to the inlined values. Not evidence of an RLS bypass (browser traffic is still RLS-bound), but the
+isolation requirement was unmet. Fixed with three independent layers:
+
+| Layer | Behaviour in an unsafe preview | Test |
+|---|---|---|
+| Build | `vite.config.ts` → `assertBuildIsolation`: the build fails (`refusing to build: PREVIEW_USES_PRODUCTION_SUPABASE`), so production values are never inlined | `tests/env-isolation.test.ts`; real `vite build` both ways: `scripts/cto/check-build-isolation.mjs` (gate `web.build_isolation`) |
+| Server | `/api/public-config` → 503 `ENVIRONMENT_ISOLATION_VIOLATION`, `cache-control: no-store`, empty Supabase values (production unchanged: 200, `max-age=60`) | `tests/env-isolation.test.ts` |
+| Browser | `src/lib/isolation.ts` + `config.ts`: production URL/anon-key refs are dropped in a `preview` build, an isolation 503 never falls back to inlined values, and `supabase.ts` never treats the production project as usable | `tests/browser-isolation.test.ts` |
+
+The server check now also covers a production-project anon key. Production (`VERCEL_ENV=production`) and local builds are unaffected.
+
 ## 5. Local test evidence (CI-equivalent, this machine)
+
+> Latest exact-SHA run: **`40f4aac`** — 17/17 PASS + staging BLOCKED (Web/API 580/580, build isolation PASS); see
+> `test-summary-2026-11-04-40f4aac.json`. The table below is the earlier `2e0f878` run, kept unchanged.
 
 Final run on `2e0f878` (clean tree), 2026-11-04T09:27Z–09:31Z — `node scripts/cto/run-gates.mjs`:
 

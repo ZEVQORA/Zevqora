@@ -37,7 +37,8 @@ Production is up and CI is green, but the release gates are not met:
   production data; staging E2E cannot run on Vercel; a test there would write to production.
 - **Owner:** Khuslen (CTO) with Nero (Vercel project owner).
 - **Remediation:** split the variables (Preview → staging values), delete the CLI preview, optionally rotate the production
-  service-role key, merge the fail-closed guard (`ce69d22`). Exact steps: `12-…` §4.
+  service-role key; verify the fail-closed guard (server `ce69d22`, browser/build `9b9b49e`) on a separately approved preview of the
+  PR branch — **not** by merging to `main`. Exact steps: `16-STAGING-ISOLATION-PLAN.md`.
 - **Verify:** `curl -s <preview>/api/health` → `"environment":"preview"`, `"supabase_ref":"lxbcynzgeuqzmynkuzqg"`, `"violation":null`;
   `npm run staging:guard` → `STAGING_GUARD PASS`. Unit proof of the guard: `npx vitest run tests/env-isolation.test.ts`.
 
