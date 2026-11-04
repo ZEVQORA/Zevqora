@@ -1,6 +1,8 @@
 /** The staging guard must make it impossible to point staging tests at production by mistake. */
 import { describe, expect, it } from 'vitest';
-import { checkStaging, CONFIRM_PHRASE, preflightDeployment, PRODUCTION_PROJECT_REF, STAGING_PROJECT_REF } from '../scripts/staging/guard.mjs';
+import { checkStaging, checkWriteApproval, CONFIRM_PHRASE, preflightDeployment, PRODUCTION_PROJECT_REF, STAGING_PROJECT_REF } from '../scripts/staging/guard.mjs';
+
+const today = new Date().toISOString().slice(0, 10);
 
 const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url');
 const jwt = (ref: string, role: string) => `${b64({ alg: 'HS256' })}.${b64({ iss: 'supabase', ref, role })}.sig`;
@@ -11,8 +13,26 @@ const ok = {
   STAGING_SUPABASE_SERVICE_ROLE_KEY: 'service-test-value',
   STAGING_APP_URL: 'https://zevqora-git-staging-nero404.vercel.app',
   STAGING_CONFIRM: CONFIRM_PHRASE,
+  STAGING_WRITES_APPROVED: `khuslen@${today}`,
 };
 const reason = (r: unknown) => (r as { reason: string }).reason;
+
+describe('staging guard (write approval)', () => {
+  it('requires an explicit approval for disposable staging writes, valid for the current UTC day only', () => {
+    const { STAGING_WRITES_APPROVED, ...noApproval } = ok;
+    void STAGING_WRITES_APPROVED;
+    expect(reason(checkStaging(noApproval))).toMatch(/STAGING_WRITES_APPROVED must be/);
+    expect(reason(checkStaging({ ...ok, STAGING_WRITES_APPROVED: 'yes' }))).toMatch(/STAGING_WRITES_APPROVED must be/);
+    expect(reason(checkStaging({ ...ok, STAGING_WRITES_APPROVED: 'khuslen@2026-01-01' }, { now: new Date('2026-11-04T10:00:00Z') }))).toMatch(/current UTC day only/);
+    expect(checkWriteApproval({ STAGING_WRITES_APPROVED: 'khuslen@2026-11-04' }, new Date('2026-11-04T23:59:00Z'))).toMatchObject({ ok: true, approver: 'khuslen' });
+  });
+
+  it('read-only preflight mode does not need the write approval', () => {
+    const { STAGING_WRITES_APPROVED, ...noApproval } = ok;
+    void STAGING_WRITES_APPROVED;
+    expect(checkStaging(noApproval, { requireWriteApproval: false }).ok).toBe(true);
+  });
+});
 
 describe('staging guard (static checks)', () => {
   it('accepts the allowlisted staging project and a preview URL', () => {

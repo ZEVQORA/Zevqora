@@ -45,11 +45,27 @@ function jwtClaims(key) {
   }
 }
 
+/**
+ * Staging writes (disposable users and rows) need an explicit approval for the
+ * current UTC day: STAGING_WRITES_APPROVED=<approver>@<YYYY-MM-DD>. A stale
+ * value left in an env file does not authorize a later run.
+ */
+export function checkWriteApproval(env = process.env, now = new Date()) {
+  const m = /^([a-z0-9._-]{2,40})@(\d{4}-\d{2}-\d{2})$/i.exec(env.STAGING_WRITES_APPROVED || '');
+  if (!m) return { ok: false, reason: 'STAGING_WRITES_APPROVED must be <approver>@<YYYY-MM-DD> (explicit approval for disposable staging writes)' };
+  if (m[2] !== now.toISOString().slice(0, 10)) return { ok: false, reason: `STAGING_WRITES_APPROVED is dated ${m[2]}; approval is valid for the current UTC day only` };
+  return { ok: true, approver: m[1] };
+}
+
 /** Returns { ok: true, env } or { ok: false, reason }. Never prints secret values. */
-export function checkStaging(env = process.env) {
+export function checkStaging(env = process.env, { requireWriteApproval = true, now = new Date() } = {}) {
   const missing = REQUIRED.filter((k) => !env[k]);
   if (missing.length) return { ok: false, reason: `missing: ${missing.join(', ')}` };
   if (env.STAGING_CONFIRM !== CONFIRM_PHRASE) return { ok: false, reason: `STAGING_CONFIRM must be ${CONFIRM_PHRASE}` };
+  if (requireWriteApproval) {
+    const approval = checkWriteApproval(env, now);
+    if (!approval.ok) return approval;
+  }
 
   const expectedRef = env.STAGING_SUPABASE_REF || STAGING_PROJECT_REF;
   if (!REF.test(expectedRef)) return { ok: false, reason: 'STAGING_SUPABASE_REF is not a Supabase project ref' };
@@ -134,7 +150,8 @@ export async function preflightDeployment(env, fetchImpl = fetch) {
 }
 
 if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}` || process.argv[1]?.endsWith('guard.mjs')) {
-  const r = checkStaging();
+  // --preflight-only: read-only checks (no write approval needed); test:staging runs without it.
+  const r = checkStaging(process.env, { requireWriteApproval: !process.argv.includes('--preflight-only') });
   if (!r.ok) {
     console.log(`STAGING_GUARD REFUSED — ${r.reason}`);
     process.exit(1);

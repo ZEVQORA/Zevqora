@@ -18,7 +18,8 @@
     "verify:release": "node scripts/verify-release.mjs",
     "staging:guard": "node scripts/staging/guard.mjs",
     "test:staging": "node scripts/staging/guard.mjs && vitest run --config vitest.staging.config.ts",
-    "test:proof-loop": "vitest run --config vitest.proof.config.ts"
+    "test:proof-loop": "vitest run --config vitest.proof.config.ts",
+    "staging:local": "node scripts/staging/local-e2e.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
