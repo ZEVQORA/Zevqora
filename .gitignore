@@ -30,3 +30,6 @@ coverage/
 
 # Local editor/agent tooling
 .claude/
+
+# Staging E2E shared-state journals (scripts/staging/shared-state.mjs); recover with scripts/staging/recover-shared-state.mjs
+.staging-journal/

@@ -14,6 +14,16 @@
  * Every identity and row it creates is tagged with a run id and deleted in afterAll;
  * cleanup is verified (deletion statuses and no remaining rows) and fails the run
  * when anything is left behind.
+ *
+ * Shared staging state (see scripts/staging/shared-state.mjs): the CMS test publishes to the
+ * global `hero` and the product tests add the test workspace to three flags'
+ * overrides. Each restore is registered BEFORE its mutation, checks statuses,
+ * re-reads what it restored, and runs even when an assertion failed midway;
+ * teardown of users/workspaces runs even if a restore fails. Flag targeting is
+ * exercised on a disposable flag row, never on a real flag. Append-only history
+ * (CMS revisions, admin audit log, security/product events) is not removable.
+ * Each mutation is journaled first (.staging-journal/<run>.json); if the run is
+ * aborted before afterAll, recover with scripts/staging/recover-shared-state.mjs.
  * Negative tests assert the server's actual refusal (status codes and PostgREST
  * errors), never a hidden UI element.
  *
@@ -26,6 +36,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { appHeaders, checkStaging, preflightDeployment } from '../../scripts/staging/guard.mjs';
+import { addWorkspaceOverride, CleanupRegistry, createDisposableFlag, deleteDisposableFlag, Journal, removeWorkspaceOverrides, restoreHero, snapshotHero } from '../../scripts/staging/shared-state.mjs';
 
 const guard = checkStaging();
 const enabled = guard.ok;
@@ -72,13 +83,64 @@ async function makeUser(label: string): Promise<Who> {
   const c = await http(`${env.supabaseUrl}/auth/v1/admin/users`, { method: 'POST', headers: svc(), body: { email, password: PASSWORD, email_confirm: true } });
   expect(c.status, c.text).toBeLessThan(300);
   created.push(c.body!.id);
+  journal.update({}); // an aborted run is recoverable from the first user on (users are found by run id)
   const t = await http(`${env.supabaseUrl}/auth/v1/token?grant_type=password`, { method: 'POST', headers: { apikey: env.anonKey }, body: { email, password: PASSWORD } });
   expect(t.status, t.text).toBe(200);
   return { id: c.body!.id, email, token: t.body!.access_token };
 }
 
 const ids: J = {};
-const original: J = {};
+const OPTIMIZE_FLAGS = ['verified_optimization_vnext', 'optimization_intelligence_vnext', 'zevir_shadow'];
+const DISPOSABLE_FLAG = `${RUN}_flag`;
+
+const io = {
+  svc: (method: string, path: string, body?: unknown) => rest(path, svc(), { method, body }),
+  admin: (method: string, path: string, body?: unknown) => (ids.admin?.token ? app(path, ids.admin.token, { method, body }) : null),
+};
+const cleanup = new CleanupRegistry();
+const journal = new Journal(join(process.cwd(), '.staging-journal'), RUN);
+
+// Teardown (after every restore, in this order). Registered up front so it always runs.
+cleanup.teardown('evaluation request', async () => {
+  if (!ids.lead) return;
+  const r = await rest(`evaluation_requests?id=eq.${ids.lead}`, svc(), { method: 'DELETE' });
+  if (r.status >= 300) throw new Error(`delete HTTP ${r.status}`);
+  if (((await rest(`evaluation_requests?id=eq.${ids.lead}&select=id`, svc())).body as J[] | null)?.length) throw new Error('still present');
+});
+cleanup.teardown('admin role', async () => {
+  if (!ids.admin) return;
+  const r = await rest(`admin_roles?user_id=eq.${ids.admin.id}`, svc(), { method: 'DELETE' });
+  if (r.status >= 300) throw new Error(`delete HTTP ${r.status}`);
+  if (((await rest(`admin_roles?user_id=eq.${ids.admin.id}&select=user_id`, svc())).body as J[] | null)?.length) throw new Error('still present');
+});
+// Workspaces and everything under them cascade from their owners (020 lets an
+// owner with frozen contracts and decisions be deleted). Verify, don't assume.
+cleanup.teardown('test users', async () => {
+  const problems: string[] = [];
+  for (const id of created) {
+    const del = await http(`${env.supabaseUrl}/auth/v1/admin/users/${id}`, { method: 'DELETE', headers: svc() });
+    if (del.status >= 300) problems.push(`user ${id}: delete returned ${del.status} ${del.text.slice(0, 200)}`);
+    const gone = await http(`${env.supabaseUrl}/auth/v1/admin/users/${id}`, { headers: svc() });
+    if (gone.status !== 404) problems.push(`user ${id}: still present (GET ${gone.status})`);
+  }
+  if (problems.length) throw new Error(problems.join(' | '));
+});
+cleanup.teardown('leftover rows', async () => {
+  const problems: string[] = [];
+  const wsIds = [ids.wsA, ids.wsB].filter(Boolean);
+  if (wsIds.length) {
+    const left = await rest(`workspaces?id=in.(${wsIds.join(',')})&select=id`, svc());
+    if ((left.body as J[] | null)?.length) problems.push(`workspaces left behind: ${JSON.stringify(left.body)}`);
+  }
+  const leftProducts = await rest(`engine_products?root_path=like.${RUN}*&select=id`, svc());
+  if ((leftProducts.body as J[] | null)?.length) problems.push(`engine_products left behind: ${(leftProducts.body as J[]).length}`);
+  for (const key of OPTIMIZE_FLAGS) {
+    const f = await rest(`feature_flags?key=eq.${key}&select=workspace_overrides`, svc());
+    const o = (f.body as J[] | null)?.[0]?.workspace_overrides || {};
+    if (wsIds.some((w) => w in o)) problems.push(`${key} still has a test workspace override`);
+  }
+  if (problems.length) throw new Error(problems.join(' | '));
+});
 
 describe.skipIf(!enabled)('staging: identity, session and isolation', () => {
   let owner: Who;
@@ -215,10 +277,6 @@ describe.skipIf(!enabled)('staging: admin control plane with real permissions', 
   beforeAll(async () => {
     const g = await rest('admin_roles', svc(), { method: 'POST', body: { user_id: ids.admin.id, role: 'admin' } });
     expect(g.status, g.text).toBeLessThan(300);
-    const hero = await rest('site_content?key=eq.hero&select=value', svc());
-    original.hero = (hero.body as J[])[0]?.value;
-    const flag = await rest('feature_flags?key=eq.zevir_graph_ui&select=*', svc());
-    original.flag = (flag.body as J[])[0];
   }, 60_000);
 
   it('an admin reads the command center and security events, and the read is audited', async () => {
@@ -238,6 +296,12 @@ describe.skipIf(!enabled)('staging: admin control plane with real permissions', 
   });
 
   it('CMS: draft is not public, publish is, restore brings back the previous copy; all audited', async () => {
+    // Shared, public content: snapshot it and register the restore before touching it.
+    const snap = await snapshotHero(io);
+    if (snap.openDraftId) throw new Error('A hero draft already exists on staging (someone else is editing); refusing to touch shared CMS content.');
+    journal.update({ hero: snap });
+    cleanup.restore('CMS hero', () => restoreHero(io, snap));
+    const original = { hero: snap.value };
     const draft = await app('/api/admin/cms/hero/draft', ids.admin.token, { method: 'PUT', body: { value: { ...original.hero, headline: `${RUN} headline` } } });
     expect(draft.status, draft.text).toBe(200);
     const live1 = await rest('site_content?key=eq.hero&select=value', anonH());
@@ -256,23 +320,30 @@ describe.skipIf(!enabled)('staging: admin control plane with real permissions', 
     expect((audit.body as J[]).map((a) => a.action)).toEqual(expect.arrayContaining(['cms.draft_save', 'cms.publish', 'cms.rollback']));
   });
 
-  it('flags: selected targeting + an override reaches one workspace only; a non-admin cannot change it', async () => {
-    expect((await app('/api/admin/feature-flags/zevir_graph_ui', ids.owner.token, { method: 'PUT', body: { targeting: 'on' } })).status).toBe(404);
-    expect((await app('/api/admin/feature-flags/zevir_graph_ui', ids.admin.token, { method: 'PUT', body: { targeting: 'selected' } })).status).toBe(200);
-    expect((await app('/api/admin/feature-flags/zevir_graph_ui', ids.admin.token, { method: 'PUT', body: { workspace_overrides: { ...(original.flag?.workspace_overrides || {}), [ids.wsA]: true } } })).status).toBe(200);
-    const meA = await app('/api/me', ids.owner.token);
-    const meB = await app('/api/me', ids.outsider.token);
-    expect((meA.body!.workspaces as J[]).find((w) => w.id === ids.wsA).features.zevir_graph_ui).toBe(true);
-    expect((meB.body!.workspaces as J[]).find((w) => w.id === ids.wsB).features.zevir_graph_ui).toBe(false);
+  it('flags (disposable flag, no real flag touched): selected targeting + an override reaches one workspace only; a non-admin cannot change it', async () => {
+    journal.update((j: { disposable_flags: string[] }) => ({ disposable_flags: [...j.disposable_flags, DISPOSABLE_FLAG] }));
+    cleanup.restore('disposable flag', () => deleteDisposableFlag(io, DISPOSABLE_FLAG));
+    await createDisposableFlag(io, DISPOSABLE_FLAG);
+    const path = `/api/admin/feature-flags/${DISPOSABLE_FLAG}`;
+    expect((await app(path, ids.owner.token, { method: 'PUT', body: { targeting: 'on' } })).status).toBe(404);
+    expect((await app(path, ids.admin.token, { method: 'PUT', body: { targeting: 'selected' } })).status).toBe(200);
+    expect((await app(path, ids.admin.token, { method: 'PUT', body: { workspace_overrides: { [ids.wsA]: true } } })).status).toBe(200);
+    const row = ((await rest(`feature_flags?key=eq.${DISPOSABLE_FLAG}&select=targeting,workspace_overrides`, svc())).body as J[])[0];
+    expect(row).toEqual({ targeting: 'selected', workspace_overrides: { [ids.wsA]: true } });
+    // The server's own resolution across every staging workspace: exactly one (wsA) is on.
+    const reach = await app('/api/admin/flags/reach', ids.admin.token);
+    expect(reach.status, reach.text).toBe(200);
+    expect(reach.body!.reach[DISPOSABLE_FLAG].workspaces_on).toBe(1);
   });
 });
 
 describe.skipIf(!enabled)('staging: authenticated product workflow', () => {
   beforeAll(async () => {
-    for (const key of ['verified_optimization_vnext', 'optimization_intelligence_vnext', 'zevir_shadow']) {
-      const f = await rest(`feature_flags?key=eq.${key}&select=workspace_overrides`, svc());
-      original[key] = (f.body as J[])[0]?.workspace_overrides || {};
-      await rest(`feature_flags?key=eq.${key}`, svc(), { method: 'PATCH', body: { workspace_overrides: { ...original[key], [ids.wsA]: true } } });
+    // Only the test workspace's own override key is added (and later removed); other keys are never rewritten.
+    for (const key of OPTIMIZE_FLAGS) {
+      journal.update((j: { flag_overrides: string[] }) => ({ workspaces: [ids.wsA, ids.wsB].filter(Boolean), flag_overrides: [...new Set([...j.flag_overrides, key])] }));
+      cleanup.restore(`flag override ${key}`, () => removeWorkspaceOverrides(io, key, [ids.wsA, ids.wsB].filter(Boolean)));
+      await addWorkspaceOverride(io, key, ids.wsA);
     }
   }, 60_000);
 
@@ -333,26 +404,9 @@ describe.skipIf(!enabled)('staging: authenticated product workflow', () => {
 
 afterAll(async () => {
   if (!enabled) return;
-  if (original.flag) await rest('feature_flags?key=eq.zevir_graph_ui', svc(), { method: 'PATCH', body: { targeting: original.flag.targeting ?? null, rollout_percent: original.flag.rollout_percent ?? null, enabled: original.flag.enabled, workspace_overrides: original.flag.workspace_overrides } });
-  for (const key of ['verified_optimization_vnext', 'optimization_intelligence_vnext', 'zevir_shadow']) if (original[key]) await rest(`feature_flags?key=eq.${key}`, svc(), { method: 'PATCH', body: { workspace_overrides: original[key] } });
-  if (ids.lead) await rest(`evaluation_requests?id=eq.${ids.lead}`, svc(), { method: 'DELETE' });
-  if (ids.admin) await rest(`admin_roles?user_id=eq.${ids.admin.id}`, svc(), { method: 'DELETE' });
-  // Workspaces and everything under them cascade from their owners (020 lets an
-  // owner with frozen contracts and decisions be deleted). Verify, don't assume.
-  const problems: string[] = [];
-  for (const id of created) {
-    const del = await http(`${env.supabaseUrl}/auth/v1/admin/users/${id}`, { method: 'DELETE', headers: svc() });
-    if (del.status >= 300) problems.push(`user ${id}: delete returned ${del.status} ${del.text.slice(0, 200)}`);
-    const gone = await http(`${env.supabaseUrl}/auth/v1/admin/users/${id}`, { headers: svc() });
-    if (gone.status !== 404) problems.push(`user ${id}: still present (GET ${gone.status})`);
-  }
-  const wsIds = [ids.wsA, ids.wsB].filter(Boolean);
-  if (wsIds.length) {
-    const left = await rest(`workspaces?id=in.(${wsIds.join(',')})&select=id`, svc());
-    if ((left.body as J[] | null)?.length) problems.push(`workspaces left behind: ${JSON.stringify(left.body)}`);
-  }
-  const leftProducts = await rest(`engine_products?root_path=like.${RUN}*&select=id`, svc());
-  if ((leftProducts.body as J[] | null)?.length) problems.push(`engine_products left behind: ${(leftProducts.body as J[]).length}`);
-  console.log(`[staging] cleanup: ${created.length} users deleted, ${problems.length} problem(s)`);
-  if (problems.length) throw new Error(`STAGING CLEANUP INCOMPLETE — ${problems.join(' | ')}`);
-}, 120_000);
+  const problems = await cleanup.runAll();
+  for (const line of cleanup.log) console.log(`[staging] cleanup ${line}`);
+  console.log(`[staging] cleanup: ${created.length} users, ${problems.length} problem(s)`);
+  if (problems.length) throw new Error(`STAGING CLEANUP INCOMPLETE — ${problems.join(' | ')} — journal kept: ${journal.file} (scripts/staging/recover-shared-state.mjs)`);
+  journal.clear();
+}, 180_000);
