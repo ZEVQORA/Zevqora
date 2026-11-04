@@ -125,7 +125,8 @@ describe('admin', () => {
     const { default: AdminRoutes } = await import('@/admin/AdminRoutes');
     wrap(<Routes><Route path="/admin/*" element={<AdminRoutes />} /></Routes>, '/admin/content');
     expect(await screen.findByText('404')).toBeTruthy();
-    expect(document.title).toMatch(/Page not found/);
+    // The page title is set in an effect after the 404 renders.
+    await waitFor(() => expect(document.title).toMatch(/Page not found/));
     expect(screen.queryByText('Website content')).toBeNull();
     expect(v3.cms).not.toHaveBeenCalled();
   });
