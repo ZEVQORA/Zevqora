@@ -35,8 +35,12 @@ describe('staging guard (static checks)', () => {
     expect(reason(checkStaging({ ...ok, STAGING_SUPABASE_REF: PRODUCTION_PROJECT_REF }))).toMatch(/PRODUCTION project/);
   });
 
-  it('refuses plain http', () => {
+  it('refuses plain http except for a loopback API served locally against staging', () => {
     expect(reason(checkStaging({ ...ok, STAGING_APP_URL: 'http://zevqora-git-staging-nero404.vercel.app' }))).toMatch(/https/);
+    expect(reason(checkStaging({ ...ok, STAGING_APP_URL: 'http://192.168.1.20:3000' }))).toMatch(/https/);
+    expect(reason(checkStaging({ ...ok, STAGING_SUPABASE_URL: `http://${STAGING_PROJECT_REF}.supabase.co` }))).toMatch(/https/);
+    expect(checkStaging({ ...ok, STAGING_APP_URL: 'http://127.0.0.1:3000' })).toMatchObject({ ok: true, env: { mode: 'local' } });
+    expect(checkStaging(ok)).toMatchObject({ ok: true, env: { mode: 'preview' } });
   });
 
   it('refuses the production site and production branch aliases', () => {
@@ -88,6 +92,13 @@ describe('staging guard (deployment preflight)', () => {
 
   it('refuses a production deployment even on a non-production URL', async () => {
     expect(reason(await preflightDeployment(env, fake(health({ environment: 'production' })).impl))).toMatch(/expected preview/);
+  });
+
+  it('accepts a loopback server only when it reports a local environment on the staging project', async () => {
+    const local = (checkStaging({ ...ok, STAGING_APP_URL: 'http://127.0.0.1:3000' }) as { env: Record<string, string> }).env;
+    expect(await preflightDeployment(local, fake(health({ environment: 'local' })).impl)).toMatchObject({ ok: true });
+    expect(reason(await preflightDeployment(local, fake(health({ environment: 'production' })).impl))).toMatch(/expected local/);
+    expect(reason(await preflightDeployment(local, fake(health({ environment: 'local' }, { supabase_ref: PRODUCTION_PROJECT_REF })).impl))).toMatch(/expected lxbcynzgeuqzmynkuzqg/);
   });
 
   it('refuses a preview that reports an isolation violation or another project', async () => {

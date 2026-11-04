@@ -22,12 +22,14 @@
  * /api/health and /api/public-config, that it is a preview using the staging
  * project.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { appHeaders, checkStaging, preflightDeployment } from '../../scripts/staging/guard.mjs';
 
 const guard = checkStaging();
 const enabled = guard.ok;
-const env = (guard as { env: { supabaseUrl: string; supabaseRef: string; appUrl: string; anonKey: string; serviceKey: string; bypass: string | null } }).env;
+const env = (guard as { env: { supabaseUrl: string; supabaseRef: string; appUrl: string; mode: 'local' | 'preview'; anonKey: string; serviceKey: string; bypass: string | null } }).env;
 
 describe('staging: guard', () => {
   it('is configured for the isolated staging project (otherwise this run fails, it is not skipped)', () => {
@@ -196,11 +198,13 @@ describe.skipIf(!enabled)('staging: identity, session and isolation', () => {
   });
 
   it('the deployed bundle contains no service-role credential', async () => {
-    const html = (await http(`${env.appUrl}/`, { headers: appHeaders(env) })).text;
+    // A loopback API (scripts/dev-api.mjs) serves no site: check the local production build instead.
+    const read = async (p: string) => (env.mode === 'local' ? readFileSync(join('dist', p === '/' ? 'index.html' : p), 'utf8') : (await http(`${env.appUrl}${p}`, { headers: appHeaders(env) })).text);
+    const html = await read('/');
     const assets = [...html.matchAll(/src="(\/assets\/[^"]+\.js)"/g)].map((m) => m[1]);
     expect(assets.length).toBeGreaterThan(0);
     for (const a of assets) {
-      const js = (await http(`${env.appUrl}${a}`, { headers: appHeaders(env) })).text;
+      const js = await read(a);
       expect(js.includes(env.serviceKey), a).toBe(false);
       expect(/SUPABASE_SERVICE_ROLE_KEY|service_role"\s*:/.test(js), a).toBe(false);
     }
