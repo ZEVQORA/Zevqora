@@ -39,6 +39,7 @@ export const STEPS = [
   { id: 'web.typecheck', cwd: '.', cmd: 'npm run typecheck', kind: 'plain' },
   { id: 'web.lint', cwd: '.', cmd: 'npm run lint', kind: 'plain' },
   { id: 'web.test', cwd: '.', cmd: 'npm run test', kind: 'vitest' },
+  { id: 'web.proof_loop', cwd: '.', cmd: 'npm run test:proof-loop', kind: 'vitest', env: (dir) => ({ PROOF_LOOP_OUT: path.join(dir, 'proof-loop.json') }) },
   { id: 'web.verify_release', cwd: '.', cmd: 'npm run verify:release', kind: 'plain' },
   { id: 'web.build', cwd: '.', cmd: 'npm run build', kind: 'plain' },
   { id: 'web.bundle_scan', cwd: '.', cmd: 'node scripts/cto/scan-bundle.mjs dist', kind: 'plain' },
@@ -89,7 +90,7 @@ function git(cmd) {
 }
 
 function runStep(step) {
-  const env = { ...process.env, CI: '1', FORCE_COLOR: '0' };
+  const env = { ...process.env, CI: '1', FORCE_COLOR: '0', ...(step.env ? step.env(out) : {}) };
   if (step.stripStaging) for (const k of STAGING_KEYS) delete env[k];
   const started = new Date();
   const r = spawnSync(step.cmd, { cwd: path.join(root, step.cwd), shell: true, encoding: 'utf8', env, maxBuffer: 256 * 1024 * 1024, timeout: 30 * 60_000 });

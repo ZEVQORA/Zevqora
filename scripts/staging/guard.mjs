@@ -23,7 +23,7 @@
  */
 export const PRODUCTION_PROJECT_REF = 'czhufhufvwvgyhjuaauo';
 export const STAGING_PROJECT_REF = 'lxbcynzgeuqzmynkuzqg';
-export const PRODUCTION_HOSTS = ['zevqora.vercel.app', 'zevqora.com', 'www.zevqora.com'];
+export const PRODUCTION_HOSTS = ['zevqora.vercel.app', 'zevqora-nero404.vercel.app', 'zevqora.com', 'www.zevqora.com'];
 /** Vercel branch aliases of the branches that deploy to production. */
 export const PRODUCTION_ALIAS = /^zevqora-git-(main|release-vnext-part3-production)-/;
 export const CONFIRM_PHRASE = 'I_UNDERSTAND_THIS_IS_STAGING';

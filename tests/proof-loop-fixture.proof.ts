@@ -21,8 +21,9 @@
  * sampling ranks by sha256(seed, plan_hash, unit) and plan hashes / units carry
  * database-generated ids (stable within one search, not across re-imports).
  *
- * With PROOF_LOOP_OUT=<file> the record is written there with its hashes:
- *   PROOF_LOOP_OUT=../cto-evidence/proof-loop.json npx vitest run tests/proof-loop-fixture.test.ts
+ * Runs outside `npm test` (vitest.proof.config.ts). With PROOF_LOOP_OUT=<file>
+ * the record is written there with its hashes:
+ *   PROOF_LOOP_OUT=../cto-evidence/proof-loop.json npm run test:proof-loop
  */
 import { createHash } from 'node:crypto';
 import { execSync } from 'node:child_process';
@@ -249,7 +250,7 @@ describe('FIXTURE PROOF — real proof loop on the labelled synthetic workload',
             label: PROOF_LABEL,
             generated_at: new Date().toISOString(),
             source: { git_sha: gitSha, node: process.version, engine: 'real router/handlers/evaluator + supabase/migrations on PGlite (Postgres 17); JWT check mocked; no provider calls' },
-            command: 'PROOF_LOOP_OUT=<file> npx vitest run tests/proof-loop-fixture.test.ts',
+            command: 'PROOF_LOOP_OUT=<file> npm run test:proof-loop',
             reproducibility: {
               runs: 2,
               independent_databases: true,

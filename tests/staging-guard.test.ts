@@ -41,6 +41,7 @@ describe('staging guard (static checks)', () => {
 
   it('refuses the production site and production branch aliases', () => {
     expect(checkStaging({ ...ok, STAGING_APP_URL: 'https://zevqora.vercel.app' }).ok).toBe(false);
+    expect(reason(checkStaging({ ...ok, STAGING_APP_URL: 'https://zevqora-nero404.vercel.app' }))).toMatch(/PRODUCTION site/);
     expect(reason(checkStaging({ ...ok, STAGING_APP_URL: 'https://zevqora-git-main-nero404.vercel.app' }))).toMatch(/production branch alias/);
     expect(reason(checkStaging({ ...ok, STAGING_APP_URL: 'https://zevqora-git-release-vnext-part3-production-nero404.vercel.app' }))).toMatch(/production branch alias/);
   });
