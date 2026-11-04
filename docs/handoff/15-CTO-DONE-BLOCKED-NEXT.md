@@ -10,7 +10,20 @@ Branch `cto/release-gates-audit-2026-11-04` (local only), from `main@4d5de6f`:
 | `c3a1bf0` | Proof loop as its own CI step (`npm run test:proof-loop`); guard knows `zevqora-nero404.vercel.app` |
 | `c632ce3` | Fix a `useEffect` title race in `website-admin-ui.test.tsx` |
 | `2e0f878` | Staging guard: loopback local API mode (no Vercel deployment needed) |
-| (docs commit) | `docs/handoff/11–15`, `test-summary-2026-11-04.json`, `artifacts/proof-loop-2026-11-04.json` |
+| `7b39771` | `docs/handoff/11–15`, `test-summary-2026-11-04.json`, `artifacts/proof-loop-2026-11-04.json` |
+| `b1a443a` | `scripts/cto/build-summary.mjs` (summary records the exact tested commit) — **tested code head** |
+| (evidence commit) | `16-STAGING-ISOLATION-PLAN.md`, `test-summary-2026-11-04-b1a443a.json`, `artifacts/gates-b1a443a/` |
+
+## Evidence index (exact commits)
+
+| Evidence | Tested commit | Note |
+|---|---|---|
+| `test-summary-2026-11-04.json` (preserved, unchanged) | `2e0f878` | last code commit at the time; `7b39771` added only `docs/handoff/` (verify: `git diff --stat 2e0f878 7b39771`) |
+| **`test-summary-2026-11-04-b1a443a.json`** + `artifacts/gates-b1a443a/` (17 sanitized step logs + proof-loop artifact) | **`b1a443a`** | re-run of every gate on the actual code head; 16/16 PASS, staging BLOCKED by design |
+| `artifacts/proof-loop-2026-11-04.json` (preserved) | `2e0f878` | same invariant hash `ac50f86d…` as the `b1a443a` run |
+
+The commit that adds this evidence cannot contain its own SHA. It changes only `docs/handoff/`
+(verify: `git diff --stat b1a443a HEAD -- . ':!docs/handoff'` prints nothing). GitHub CI on the draft PR tests the exact final head.
 
 ## DONE
 - Inventory: git, CI runs, Vercel deployments and env records (no values), Supabase projects, migrations, advisors — read-only.
