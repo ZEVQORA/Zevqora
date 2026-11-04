@@ -15,7 +15,9 @@ Branch `cto/release-gates-audit-2026-11-04` (local only), from `main@4d5de6f`:
 | `5dde020` | `16-STAGING-ISOLATION-PLAN.md`, `test-summary-2026-11-04-b1a443a.json`, `artifacts/gates-b1a443a/` |
 | `9b9b49e` | PR #14 review fix: browser path of preview isolation (build refusal, `/api/public-config` 503, browser backstop) + tests |
 | `40f4aac` | Local API + isolated staging E2E harness (`npm run staging:local`), dated write approval — **tested code head** |
-| (evidence commit) | `test-summary-2026-11-04-40f4aac.json`, `artifacts/gates-40f4aac/`, doc revisions (no merge-first) |
+| `3c216bb` | `test-summary-2026-11-04-40f4aac.json`, `artifacts/gates-40f4aac/`, doc revisions (no merge-first) |
+| `b6e371f` | Shared staging state always restored and verified (registry, disposable flag, hero restore, journal + recovery script), 12 injected-failure tests — **tested code head** |
+| (evidence commit) | `test-summary-2026-11-04-b6e371f.json`, `artifacts/gates-b6e371f/` (incl. cleanup and recovery logs) |
 
 ## Evidence index (exact commits)
 
@@ -26,8 +28,10 @@ Branch `cto/release-gates-audit-2026-11-04` (local only), from `main@4d5de6f`:
 | `artifacts/proof-loop-2026-11-04.json` (preserved) | `2e0f878` | same invariant hash `ac50f86d…` as the `b1a443a` run |
 | **`test-summary-2026-11-04-40f4aac.json`** + `artifacts/gates-40f4aac/` (18 step logs, proof loop, local staging dry run) | **`40f4aac`** | after the PR #14 review fix; 17/17 PASS, staging BLOCKED by design |
 
+| **`test-summary-2026-11-04-b6e371f.json`** + `artifacts/gates-b6e371f/` (18 step logs, proof loop, cleanup injected-failure and recovery-refusal logs) | **`b6e371f`** | after the shared-state cleanup fix; 17/17 PASS, staging BLOCKED by design |
+
 Each evidence commit cannot contain its own SHA; it changes only `docs/handoff/`
-(verify for the latest: `git diff --stat 40f4aac HEAD -- . ':!docs/handoff'` prints nothing). GitHub CI on the draft PR tests the exact final head.
+(verify for the latest: `git diff --stat b6e371f HEAD -- . ':!docs/handoff'` prints nothing). GitHub CI on the draft PR tests the exact final head.
 
 ## DONE
 - Inventory: git, CI runs, Vercel deployments and env records (no values), Supabase projects, migrations, advisors — read-only.
@@ -45,7 +49,7 @@ Each evidence commit cannot contain its own SHA; it changes only `docs/handoff/`
 ## BLOCKED (and the approval each needs)
 | # | Blocked item | Approval needed from Khuslen / Nero |
 |---|---|---|
-| A1 | Staging E2E (Gate 1) — **still BLOCKED**; local harness ready and dry-run verified (`npm run staging:local`) | (a) fill `.env.staging.local` from `scripts/staging/staging.env.example` with the staging anon and service-role keys (never in chat or git); (b) approve disposable test writes on staging `lxbcynzgeuqzmynkuzqg` and set `STAGING_WRITES_APPROVED=<approver>@<today UTC>`; then `npm run staging:local -- --env-file .env.staging.local --execute` |
+| A1 | Staging E2E (Gate 1) — **still BLOCKED**; local harness ready and dry-run verified (`npm run staging:local`); shared-state cleanup fixed and injected-failure tested (`b6e371f`); if a run is aborted: `node scripts/staging/recover-shared-state.mjs --env-file .env.staging.local` | (a) fill `.env.staging.local` from `scripts/staging/staging.env.example` with the staging anon and service-role keys (never in chat or git); (b) approve disposable test writes on staging `lxbcynzgeuqzmynkuzqg` and set `STAGING_WRITES_APPROVED=<approver>@<today UTC>`; then `npm run staging:local -- --env-file .env.staging.local --execute` |
 | A2 | Preview isolation | approve Vercel env changes (remove Preview from shared production records, add staging-valued Preview records), deletion of preview `dpl_D8yCisRHAzPUzRH26VLU2VCfUvGW`, and optionally production service-role key rotation |
 | A3 | Leaked-password protection | approve the Auth setting change on staging, then production (paid-plan feature) |
 | A4 | Staging tooling cleanup | approve dropping `ops.apply_pinned`, schema `ops` and (if unused) the `http` extension on staging |

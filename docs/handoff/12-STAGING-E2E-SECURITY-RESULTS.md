@@ -33,6 +33,27 @@ What the suite will prove once unblocked (17 tests, `tests/staging/staging.e2e.s
 | Account deletion | `afterAll` deletes every user via the Auth admin API and now **verifies**: delete < 300, GET 404, no workspaces/products left; otherwise the run fails |
 | Bundle | no service-role key or claim in the served JS (local mode: the local `dist/`) |
 
+### Shared-state cleanup safety (PR #14 CTO review, fixed in `b6e371f`) — required before any `--execute`
+
+Review finding (confirmed): the suite published a modified **global** `site_content.hero` and changed **global** feature flags
+(`zevir_graph_ui` targeting; overrides on three optimize flags). The hero was rolled back only on the happy path, `afterAll` never
+restored it, and flag restores neither checked statuses nor re-read values — a failed or aborted run could leave staging altered
+while reporting zero problems. Fix (`scripts/staging/shared-state.mjs`):
+
+| Shared state | Now |
+|---|---|
+| Flag targeting | exercised on a **disposable** flag row `<run>_flag` (created/deleted, verified gone); reach checked via `/api/admin/flags/reach` (`workspaces_on = 1`). **No real flag's targeting is changed.** |
+| Optimize-flag overrides | only the test workspaces' own keys are added/removed; other keys (concurrent edits) untouched; verified absent after |
+| CMS hero | snapshot first; refuses if someone else has an open hero draft; restore = discard leftover draft → republish the original revision via the admin API → direct service-role write as last resort (**reported as a problem**: revision history lags); deep-compare verification |
+| Ordering | each restore registered **before** its mutation; restores run in undo order in `afterAll` even after a failed assertion; then teardown (lead, admin role, users with 404 verification, leftover rows incl. overrides); problems accumulated, never short-circuited; run fails if any remain |
+| Aborted run | journal `.staging-journal/<run>.json` (git-ignored) written before each mutation and from the first user on; `scripts/staging/recover-shared-state.mjs` replays it (guarded, dated write approval) |
+| Irreversible (labelled) | append-only `site_content_revisions` (draft/published/superseded/restore), `admin_audit_log`, `security_events`, `product_events` rows of the run |
+
+Regression: `tests/staging-cleanup.test.ts` — 12 injected-failure scenarios against an in-memory staging with `cms-store` semantics
+(failure after draft / after publish, rollback API down, every restore path down, silent no-op writes, failed and silent flag PATCH,
+foreign overrides preserved, disposable flag, undo order, aborted run recovered from the journal, pre-existing draft refused).
+Log: `docs/handoff/artifacts/gates-b6e371f/staging.cleanup_injected_failures.log`. **No staging write was executed.**
+
 Fail-closed guard changes (`scripts/staging/guard.mjs`, tests `tests/staging-guard.test.ts`, 16 tests, all pass):
 - Supabase URL must be exactly `https://lxbcynzgeuqzmynkuzqg.supabase.co` (allowlist; another staging ref only via `STAGING_SUPABASE_REF`, never production).
 - https required; plain http only for a loopback app URL.
@@ -102,8 +123,8 @@ The server check now also covers a production-project anon key. Production (`VER
 
 ## 5. Local test evidence (CI-equivalent, this machine)
 
-> Latest exact-SHA run: **`40f4aac`** — 17/17 PASS + staging BLOCKED (Web/API 580/580, build isolation PASS); see
-> `test-summary-2026-11-04-40f4aac.json`. The table below is the earlier `2e0f878` run, kept unchanged.
+> Latest exact-SHA run: **`b6e371f`** — 17/17 PASS + staging BLOCKED (Web/API 592/592, build isolation PASS); see
+> `test-summary-2026-11-04-b6e371f.json`. Earlier: `40f4aac` (580/580). The table below is the earlier `2e0f878` run, kept unchanged.
 
 Final run on `2e0f878` (clean tree), 2026-11-04T09:27Z–09:31Z — `node scripts/cto/run-gates.mjs`:
 

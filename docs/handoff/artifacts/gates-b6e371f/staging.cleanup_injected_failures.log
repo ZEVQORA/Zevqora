@@ -1,0 +1,31 @@
+﻿# 2026-11-04T11:29:44.2445466Z  git b6e371f1e72d951142e804e117007d4e3a5bf239
+# npx vitest run tests/staging-cleanup.test.ts --reporter=verbose
+node.exe : npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm warn Unknow...config options.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+ RUN  v3.2.7 C:/Users/<user>/OneDrive/ドキュメント/Zevqora_prot/Zevqora
+
+ ✓ tests/staging-cleanup.test.ts > staging shared-state cleanup — injected failures > assertion fails AFTER publishing the hero: cleanup republishes the original, verifies it and leaves no draft 4ms
+ ✓ tests/staging-cleanup.test.ts > staging shared-state cleanup — injected failures > assertion fails AFTER saving a draft: cleanup discards the draft; the live hero was never changed 1ms
+ ✓ tests/staging-cleanup.test.ts > staging shared-state cleanup — injected failures > the rollback API fails: the direct write restores the hero, the run is still FAILED (reported), and users are still deleted 1ms
+ ✓ tests/staging-cleanup.test.ts > staging shared-state cleanup — injected failures > every restore path fails: the hero is reported NOT restored, and teardown still runs 0ms
+ ✓ tests/staging-cleanup.test.ts > staging shared-state cleanup — injected failures > a write that reports success but changes nothing is caught by re-reading (no false "restored") 0ms
+ ✓ tests/staging-cleanup.test.ts > staging shared-state cleanup — injected failures > failure after the first flag override: every registered override is removed, foreign overrides are preserved 1ms
+ ✓ tests/staging-cleanup.test.ts > staging shared-state cleanup — injected failures > a flag restore PATCH that fails is reported with its status, the next restores and teardown still run 1ms
+ ✓ tests/staging-cleanup.test.ts > staging shared-state cleanup — injected failures > a flag restore whose PATCH silently does nothing is caught by verification 0ms
+ ✓ tests/staging-cleanup.test.ts > staging shared-state cleanup — injected failures > failure right after creating the disposable flag: the flag is deleted and verified gone; real flags untouched 0ms
+ ✓ tests/staging-cleanup.test.ts > staging shared-state cleanup — injected failures > restores run in undo order (last mutation first), then teardown; the registry is empty afterwards 0ms
+ ✓ tests/staging-cleanup.test.ts > staging shared-state cleanup — injected failures > ABORTED run (afterAll never ran): the journal written before each mutation is enough to recover everything 7ms
+ ✓ tests/staging-cleanup.test.ts > staging shared-state cleanup — injected failures > refuses to touch the hero when someone else already has a draft open 0ms
+
+ Test Files  1 passed (1)
+      Tests  12 passed (12)
+   Start at  19:29:46
+   Duration  666ms (transform 47ms, setup 0ms, collect 58ms, tests 17ms, environment 0ms, prepare 157ms)
+
+
