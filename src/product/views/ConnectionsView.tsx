@@ -47,12 +47,12 @@ export default function ConnectionsView() {
             ) : (
               <>
                 <KeyValue items={[
-                  ['Scanned in', selected.source === 'desktop' ? 'Desktop engine (this machine)' : 'Your browser (this machine)'],
+                  ['Scanned in', selected.root_path.startsWith('https://github.com/') ? 'ZEVQORA cloud · GitHub API' : selected.source === 'desktop' ? 'Desktop engine (this machine)' : 'Your browser (this machine)'],
                   ['Last scan', scanned ? relativeTime(selected.last_scan_at) : 'never'],
                   ['Files scanned', String(selected.files_scanned ?? '—')],
                   ['Sensitive paths skipped', String(selected.skipped_sensitive_paths ?? '—')],
                   ['AI call sites found', String(aiCalls.length)],
-                  ['Leaves your machine', 'AI call locations and findings only. Source files are not uploaded.'],
+                  ['Data boundary', selected.root_path.startsWith('https://github.com/') ? 'Source is read from GitHub on the server. Call sites and findings are retained.' : 'AI call locations and findings only. Source files are not uploaded.'],
                 ]} />
                 {canEdit && <div className="mt-4"><Button size="sm" variant="secondary" onClick={() => void runScan().catch(() => undefined)} loading={zevState === 'scanning'}><ScanSearch size={14} /> {scanned ? 'Scan again' : 'Scan now'}</Button></div>}
               </>

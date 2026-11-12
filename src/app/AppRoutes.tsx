@@ -45,8 +45,8 @@ export default function AppRoutes() {
       <Route element={<AppShell />}>
         {/* The product: identical on the web and inside the desktop shell. */}
         <Route element={<ProductLayout />}>
-          <Route index element={<CommandCenter />} />
-          <Route path="command" element={<Navigate to="/app" replace />} />
+          <Route index element={<ProductZev />} />
+          <Route path="command" element={<CommandCenter />} />
           <Route path="overview" element={<ProductOverview />} />
           <Route path="workloads" element={<ProductWorkloads />} />
           <Route path="graph" element={<GraphExplorer />} />

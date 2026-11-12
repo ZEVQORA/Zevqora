@@ -14,10 +14,8 @@ import { Field, Input, Checkbox } from "@/components/ui/Field";
 import { InlineNotice } from "@/components/ui/States";
 import { useSession } from "@/lib/session";
 import { getSupabase } from "@/lib/supabase";
-import { api, errorMessage } from "@/lib/api";
+import { errorMessage } from "@/lib/api";
 import { safeNext } from "@/lib/site";
-
-const USERNAME = /^[A-Za-z0-9._-]{3,30}$/;
 
 export default function SignupPage() {
   const { status } = useSession();
@@ -25,9 +23,7 @@ export default function SignupPage() {
   const plan = params.get("plan");
   const next = safeNext(
     params.get("next"),
-    plan
-      ? `/app/onboarding?plan=${encodeURIComponent(plan)}`
-      : "/app/onboarding",
+    plan ? `/app/onboarding?plan=${encodeURIComponent(plan)}` : "/app/zev",
   );
   const [pending, setPending] = useState(false);
   const [oauthPending, setOauthPending] = useState<string | null>(null);
@@ -47,25 +43,12 @@ export default function SignupPage() {
     setError(null);
     const fd = new FormData(e.currentTarget);
     const name = String(fd.get("name") || "").trim();
-    const username = String(fd.get("username") || "")
-      .trim()
-      .toLowerCase();
     const email = String(fd.get("email") || "").trim();
     const password = String(fd.get("password") || "");
-    const confirm = String(fd.get("confirm") || "");
     try {
-      if (!USERNAME.test(username))
-        throw new Error(
-          "Username must be 3–30 characters using letters, numbers, dot, underscore or hyphen.",
-        );
+      if (!name) throw new Error("Please enter your name.");
       if (password.length < 10)
         throw new Error("Use at least 10 characters for your password.");
-      if (password !== confirm) throw new Error("Passwords do not match.");
-      const check = await api<{ available: boolean }>(
-        "/api/auth/username-available",
-        { method: "POST", auth: false, body: { username } },
-      );
-      if (!check.available) throw new Error("That username is already taken.");
       const sb = await getSupabase();
       if (!sb)
         throw new Error(
@@ -76,9 +59,8 @@ export default function SignupPage() {
         password,
         options: {
           data: {
-            username,
-            full_name: name || username,
-            display_name: name || username,
+            full_name: name,
+            display_name: name,
           },
           emailRedirectTo: `${location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
         },
@@ -134,11 +116,11 @@ export default function SignupPage() {
 
   return (
     <AuthShell
-      title="Create account."
+      title="A lighter start"
       subtitle={
         plan
           ? `You picked the ${plan} plan. Create your account, then choose billing from Usage.`
-          : "Your next idea starts here."
+          : "Create your ZEVQORA account"
       }
       footer={
         <p className="text-caption text-muted">
@@ -159,27 +141,16 @@ export default function SignupPage() {
         onSubmit={onSubmit}
         className="auth-signup-form flex flex-col gap-4"
       >
-        <div className="auth-field-pair grid grid-cols-2 gap-3">
-          <Field id="name" label="Name">
-            <Input
-              id="name"
-              name="name"
-              autoComplete="name"
-              placeholder="Your name"
-            />
-          </Field>
-          <Field id="username" label="Username" hint="3–30 characters">
-            <Input
-              id="username"
-              name="username"
-              autoComplete="username"
-              placeholder="yourname"
-              required
-              pattern="[A-Za-z0-9._-]{3,30}"
-            />
-          </Field>
-        </div>
-        <Field id="email" label="Work email">
+        <Field id="name" label="Name">
+          <Input
+            id="name"
+            name="name"
+            autoComplete="name"
+            placeholder="Your name"
+            required
+          />
+        </Field>
+        <Field id="email" label="Email">
           <div className="auth-input-with-icon">
             <Mail size={16} />
             <Input
@@ -192,29 +163,17 @@ export default function SignupPage() {
             />
           </div>
         </Field>
-        <div className="auth-field-pair grid grid-cols-2 gap-3">
-          <Field id="password" label="Password">
-            <PasswordInput
-              strength
-              id="password"
-              name="password"
-              autoComplete="new-password"
-              placeholder="Create a password"
-              required
-              minLength={10}
-            />
-          </Field>
-          <Field id="confirm" label="Confirm">
-            <PasswordInput
-              id="confirm"
-              name="confirm"
-              autoComplete="new-password"
-              placeholder="Repeat password"
-              required
-              minLength={10}
-            />
-          </Field>
-        </div>
+        <Field id="password" label="Password">
+          <PasswordInput
+            strength
+            id="password"
+            name="password"
+            autoComplete="new-password"
+            placeholder="Create a password"
+            required
+            minLength={10}
+          />
+        </Field>
         <Checkbox
           id="terms"
           name="terms"

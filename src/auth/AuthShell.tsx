@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Link, useLocation } from "react-router";
+import { Link } from "react-router";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowLeft, ArrowRight, ArrowUpRight, Info } from "lucide-react";
+import { ArrowLeft, Info, X } from "lucide-react";
+import { Aurora } from "@/brand/Aurora";
 import { ZevqoraLogo } from "@/brand/ZevqoraLogo";
 import { getEnabledOAuthProviders, type OAuthProvider } from "@/lib/supabase";
 
@@ -18,138 +19,52 @@ export function AuthShell({
   footer?: ReactNode;
   aside?: ReactNode;
 }) {
-  const location = useLocation();
-  const signup = location.pathname === "/signup";
   const reduced = useReducedMotion();
-  const [engaged, setEngaged] = useState(false);
-  const words = signup
-    ? ["BUILD", "WHAT’S", "NEXT."]
-    : ["BACK TO", "BIG", "IDEAS."];
   return (
-    <main
-      id="main"
-      className={`z-auth auth-editorial ${signup ? "is-signup" : "is-login"}`}
-    >
-      <header className="account-header">
+    <main id="main" className="nova-auth">
+      <Aurora />
+      <header className="nova-auth-header">
         <Link to="/" aria-label="ZEVQORA home">
-          <ZevqoraLogo size={27} />
+          <ZevqoraLogo variant="inverse" size={30} />
         </Link>
-        <div>
-          <Link className="account-home-link" to="/">
-            <ArrowLeft size={14} />
-            Website
-          </Link>
-          <Link
-            className="account-alternate"
-            to={`${signup ? "/login" : "/signup"}${location.search}`}
-          >
-            <span>{signup ? "Already with us?" : "New here?"}</span>
-            <b>{signup ? "Sign in" : "Create account"}</b>
-            <ArrowUpRight size={17} />
-          </Link>
-        </div>
+        <Link to="/">
+          <ArrowLeft size={13} /> Back to website
+        </Link>
       </header>
-      <div className="account-editorial-stage">
-        <aside
-          className="account-type-poster"
-          data-engaged={engaged}
-          aria-label="Make AI lighter."
-        >
-          <div className="account-poster-top">
-            <span>MAKE AI LIGHTER.</span>
-            <span>ZEVQORA / YOUR NEXT CHAPTER</span>
-          </div>
-          {aside ? (
-            <div className="account-custom-aside">{aside}</div>
-          ) : (
-            <h2 aria-label={words.join(" ")}>
-              {words.map((word, index) => (
-                <span className="account-word-mask" key={word}>
-                  <motion.span
-                    initial={reduced ? false : { y: "110%" }}
-                    animate={{ y: 0 }}
-                    transition={{
-                      duration: 0.9,
-                      delay: 0.1 + index * 0.09,
-                      ease: [0.16, 1, 0.3, 1],
-                    }}
-                  >
-                    {word}
-                  </motion.span>
-                </span>
-              ))}
-            </h2>
-          )}
-          <div className="account-poster-bottom">
-            <p>
-              {signup ? (
-                <>
-                  More room for
-                  <br />
-                  what you’ll build next.
-                </>
-              ) : (
-                <>
-                  Good to have you back.
-                  <br />
-                  Let’s make room for more.
-                </>
-              )}
-            </p>
-            <ArrowRight size={44} strokeWidth={1.1} />
-          </div>
-          <span className="account-focus-rule" aria-hidden />
-        </aside>
+      <div>
         <motion.section
-          className="account-form-surface"
-          aria-label={signup ? "Create account" : "Sign in"}
-          initial={reduced ? false : { opacity: 0, y: 28 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.18 }}
+          className="nova-auth-card"
+          aria-label={title}
+          initial={reduced ? false : { opacity: 0, y: 20, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
         >
-          <div className="auth-form-wrap">
-            <div className="account-form-kicker">
-              <span>YOUR WORKSPACE STARTS HERE</span>
-              <span>
-                {signup ? "CREATE" : "ENTER"}
-                <ArrowUpRight size={12} />
-              </span>
-            </div>
-            <h1>{title}</h1>
-            {subtitle && <p className="auth-subtitle">{subtitle}</p>}
-            <div
-              className="auth-form"
-              onFocusCapture={() => setEngaged(true)}
-              onBlurCapture={(event) => {
-                if (
-                  !event.currentTarget.contains(
-                    event.relatedTarget as Node | null,
-                  )
-                )
-                  setEngaged(false);
-              }}
-            >
-              {children}
-            </div>
-            {footer && <div className="auth-form-footer">{footer}</div>}
-            <Link className="auth-demo-link" to="/product">
-              Explore the product first
-              <ArrowUpRight size={15} />
-            </Link>
+          <Link
+            to="/"
+            className="nova-auth-close"
+            aria-label="Close and return home"
+          >
+            <X size={20} />
+          </Link>
+          <div className="nova-auth-brand">
+            <ZevqoraLogo variant="inverse" size={28} />
           </div>
+          <h1>{title}</h1>
+          {subtitle && <p className="auth-subtitle">{subtitle}</p>}
+          {aside && <div className="nova-auth-aside">{aside}</div>}
+          <div className="auth-form">{children}</div>
+          {footer && <div className="auth-form-footer">{footer}</div>}
         </motion.section>
+        <footer className="nova-auth-footer">
+          <span>© {new Date().getFullYear()} ZEVQORA</span>
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/terms">Terms</Link>
+        </footer>
       </div>
-      <footer className="account-footer">
-        <span>© {new Date().getFullYear()} ZEVQORA</span>
-        <Link to="/privacy">
-          Your privacy
-          <ArrowUpRight size={12} />
-        </Link>
-        <span>BIG IDEAS. A LIGHTER WAY.</span>
-      </footer>
     </main>
   );
 }
+
 export function AuthPreviewNote() {
   return (
     <p className="auth-preview-note" role="status">
@@ -160,7 +75,7 @@ export function AuthPreviewNote() {
     </p>
   );
 }
-/** Providers enabled in Supabase Auth; null while loading. */
+
 function useOAuthProviders(): OAuthProvider[] | null {
   const [providers, setProviders] = useState<OAuthProvider[] | null>(null);
   useEffect(() => {
@@ -195,13 +110,7 @@ export function OAuthButtons({
           disabled={disabled}
           onClick={() => onClick(provider)}
         >
-          <img
-            src={`/brand/${provider}.svg`}
-            alt=""
-            width={19}
-            height={19}
-            aria-hidden
-          />
+          <img src={`/brand/${provider}.svg`} alt="" width={19} height={19} />
           <span>
             {pending === provider
               ? "Opening…"
@@ -209,19 +118,19 @@ export function OAuthButtons({
                 ? "Google"
                 : "GitHub"}
           </span>
-          <ArrowUpRight size={14} />
         </button>
       ))}
     </div>
   );
 }
+
 export function OrDivider() {
   const providers = useOAuthProviders();
   if (!providers?.length) return null;
   return (
     <div className="auth-or-divider" aria-hidden>
       <span />
-      <span>or with email</span>
+      <span>or continue with email</span>
       <span />
     </div>
   );

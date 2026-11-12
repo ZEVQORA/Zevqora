@@ -44,7 +44,7 @@ describe('enabled OAuth providers', () => {
     await lib.getEnabledOAuthProviders();
     await waitFor(() => expect(container.innerHTML).toBe(''));
     expect(screen.queryByText('Google')).toBeNull();
-    expect(screen.queryByText('or with email')).toBeNull();
+    expect(screen.queryByText('or continue with email')).toBeNull();
   });
 
   it('renders only the enabled provider and the divider', async () => {
@@ -54,6 +54,6 @@ describe('enabled OAuth providers', () => {
     await lib.getEnabledOAuthProviders();
     expect(await screen.findByText('GitHub')).toBeTruthy();
     expect(screen.queryByText('Google')).toBeNull();
-    expect(screen.getByText('or with email')).toBeTruthy();
+    expect(screen.getByText('or continue with email')).toBeTruthy();
   });
 });

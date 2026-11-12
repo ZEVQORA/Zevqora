@@ -14,11 +14,10 @@ import { useSession } from "@/lib/session";
 import { useSiteContent } from "@/lib/site";
 
 const NAV = [
+  ["Home", "/"],
   ["Product", "/product"],
-  ["The engine", "/how-it-works"],
-  ["Evidence", "/proof"],
-  ["Pricing", "/pricing"],
-  ["Security", "/security"],
+  ["Technology", "/how-it-works"],
+  ["About", "/company"],
 ];
 export function SiteHeader() {
   const [open, setOpen] = useState(false),
@@ -54,18 +53,17 @@ export function SiteHeader() {
         </Link>
         <nav aria-label="Primary">
           {NAV.map(([label, to]) => (
-            <NavLink key={to} to={to}>
+            <NavLink key={to} to={to} end={to === "/"}>
               {label}
             </NavLink>
           ))}
         </nav>
         <div className="engine-header-actions">
           <Link to={status === "signed_in" ? "/app" : "/login"}>
-            {status === "signed_in" ? "Workspace" : "Sign in"}
+            {status === "signed_in" ? "Workspace" : "Log in"}
           </Link>
           <Link className="engine-button" to={target}>
-            Start optimizing
-            <ArrowUpRight size={14} />
+            {status === "signed_in" ? "Open app" : "Sign up"}
           </Link>
           <button
             className="engine-menu-toggle"
@@ -121,7 +119,6 @@ export function SiteFooter() {
         ["The product", "/product"],
         ["How it works", "/how-it-works"],
         ["Evidence", "/proof"],
-        ["Desktop engine", "/download"],
         ["Evaluate your workload", "/evaluation"],
       ],
     },
@@ -203,7 +200,7 @@ export function MarketingLayout() {
   const reduced = useReducedMotion();
   const page = location.pathname.split("/")[1] || "home";
   return (
-    <div className={`marketing-app engine-world page-${page}`}>
+    <div className={`marketing-app engine-world nova-world page-${page}`}>
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[90] focus:bg-white focus:p-4"
