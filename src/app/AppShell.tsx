@@ -114,7 +114,8 @@ function UserMenu() {
             {me?.isAdmin && (
               <button type="button" role="menuitem" onClick={() => { setOpen(false); navigate('/admin'); }} className="text-caption flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-ink transition-control hover:bg-ink/5"><Shield size={14} /> Admin</button>
             )}
-            <button type="button" role="menuitem" onClick={() => { setOpen(false); void signOut().then(() => navigate('/')); }} className="text-caption flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-rejected transition-control hover:bg-rejected-bg"><LogOut size={14} /> Sign out</button>
+            <button type="button" role="menuitem" onClick={() => { setOpen(false); navigate('/?site=1'); }} className="text-caption flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-ink transition-control hover:bg-ink/5"><Home size={14} /> View website</button>
+            <button type="button" role="menuitem" onClick={() => { setOpen(false); void signOut().then(() => navigate('/', { state: { site: true } })); }} className="text-caption flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-rejected transition-control hover:bg-rejected-bg"><LogOut size={14} /> Sign out</button>
           </div>
         </>
       )}
