@@ -1,0 +1,9 @@
+﻿# 2026-11-04T10:52:36.2354738Z  git 40f4aac8744fabcb737f065c244cb8685b9b29b2
+# node scripts/staging/local-e2e.mjs --env-file <placeholder env: staging URL, placeholder keys> --port 3917
+LOCAL_E2E PREFLIGHT PASS — local API http://127.0.0.1:3917 reports environment=local, project lxbcynzgeuqzmynkuzqg, service key unverifiable
+LOCAL_E2E DRY RUN COMPLETE — no staging writes were made. Re-run with --execute and STAGING_WRITES_APPROVED=<approver>@<today> after approval.
+# exit 0
+
+# same with --execute and no STAGING_WRITES_APPROVED
+LOCAL_E2E REFUSED — STAGING_WRITES_APPROVED must be <approver>@<YYYY-MM-DD> (explicit approval for disposable staging writes)
+# exit 1

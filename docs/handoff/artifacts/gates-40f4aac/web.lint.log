@@ -1,0 +1,7 @@
+
+> zevqora@2.0.0 lint
+> eslint .
+
+
+--- stderr ---
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.

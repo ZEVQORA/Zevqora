@@ -3,6 +3,7 @@ import { ApiError, json, readJson, str } from '../http.js';
 import { adminClient, publicServerClient } from '../supabase.js';
 import { rateLimitRequest } from '../auth.js';
 import { openRouterConfigured } from '../openrouter.js';
+import { isolationStatus } from '../env-isolation.js';
 
 const VERSION = '2.0.0';
 
@@ -11,6 +12,15 @@ function stripeConfigured() {
 }
 
 on('GET', '/api/public-config', async () => {
+  const isolation = isolationStatus();
+  if (isolation.violation) {
+    // The browser would talk to Supabase directly with these values: give it nothing.
+    return json(
+      { error: 'This deployment is not configured with an isolated database.', code: 'ENVIRONMENT_ISOLATION_VIOLATION', supabaseUrl: '', supabaseAnonKey: '', environment: isolation.environment },
+      503,
+      { 'cache-control': 'no-store' },
+    );
+  }
   return json(
     {
       appUrl: process.env.PUBLIC_APP_URL || 'https://zevqora.vercel.app',
@@ -27,13 +37,19 @@ on('GET', '/api/public-config', async () => {
   );
 });
 
-on('GET', '/api/health', async () => ({
-  ok: true,
-  version: VERSION,
-  cloudReplayConfigured: openRouterConfigured(),
-  stripeConfigured: stripeConfigured(),
-  time: new Date().toISOString(),
-}));
+on('GET', '/api/health', async () => {
+  const isolation = isolationStatus();
+  return {
+    ok: !isolation.violation,
+    version: VERSION,
+    cloudReplayConfigured: openRouterConfigured(),
+    stripeConfigured: stripeConfigured(),
+    // Project refs are already public (the browser client is built from them); no key material.
+    environment: isolation.environment,
+    isolation: { supabase_ref: isolation.supabase_ref, public_supabase_ref: isolation.public_supabase_ref, service_key_project: isolation.service_key_project, violation: isolation.violation },
+    time: new Date().toISOString(),
+  };
+});
 
 const USERNAME = /^[A-Za-z0-9._-]{3,30}$/;
 

@@ -1,0 +1,18 @@
+
+> zevqora@2.0.0 test:proof-loop
+> vitest run --config vitest.proof.config.ts
+
+
+ RUN  v3.2.7 C:/Users/<user>/OneDrive/ドキュメント/Zevqora_prot/Zevqora
+
+ ✓ tests/proof-loop-fixture.proof.ts (1 test) 12240ms
+   ✓ FIXTURE PROOF — real proof loop on the labelled synthetic workload > produces VERIFIED, REJECTED and INCOMPLETE from real execution, reproducibly, with nothing deployed  12238ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  18:49:50
+   Duration  12.76s (transform 523ms, setup 0ms, collect 153ms, tests 12.24s, environment 0ms, prepare 117ms)
+
+
+--- stderr ---
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
