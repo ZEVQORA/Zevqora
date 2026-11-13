@@ -101,7 +101,8 @@ CC.value.evaluated = [{ ...CC.products[0].decision!.selected_plan!, product_id: 
 const api = { commandCenter: vi.fn() };
 vi.mock('@/product/experience', async (orig) => ({ ...(await orig<typeof import('@/product/experience')>()), experienceApi: new Proxy({}, { get: (_t, k: string) => (api as Record<string, unknown>)[k] }) }));
 vi.mock('@/product/store', () => ({ useProduct: () => ({ selectProduct: vi.fn() }) }));
-vi.mock('@/lib/session', () => ({ useSession: () => ({ activeWorkspace: { id: 'w', name: 'W', role: 'viewer', plan: 'free', features: {} } }) }));
+const sessionState = vi.hoisted(() => ({ me: null as null | { profile: { display_name: string | null; username: string | null } } }));
+vi.mock('@/lib/session', () => ({ useSession: () => ({ me: sessionState.me, activeWorkspace: { id: 'w', name: 'W', role: 'viewer', plan: 'free', features: {} } }) }));
 const { default: CommandCenterView } = await import('@/product/command/CommandCenterView');
 const { PresentationModeProvider } = await import('@/lib/mode');
 const show = () => render(<MemoryRouter><PresentationModeProvider><CommandCenterView /></PresentationModeProvider></MemoryRouter>);
@@ -120,7 +121,7 @@ describe('Command Center', () => {
     expect(screen.getByText('Realized production value')).toBeTruthy();
     expect(screen.getAllByText('NOT YET MEASURED').length).toBeGreaterThan(0);
     expect(screen.getByText(/SYNTHETIC DEMO — NOT CUSTOMER DATA\./)).toBeTruthy();
-    expect(screen.getByText(/Review "Validated lookup" for shipping/)).toBeTruthy();
+    expect(screen.getAllByText(/Review "Validated lookup" for shipping/).length).toBeGreaterThan(0);
   });
 
   it('switching views changes emphasis but not the data request or permissions', async () => {
@@ -171,5 +172,40 @@ describe('cookieless analytics client', () => {
     expect(isWebsitePath('/admin/security')).toBe(false);
     expect(isWebsitePath('/invite/abc')).toBe(false);
     expect(isWebsitePath('/reset-password')).toBe(false);
+  });
+});
+
+describe('signed-in welcome', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionState.me = { profile: { display_name: 'Ada Example', username: 'ada' } };
+    api.commandCenter.mockReset().mockResolvedValue(structuredClone(CC));
+  });
+
+  it('greets a returning user by the verified profile name with real workspace facts', async () => {
+    window.history.replaceState(null, '', '/app?name=Mallory');
+    show();
+    expect(await screen.findByRole('heading', { name: 'Welcome back, Ada Example.' })).toBeTruthy();
+    expect(screen.getByText('Your workspace is ready. Pick up where you left off.')).toBeTruthy();
+    expect(document.body.textContent).not.toContain('Mallory');
+    const facts = screen.getByText('Workspace').closest('dl') as HTMLElement;
+    expect(within(facts).getByText(/viewer/)).toBeTruthy();
+    expect(within(facts).getByText(/pending decision/)).toBeTruthy();
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('falls back gracefully when the profile has no name', async () => {
+    sessionState.me = { profile: { display_name: null, username: null } };
+    show();
+    expect(await screen.findByRole('heading', { name: 'Welcome back.' })).toBeTruthy();
+  });
+
+  it('a new workspace gets a light, skippable welcome instead', async () => {
+    api.commandCenter.mockResolvedValue({ ...structuredClone(CC), products: [], synthetic: false });
+    show();
+    expect(await screen.findByRole('heading', { name: 'Welcome to ZEVQORA, Ada Example.' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Skip the welcome guide' }));
+    expect(screen.queryByRole('heading', { name: /Welcome to ZEVQORA/ })).toBeNull();
+    expect(localStorage.getItem('zevqora.welcome.newUserDismissed')).toBe('1');
   });
 });
