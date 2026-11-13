@@ -14,30 +14,63 @@ import { Popover } from '@/components/ui/Overlay';
 import { experienceApi, type CommandCenter } from '@/product/experience';
 import { Bell, Eye } from 'lucide-react';
 
-export const NAV: Array<{ to: string; label: string; Icon: typeof Home; end?: boolean; section?: string; flag?: string }> = [
-  { to: '/app', label: 'Command Center', Icon: LayoutDashboard, end: true },
-  { to: '/app/workloads', label: 'Workloads', Icon: Boxes },
+export type NavGroup = 'Overview' | 'Workloads' | 'Optimize' | 'Evidence' | 'Connections' | 'Workspace';
+
+/**
+ * App navigation. The sidebar shows six plain-language areas in the order of
+ * the work (see a workload, optimize it, read the evidence, review). Less
+ * frequent routes sit under "More" and stay in the command palette. No route is
+ * removed or renamed, so every deep link keeps working; flags still hide what a
+ * workspace does not have; nothing here grants permission.
+ */
+export const NAV: Array<{ to: string; label: string; Icon: typeof Home; end?: boolean; group?: NavGroup; more?: boolean; flag?: string }> = [
+  { to: '/app', label: 'Command Center', Icon: LayoutDashboard, end: true, group: 'Overview' },
+  { to: '/app/workloads', label: 'Workloads', Icon: Boxes, group: 'Workloads' },
   // Shown only to workspaces with the flag on (no global launch).
-  { to: '/app/graph', label: 'Execution Graph', Icon: Network, flag: 'zevir_graph_ui' },
-  { to: '/app/diagnoses', label: 'Diagnoses', Icon: Stethoscope },
-  { to: '/app/optimize', label: 'Optimization', Icon: Gauge, flag: 'verified_optimization_vnext' },
-  { to: '/app/experiments', label: 'Experiments', Icon: FlaskConical, end: true },
-  { to: '/app/evidence', label: 'Evidence', Icon: FileCheck2 },
-  { to: '/app/changes', label: 'Changes', Icon: GitPullRequest },
-  { to: '/app/value', label: 'Value', Icon: Scale },
-  { to: '/app/connections', label: 'Connections', Icon: Plug },
-  { to: '/app/team', label: 'Team', Icon: Users, section: 'Workspace' },
-  { to: '/app/settings', label: 'Settings', Icon: Settings },
-  { to: '/app/enterprise', label: 'Enterprise', Icon: Shield },
-  { to: '/app/project', label: 'Repository', Icon: FolderGit2, section: 'More' },
-  { to: '/app/opportunities', label: 'Opportunities', Icon: Lightbulb, end: true },
-  { to: '/app/evaluation', label: 'Evaluation', Icon: ClipboardCheck },
-  { to: '/app/savings', label: 'Savings ledger', Icon: BarChart3 },
-  { to: '/app/zev', label: 'Ask Zev', Icon: MessageSquare },
-  { to: '/app/usage', label: 'Usage', Icon: BarChart3 },
-  { to: '/app/docs', label: 'Docs', Icon: BookOpen },
-  { to: '/download', label: 'Desktop app', Icon: Monitor },
+  { to: '/app/graph', label: 'Execution Graph', Icon: Network, flag: 'zevir_graph_ui', group: 'Workloads' },
+  { to: '/app/diagnoses', label: 'Diagnoses', Icon: Stethoscope, group: 'Optimize' },
+  { to: '/app/optimize', label: 'Optimization', Icon: Gauge, flag: 'verified_optimization_vnext', group: 'Optimize' },
+  { to: '/app/experiments', label: 'Experiments', Icon: FlaskConical, end: true, group: 'Optimize' },
+  { to: '/app/evidence', label: 'Evidence', Icon: FileCheck2, group: 'Evidence' },
+  { to: '/app/changes', label: 'Changes', Icon: GitPullRequest, group: 'Evidence' },
+  { to: '/app/connections', label: 'Connections', Icon: Plug, group: 'Connections' },
+  { to: '/app/team', label: 'Team', Icon: Users, group: 'Workspace' },
+  { to: '/app/settings', label: 'Settings', Icon: Settings, group: 'Workspace' },
+  { to: '/app/value', label: 'Value', Icon: Scale, more: true },
+  { to: '/app/opportunities', label: 'Opportunities', Icon: Lightbulb, end: true, more: true },
+  { to: '/app/evaluation', label: 'Evaluation', Icon: ClipboardCheck, more: true },
+  { to: '/app/savings', label: 'Savings ledger', Icon: BarChart3, more: true },
+  { to: '/app/project', label: 'Repository', Icon: FolderGit2, more: true },
+  { to: '/app/zev', label: 'Ask Zev', Icon: MessageSquare, more: true },
+  { to: '/app/usage', label: 'Usage', Icon: BarChart3, more: true },
+  { to: '/app/enterprise', label: 'Enterprise', Icon: Shield, more: true },
+  { to: '/app/docs', label: 'Docs', Icon: BookOpen, more: true },
+  { to: '/download', label: 'Desktop app', Icon: Monitor, more: true },
 ];
+
+export const NAV_GROUPS: NavGroup[] = ['Overview', 'Workloads', 'Optimize', 'Evidence', 'Connections', 'Workspace'];
+
+/** Visible primary items grouped in order, and the visible "More" items. */
+export function navSections(features: Record<string, boolean> | undefined) {
+  const visible = NAV.filter((n) => navVisible(n, features));
+  const groups = NAV_GROUPS.map((g) => [g, visible.filter((n) => !n.more && n.group === g)] as const).filter(([, items]) => items.length > 0);
+  return { groups, more: visible.filter((n) => n.more) };
+}
+
+type NavItem = (typeof NAV)[number];
+
+function SideLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
+  return (
+    <NavLink to={item.to} end={item.end} title={collapsed ? item.label : undefined} className={({ isActive }) => cn('text-caption group flex items-center gap-2.5 rounded-md px-2.5 py-2 transition-control', isActive ? 'bg-surface text-ink shadow-[0_1px_2px_rgb(15_17_21/0.06),inset_0_0_0_1px_rgb(15_17_21/0.04)]' : 'text-muted hover:bg-surface/60 hover:text-ink', collapsed && 'justify-center px-0')}>
+      {({ isActive }) => (
+        <>
+          <item.Icon size={16} className={cn('shrink-0', isActive ? 'text-accent-text' : 'text-subtle group-hover:text-ink')} aria-hidden />
+          {!collapsed && <span className="truncate">{item.label}</span>}
+        </>
+      )}
+    </NavLink>
+  );
+}
 
 /** A nav item behind a workspace flag is shown only where that flag is on. */
 export function navVisible(item: { flag?: string }, features: Record<string, boolean> | undefined) {
@@ -114,7 +147,8 @@ function UserMenu() {
             {me?.isAdmin && (
               <button type="button" role="menuitem" onClick={() => { setOpen(false); navigate('/admin'); }} className="text-caption flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-ink transition-control hover:bg-ink/5"><Shield size={14} /> Admin</button>
             )}
-            <button type="button" role="menuitem" onClick={() => { setOpen(false); void signOut().then(() => navigate('/')); }} className="text-caption flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-rejected transition-control hover:bg-rejected-bg"><LogOut size={14} /> Sign out</button>
+            <button type="button" role="menuitem" onClick={() => { setOpen(false); navigate('/?site=1'); }} className="text-caption flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-ink transition-control hover:bg-ink/5"><Home size={14} /> View website</button>
+            <button type="button" role="menuitem" onClick={() => { setOpen(false); void signOut().then(() => navigate('/', { state: { site: true } })); }} className="text-caption flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-rejected transition-control hover:bg-rejected-bg"><LogOut size={14} /> Sign out</button>
           </div>
         </>
       )}
@@ -220,6 +254,7 @@ export function AppShell() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+  const [moreOpen, setMoreOpen] = useState(false);
   useEffect(() => {
     const base = location.pathname.split('/').slice(0, 3).join('/');
     document.title = `${TITLES[base] || 'ZEVQORA'} — ZEVQORA`;
@@ -232,6 +267,9 @@ export function AppShell() {
   const crumbs = location.pathname.split('/').filter(Boolean).slice(1);
   const title = TITLES[location.pathname.split('/').slice(0, 3).join('/')] || 'Command Center';
   const productRoute = isProductPath(location.pathname);
+  const sections = navSections(activeWorkspace.features);
+  // "More" opens by itself when you are on one of its pages, so the current item is never hidden.
+  const showMore = moreOpen || sections.more.some((n) => location.pathname === n.to || location.pathname.startsWith(n.to + '/'));
 
   const sidebar = (
     <aside data-surface="ink" className={cn('glass-sidebar flex h-full flex-col', collapsed ? 'w-[68px]' : 'w-[248px]')}>
@@ -248,19 +286,42 @@ export function AppShell() {
       </div>
       <nav aria-label="Application" className="scrollbar-thin mt-3 flex-1 overflow-y-auto px-2.5">
         <ul className="flex flex-col gap-0.5">
-          {NAV.filter((item) => navVisible(item, activeWorkspace.features)).map((item) => (
-            <li key={item.to} className={item.section ? 'mt-2 border-t border-line/60 pt-2' : undefined}>
-              {item.section && !collapsed && <div className="text-technical px-2.5 pb-1 pt-1 font-medium uppercase tracking-[0.08em] text-subtle">{item.section}</div>}
-              <NavLink to={item.to} end={item.end} title={collapsed ? item.label : undefined} className={({ isActive }) => cn('text-caption group flex items-center gap-2.5 rounded-md px-2.5 py-2 transition-control', isActive ? 'bg-surface text-ink shadow-[0_1px_2px_rgb(15_17_21/0.06),inset_0_0_0_1px_rgb(15_17_21/0.04)]' : 'text-muted hover:bg-surface/60 hover:text-ink', collapsed && 'justify-center px-0')}>
-                {({ isActive }) => (
-                  <>
-                    <item.Icon size={16} className={cn('shrink-0', isActive ? 'text-accent-text' : 'text-subtle group-hover:text-ink')} aria-hidden />
-                    {!collapsed && <span className="truncate">{item.label}</span>}
-                  </>
-                )}
-              </NavLink>
+          {sections.groups.map(([group, items]) => (
+            <li key={group} className={group === 'Overview' ? undefined : 'mt-2 border-t border-line/60 pt-2'}>
+              {!collapsed && group !== 'Overview' && <div className="text-technical px-2.5 pb-1 pt-1 font-medium uppercase tracking-[0.08em] text-subtle">{group}</div>}
+              <ul className="flex flex-col gap-0.5">
+                {items.map((item) => (
+                  <li key={item.to}>
+                    <SideLink item={item} collapsed={collapsed} />
+                  </li>
+                ))}
+              </ul>
             </li>
           ))}
+          {sections.more.length > 0 && (
+            <li className="mt-2 border-t border-line/60 pt-2">
+              <button
+                type="button"
+                onClick={() => setMoreOpen((v) => !v)}
+                aria-expanded={showMore}
+                aria-controls="app-nav-more"
+                title={collapsed ? 'More' : undefined}
+                className={cn('text-caption flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-muted transition-control hover:bg-surface/60 hover:text-ink', collapsed && 'justify-center px-0')}
+              >
+                <ChevronRight size={16} className={cn('shrink-0 text-subtle transition-transform', showMore && 'rotate-90')} aria-hidden />
+                {!collapsed && <span>More</span>}
+              </button>
+              {showMore && (
+                <ul id="app-nav-more" className="flex flex-col gap-0.5">
+                  {sections.more.map((item) => (
+                    <li key={item.to}>
+                      <SideLink item={item} collapsed={collapsed} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          )}
           {me?.isAdmin && (
             <li className="mt-2 border-t border-line/60 pt-2">
               <NavLink to="/admin" title="Admin" className={({ isActive }) => cn('text-caption group flex items-center gap-2.5 rounded-md px-2.5 py-2 transition-control', isActive ? 'bg-surface text-ink' : 'text-muted hover:bg-surface/60 hover:text-ink', collapsed && 'justify-center px-0')}>

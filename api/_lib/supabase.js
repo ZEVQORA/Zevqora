@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
+import { assertEnvironmentIsolation } from './env-isolation.js';
 
 export function requireSupabaseEnv() {
+  assertEnvironmentIsolation();
   const url = process.env.SUPABASE_URL || process.env.PUBLIC_SUPABASE_URL;
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const anon = process.env.PUBLIC_SUPABASE_ANON_KEY;

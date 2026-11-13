@@ -38,6 +38,9 @@ jobs:
       - name: Unit tests
         run: npm run test
 
+      - name: Fixture proof loop (VERIFIED / REJECTED / INCOMPLETE, synthetic workload)
+        run: npm run test:proof-loop
+
       - name: Release preflight
         run: npm run verify:release
 

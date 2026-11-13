@@ -1,0 +1,8 @@
+﻿# 2026-11-04T11:29:44.2445466Z  git b6e371f1e72d951142e804e117007d4e3a5bf239
+# recover-shared-state.mjs, no journal
+RECOVERY: no journal found — nothing to recover.
+# exit 0
+
+# recover-shared-state.mjs, sample journal, no STAGING_WRITES_APPROVED (refused before any network call)
+RECOVERY REFUSED — STAGING_WRITES_APPROVED must be <approver>@<YYYY-MM-DD> (explicit approval for disposable staging writes)
+# exit 1

@@ -1,0 +1,6 @@
+  INFO assets\AdminAnalyticsPage-DjSF-J5O.js: name:ANALYTICS_SECRET (variable name only)
+  INFO assets\AdminSystemPage-BdQSdUDX.js: name:CRON_SECRET (variable name only)
+  INFO assets\AdminSystemPage-BdQSdUDX.js: name:ANALYTICS_SECRET (variable name only)
+  INFO assets\AdminSystemPage-BdQSdUDX.js: name:SECURITY_HASH_SECRET (variable name only)
+  INFO assets\store-BlAB0x0q.js: name:OPENROUTER_API_KEY (variable name only)
+BUNDLE_SCAN PASS — 143 files scanned; no service-role JWT, secret-key shape, service-role variable name or server secret value; 5 informational name reference(s)

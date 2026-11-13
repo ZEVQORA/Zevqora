@@ -72,7 +72,7 @@ export interface Engine {
   pushImplementation(productId: string, implementationId: string): Promise<PushResult>;
   recordPrLink(productId: string, implementationId: string, prUrl: string): Promise<Implementation>;
   patch(productId: string, implementationId: string): Promise<{ diff: string; replacement: string | null; target_file: string; branch_name: string }>;
-  chat(productId: string | null, messages: { role: 'user' | 'assistant'; content: string }[], model?: string): Promise<AgentResponse>;
+  chat(productId: string | null, messages: { role: 'user' | 'assistant'; content: string }[], model?: string, signal?: AbortSignal): Promise<AgentResponse>;
   /** ZevIR (shadow mode): the canonical execution graphs projected from this product's evidence. Platform engine only. */
   zevir(productId: string): Promise<ZevirProductView>;
   zevirBuild(productId: string): Promise<{ run: ZevirRun; reused: boolean }>;
@@ -134,7 +134,7 @@ export function cloudEngine(workspaceId: string): Engine {
     pushImplementation: (productId, implementationId) => api<PushResult>(`${p(productId)}/implementations/${implementationId}/push`, { method: 'POST', body: {} }),
     recordPrLink: (productId, implementationId, prUrl) => api<Implementation>(`${p(productId)}/implementations/${implementationId}/pr-link`, { method: 'POST', body: { pr_url: prUrl } }),
     patch: (productId, implementationId) => api(`${p(productId)}/implementations/${implementationId}/patch`),
-    chat: (productId, messages, model) => api<AgentResponse>(`${base}/agent/chat`, { method: 'POST', body: { product_id: productId, workspace_id: workspaceId, messages, model: model || null } }),
+    chat: (productId, messages, model, signal) => api<AgentResponse>(`${base}/agent/chat`, { method: 'POST', signal, body: { product_id: productId, workspace_id: workspaceId, messages, model: model || null } }),
     zevir: (productId) => api<ZevirProductView>(`${p(productId)}/zevir`),
     zevirBuild: (productId) => api<{ run: ZevirRun; reused: boolean }>(`${p(productId)}/zevir/build`, { method: 'POST', body: {} }),
     zevirNodes: (graphId) => api<ZevirNode[]>(`/api/zevir/graphs/${graphId}/nodes?limit=500`),

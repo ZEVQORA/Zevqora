@@ -1,6 +1,7 @@
 import { on } from '../router.js';
 import { ApiError, readJson, str } from '../http.js';
-import { accountStateForUser } from '../supabase.js';
+import { accountStateForUser, loadPlan } from '../supabase.js';
+import { retentionCeiling, effectiveRetentionDays } from '../plan-limits.js';
 import { requireUser } from '../auth.js';
 import { sha256 } from '../tokens.js';
 import { emitProductEvent } from '../analytics/product-events.js';
@@ -60,7 +61,8 @@ on('GET', '/api/me', async ({ request }) => {
     if (!m.workspace) continue;
     const { data: planId } = await admin.rpc('workspace_plan', { ws: m.workspace.id });
     const { count: projectCount } = await admin.from('projects').select('id', { count: 'exact', head: true }).eq('workspace_id', m.workspace.id).is('archived_at', null);
-    workspaces.push({ ...m.workspace, role: m.role, plan: planId || 'free', project_count: projectCount || 0, features: await workspaceFeatures(admin, m.workspace.id) });
+    const plan = await loadPlan(admin, planId || 'free');
+    workspaces.push({ ...m.workspace, role: m.role, plan: planId || 'free', project_count: projectCount || 0, retention_max_days: retentionCeiling(plan), effective_retention_days: effectiveRetentionDays(plan, m.workspace.data_retention_days), features: await workspaceFeatures(admin, m.workspace.id) });
   }
   workspaces.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   const flags = await resolveFlags(admin, account.plan);

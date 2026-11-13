@@ -1,0 +1,478 @@
+{
+  "schema": "zevqora.proof-loop.v1",
+  "label": "FIXTURE PROOF — SYNTHETIC DEMO WORKLOAD — NOT CUSTOMER DATA — NOT REAL-CUSTOMER VALIDATION",
+  "generated_at": "2026-11-04T10:50:03.292Z",
+  "source": {
+    "git_sha": "40f4aac8744fabcb737f065c244cb8685b9b29b2",
+    "node": "v24.18.0",
+    "engine": "real router/handlers/evaluator + supabase/migrations on PGlite (Postgres 17); JWT check mocked; no provider calls"
+  },
+  "command": "PROOF_LOOP_OUT=<file> npm run test:proof-loop",
+  "reproducibility": {
+    "runs": 2,
+    "independent_databases": true,
+    "invariant_identical": true,
+    "invariant_sha256": "ac50f86d6516a482bf0ba3a9ffba63bb722a771d56773b42375f392800ca0343",
+    "plans_replayed_in_both_runs": 3,
+    "verdicts_and_metrics_identical_on_common_plans": true,
+    "promoted_plan_sets": {
+      "run_1": [
+        "Exact reuse (no expiry) · classify_ticket + Exact reuse (no expiry) · route_refund",
+        "Exact reuse (no expiry) · classify_ticket + Exact-response cache (TTL 1h) · route_refund",
+        "Validated exact lookup · classify_ticket + Exact-response cache (TTL 1h) · route_refund",
+        "Validated exact lookup · classify_ticket + Validated exact lookup · route_refund",
+        "Validated exact lookup · route_refund + Exact reuse (no expiry) · classify_ticket"
+      ],
+      "run_2": [
+        "Validated exact lookup · classify_ticket + Exact reuse (no expiry) · route_refund",
+        "Validated exact lookup · classify_ticket + Exact-response cache (TTL 1h) · route_refund",
+        "Validated exact lookup · classify_ticket + Exact-response cache (TTL 6h) · route_refund",
+        "Validated exact lookup · classify_ticket + Validated exact lookup · route_refund",
+        "Validated exact lookup · route_refund + Exact reuse (no expiry) · classify_ticket"
+      ],
+      "identical": false
+    },
+    "limitation": "Which plans are calibrated and promoted to full replay depends on database-generated ids (calibration sampling ranks by sha256(seed, plan_hash, unit)); stable within one search, not across re-imports of the same workload."
+  },
+  "invariant_section_sha256": {
+    "label": "3354063bea4b49289935f1cba587607f690e1cdaa717317903d1da131a917784",
+    "observe": "11f3881cda15855e36bebf5bfedb7ad970aafb6c8232bf4048aba8163a263cf3",
+    "frozen_contract": "d25698771b2a95d8b3f653eb592ec9bad7b5097741c35ffec23b6739273632dc",
+    "baseline": "b60028865eaa79d39226c603bbd1d5e66dbf177d20595dd2bc9f9070739faf58",
+    "diagnose": "4e8353385b267181ab85d5a21a37e791191a1bbc5bab315931b714386456902c",
+    "plan": "17377b30ca137391f908f04194a658672aa74a1c38b8329042aaaefe53f1ad96",
+    "replay": "f7d4560dab33481efd98ede9315020c1e744e7be8f0bebec8d2bc3f47c87563c",
+    "human_review": "628608e2893d08cf6fc3db0a353f6784b1c5053f6260483cdbba241e0bcb2750",
+    "incomplete": "6fcf8924ab51613473393e2000161678dad0a3d7a509b66220a71c54218e475d"
+  },
+  "run_bound_hashes": {
+    "run_1": {
+      "contract_hash": "e28b4487d5b6837c43c123d18af6e25acf0a7c82ed666761999bdbfd34c796a3",
+      "baseline_snapshot_hash": "dc0b14eaa110e6566c9f3a92ffda7ba4282709718a29ce2e6c59a3fc3733ad01",
+      "search_hash": "18ae46ef009e763d62b8cec0d5f861a49b1ce9fa1a0c9ec061cdb3a51be2e092",
+      "evaluation_set_hash": "293303f302b37a9aa8886a33921c580519cf1137d237248b2edac9ef71eec455",
+      "frontier_hash": "7d2f4f161b05f32f32cfc31ec4f488f37e518cf7e2a95e4fc3476164b913d898",
+      "selected_plan_hash": "eaea40d6e1fa916b0f36dfc652b7b7d7263ccc1f470818e3608aab2d2faf2e77",
+      "replayed_plan_hashes": {
+        "Exact reuse (no expiry) · classify_ticket + Exact reuse (no expiry) · route_refund": "f79b1d960ca121971354fa0877b66f5b7965243f64fdab461207dc59f3c28494",
+        "Exact reuse (no expiry) · classify_ticket + Exact-response cache (TTL 1h) · route_refund": "c8a311037138f07319396e997d5ea6fcc6c626a33cc920969e34ec4aaa2faa51",
+        "Validated exact lookup · classify_ticket + Exact-response cache (TTL 1h) · route_refund": "4624c800b2ec9b0ab5ea0ed7a95c7c31974f6a6ab76800e8ede78984f9167011",
+        "Validated exact lookup · classify_ticket + Validated exact lookup · route_refund": "4723dbff09216f38b90e5229badf40e0777f61a1df1e74585f1eeac4aea9231c",
+        "Validated exact lookup · route_refund + Exact reuse (no expiry) · classify_ticket": "eaea40d6e1fa916b0f36dfc652b7b7d7263ccc1f470818e3608aab2d2faf2e77"
+      },
+      "incomplete_contract_hash": "add0b7eb3dfa3fe188436dc76059d97ebc532bd7cd1864d9ac07243e63a7272b"
+    },
+    "run_2": {
+      "contract_hash": "da285c1d13b2b2f247118eb053d2795b0b7714dca45e58a8f540f5cf0f1eefab",
+      "baseline_snapshot_hash": "9ef26e7a3b779ec10228ebd6e5f3c2b2be91fc879551976278521e79ea46b101",
+      "search_hash": "4566f06026d50d20e7e326674b4a538b2000382e8faafff2fc8f73467fd109d0",
+      "evaluation_set_hash": "7acada0bbd046b4f3b7b0fd959db50f4e688660583b5c520ee3f1a69fc5638e4",
+      "frontier_hash": "1595b5eb90ab10b105b5c9baee1e1451475a29248502110b3eab99f3f2a9df17",
+      "selected_plan_hash": "96a0b46f0646b1224e67c54a9ae531362ffc5b550e4d91935a90a4678463e821",
+      "replayed_plan_hashes": {
+        "Validated exact lookup · classify_ticket + Exact reuse (no expiry) · route_refund": "a8e389b36999f0fa2cec699669e0fe302f4ceca60c5cf70f930bfff64d3883c5",
+        "Validated exact lookup · classify_ticket + Exact-response cache (TTL 1h) · route_refund": "fd25bcba9b73ddafebd4d9a05da8ca998eae34f88f877ff8ed5aad90d65fc0fa",
+        "Validated exact lookup · classify_ticket + Exact-response cache (TTL 6h) · route_refund": "69ba184204e309737570921b30adfde549534c499e8ac5a1f415ac503922b98f",
+        "Validated exact lookup · classify_ticket + Validated exact lookup · route_refund": "d50691a2b5bf66fbdd79175d15b3dfc34b5fbbedae6240dcd6a20c16867873f1",
+        "Validated exact lookup · route_refund + Exact reuse (no expiry) · classify_ticket": "96a0b46f0646b1224e67c54a9ae531362ffc5b550e4d91935a90a4678463e821"
+      },
+      "incomplete_contract_hash": "129eebbc5f422a1cec21238eada7c5ab295cdb43a9a305f19aefccbdce1faefd"
+    }
+  },
+  "record_run_1": {
+    "label": "FIXTURE PROOF — SYNTHETIC DEMO WORKLOAD — NOT CUSTOMER DATA — NOT REAL-CUSTOMER VALIDATION",
+    "observe": {
+      "traces": 32,
+      "zevir_graphs": 6,
+      "demo_name": "Support triage + refund agent (SYNTHETIC DEMO — NOT CUSTOMER DATA)"
+    },
+    "frozen_contract": {
+      "requirements": {
+        "cost": {
+          "min_coverage": 0.9,
+          "require_evidence": true,
+          "min_improvement_pct": 0,
+          "require_improvement": true
+        },
+        "policy": {
+          "require_data_boundary": false,
+          "no_protected_regression": true
+        },
+        "latency": {
+          "require": true,
+          "max_p95_ms": null,
+          "max_regression_pct": 10
+        },
+        "evidence": {
+          "min_samples": 5,
+          "min_latency_samples": 20,
+          "min_outcome_coverage": 0.8
+        },
+        "protected": {
+          "min_cases": 2,
+          "require_cases": true
+        },
+        "reliability": {
+          "max_retry_rate": null,
+          "max_failure_rate": 0.05
+        },
+        "quality_floor": 0.95,
+        "allowed_models": null,
+        "dataset_version": "demo-synthetic-v2",
+        "required_metrics": [
+          "cost",
+          "latency",
+          "protected",
+          "quality",
+          "reliability",
+          "task_success"
+        ],
+        "allowed_providers": null,
+        "quality_tolerance": 0,
+        "min_task_success_rate": 0.95,
+        "task_success_tolerance": 0
+      },
+      "version": 1
+    },
+    "baseline": {
+      "completeness": "complete",
+      "trace_count": 32,
+      "quality": 0.966667,
+      "task_success_rate": 0.966667
+    },
+    "diagnose": [
+      "agent_workflow:refund_agent",
+      "context_amplification:workload",
+      "model_overprovisioning:openai/gpt-4o",
+      "redundant_call:classify_ticket",
+      "redundant_call:route_refund",
+      "retrieval_redundancy:kb_search",
+      "retry_amplification:workload"
+    ],
+    "plan": {
+      "bounds": {
+        "max_diagnoses": 8,
+        "max_wall_clock_ms": 1800000,
+        "calibration_rounds": 2,
+        "max_evaluation_set": 60,
+        "max_generated_plans": 64,
+        "max_transformations": 24,
+        "max_calibration_plans": 12,
+        "max_full_replay_plans": 5,
+        "max_proposals_per_pass": 3,
+        "max_provider_spend_usd": 1,
+        "max_replay_samples_total": 300,
+        "max_transformations_per_plan": 3,
+        "max_calibration_samples_total": 180,
+        "max_calibration_samples_per_plan": 10
+      },
+      "evaluation_set": {
+        "size": 29,
+        "coverage": 0.966667,
+        "excluded": [
+          "cost_unknown"
+        ]
+      },
+      "generation": {
+        "PRUNED": 1,
+        "BLOCKED": 28,
+        "CONFLICTED": 9,
+        "NEEDS_EVIDENCE": 2,
+        "CALIBRATION_READY": 18
+      }
+    },
+    "replay": {
+      "calibration_stop": "max_calibration_plans = 12",
+      "full_replay_stop": "max_full_replay_plans = 5",
+      "calibrated": 12,
+      "fully_replayed": 5,
+      "provider_calls": 0
+    },
+    "verify": {
+      "counts": {
+        "calibration_rejected": 4,
+        "verified": 4,
+        "rejected": 5,
+        "incomplete": 0,
+        "frontier": 4
+      },
+      "plans": [
+        {
+          "name": "Exact reuse (no expiry) · classify_ticket + Exact reuse (no expiry) · route_refund",
+          "verdict": "REJECTED",
+          "status": "REJECTED",
+          "frontier": null,
+          "evaluated": {
+            "cases": 29,
+            "quality": 0.896552,
+            "task_success": 0.896552,
+            "cost_usd": 0.041337,
+            "cpso_usd": 0.00159,
+            "p95_ms": 2124,
+            "cost_delta_pct": -62.783317,
+            "cpso_delta_pct": -59.920495
+          }
+        },
+        {
+          "name": "Exact reuse (no expiry) · classify_ticket + Exact-response cache (TTL 1h) · route_refund",
+          "verdict": "VERIFIED",
+          "status": "PARETO_FRONTIER",
+          "frontier": "FRONTIER",
+          "evaluated": {
+            "cases": 29,
+            "quality": 0.965517,
+            "task_success": 0.965517,
+            "cost_usd": 0.052977,
+            "cpso_usd": 0.001892,
+            "p95_ms": 2124,
+            "cost_delta_pct": -52.303676,
+            "cpso_delta_pct": -52.303676
+          }
+        },
+        {
+          "name": "Validated exact lookup · classify_ticket + Exact-response cache (TTL 1h) · route_refund",
+          "verdict": "VERIFIED",
+          "status": "PARETO_FRONTIER",
+          "frontier": "FRONTIER",
+          "evaluated": {
+            "cases": 29,
+            "quality": 0.965517,
+            "task_success": 0.965517,
+            "cost_usd": 0.052977,
+            "cpso_usd": 0.001892,
+            "p95_ms": 2124,
+            "cost_delta_pct": -52.303676,
+            "cpso_delta_pct": -52.303676
+          }
+        },
+        {
+          "name": "Validated exact lookup · classify_ticket + Validated exact lookup · route_refund",
+          "verdict": "VERIFIED",
+          "status": "PARETO_FRONTIER",
+          "frontier": "FRONTIER",
+          "evaluated": {
+            "cases": 29,
+            "quality": 0.965517,
+            "task_success": 0.965517,
+            "cost_usd": 0.045312,
+            "cpso_usd": 0.001618,
+            "p95_ms": 2124,
+            "cost_delta_pct": -59.204574,
+            "cpso_delta_pct": -59.204574
+          }
+        },
+        {
+          "name": "Validated exact lookup · route_refund + Exact reuse (no expiry) · classify_ticket",
+          "verdict": "VERIFIED",
+          "status": "PARETO_FRONTIER",
+          "frontier": "FRONTIER",
+          "evaluated": {
+            "cases": 29,
+            "quality": 0.965517,
+            "task_success": 0.965517,
+            "cost_usd": 0.045312,
+            "cpso_usd": 0.001618,
+            "p95_ms": 2124,
+            "cost_delta_pct": -59.204574,
+            "cpso_delta_pct": -59.204574
+          }
+        }
+      ],
+      "gate_outcomes": [
+        {
+          "status": "REJECTED",
+          "not_passed": [
+            "quality_floor:failed",
+            "non_inferiority:failed",
+            "task_success_floor:failed",
+            "task_success_non_regression:failed",
+            "transformation_slice:exact_response_reuse:route_refund:failed"
+          ]
+        },
+        {
+          "status": "VERIFIED",
+          "not_passed": []
+        },
+        {
+          "status": "VERIFIED",
+          "not_passed": []
+        },
+        {
+          "status": "VERIFIED",
+          "not_passed": []
+        },
+        {
+          "status": "VERIFIED",
+          "not_passed": []
+        }
+      ]
+    },
+    "human_review": {
+      "policy": "MARGIN_FIRST",
+      "outcome": "SELECTED",
+      "selected_plan": "Validated exact lookup · route_refund + Exact reuse (no expiry) · classify_ticket",
+      "selected_verdict": "VERIFIED",
+      "selected_status": "SELECTED",
+      "realized_production_result": "NOT YET MEASURED",
+      "evaluated_cpso_change_pct": -59.204574,
+      "implementations_created": 0,
+      "deployed": false
+    },
+    "incomplete": {
+      "imported": 32,
+      "baseline_completeness": "incomplete",
+      "baseline_task_success_rate": null,
+      "plan_search": {
+        "evaluation_set_size": 0,
+        "excluded_reasons": [
+          "cost_unknown",
+          "outcome_unknown"
+        ],
+        "verified": 0,
+        "rejected": 0,
+        "fully_replayed": 0,
+        "recommendation": null
+      },
+      "candidate_replay": {
+        "status": "INCOMPLETE",
+        "missing_required": [
+          "minimum_samples",
+          "non_inferiority",
+          "protected_minimum",
+          "protected_slice",
+          "quality_floor",
+          "task_success_floor",
+          "task_success_non_regression"
+        ],
+        "failed_required": [],
+        "candidate_quality": null,
+        "candidate_task_success": null
+      }
+    }
+  },
+  "verify_run_2": {
+    "counts": {
+      "calibration_rejected": 2,
+      "verified": 3,
+      "rejected": 4,
+      "incomplete": 0,
+      "frontier": 3
+    },
+    "plans": [
+      {
+        "name": "Validated exact lookup · classify_ticket + Exact reuse (no expiry) · route_refund",
+        "verdict": "REJECTED",
+        "status": "REJECTED",
+        "frontier": null,
+        "evaluated": {
+          "cases": 29,
+          "quality": 0.896552,
+          "task_success": 0.896552,
+          "cost_usd": 0.041337,
+          "cpso_usd": 0.00159,
+          "p95_ms": 2124,
+          "cost_delta_pct": -62.783317,
+          "cpso_delta_pct": -59.920495
+        }
+      },
+      {
+        "name": "Validated exact lookup · classify_ticket + Exact-response cache (TTL 1h) · route_refund",
+        "verdict": "VERIFIED",
+        "status": "PARETO_FRONTIER",
+        "frontier": "FRONTIER",
+        "evaluated": {
+          "cases": 29,
+          "quality": 0.965517,
+          "task_success": 0.965517,
+          "cost_usd": 0.052977,
+          "cpso_usd": 0.001892,
+          "p95_ms": 2124,
+          "cost_delta_pct": -52.303676,
+          "cpso_delta_pct": -52.303676
+        }
+      },
+      {
+        "name": "Validated exact lookup · classify_ticket + Exact-response cache (TTL 6h) · route_refund",
+        "verdict": "REJECTED",
+        "status": "REJECTED",
+        "frontier": null,
+        "evaluated": {
+          "cases": 29,
+          "quality": 0.896552,
+          "task_success": 0.896552,
+          "cost_usd": 0.041337,
+          "cpso_usd": 0.00159,
+          "p95_ms": 2124,
+          "cost_delta_pct": -62.783317,
+          "cpso_delta_pct": -59.920495
+        }
+      },
+      {
+        "name": "Validated exact lookup · classify_ticket + Validated exact lookup · route_refund",
+        "verdict": "VERIFIED",
+        "status": "PARETO_FRONTIER",
+        "frontier": "FRONTIER",
+        "evaluated": {
+          "cases": 29,
+          "quality": 0.965517,
+          "task_success": 0.965517,
+          "cost_usd": 0.045312,
+          "cpso_usd": 0.001618,
+          "p95_ms": 2124,
+          "cost_delta_pct": -59.204574,
+          "cpso_delta_pct": -59.204574
+        }
+      },
+      {
+        "name": "Validated exact lookup · route_refund + Exact reuse (no expiry) · classify_ticket",
+        "verdict": "VERIFIED",
+        "status": "PARETO_FRONTIER",
+        "frontier": "FRONTIER",
+        "evaluated": {
+          "cases": 29,
+          "quality": 0.965517,
+          "task_success": 0.965517,
+          "cost_usd": 0.045312,
+          "cpso_usd": 0.001618,
+          "p95_ms": 2124,
+          "cost_delta_pct": -59.204574,
+          "cpso_delta_pct": -59.204574
+        }
+      }
+    ],
+    "gate_outcomes": [
+      {
+        "status": "REJECTED",
+        "not_passed": [
+          "quality_floor:failed",
+          "non_inferiority:failed",
+          "task_success_floor:failed",
+          "task_success_non_regression:failed",
+          "transformation_slice:exact_response_reuse:route_refund:failed"
+        ]
+      },
+      {
+        "status": "REJECTED",
+        "not_passed": [
+          "quality_floor:failed",
+          "non_inferiority:failed",
+          "task_success_floor:failed",
+          "task_success_non_regression:failed",
+          "transformation_slice:exact_response_reuse:route_refund:failed"
+        ]
+      },
+      {
+        "status": "VERIFIED",
+        "not_passed": []
+      },
+      {
+        "status": "VERIFIED",
+        "not_passed": []
+      },
+      {
+        "status": "VERIFIED",
+        "not_passed": []
+      }
+    ]
+  }
+}

@@ -3,7 +3,7 @@ Base: release `8e591cd` routes from `src/App.tsx`, `src/app/AppRoutes.tsx` and `
 
 | Route | UI source | Auth | Source / truthful availability |
 |---|---|---|---|
-| `/` | Marketing `HomePage`, changed hero; NEW `SupportZevLauncher` | Public | CMS `useSiteContent`; public FAQ local-only (browser check: no request from the panel); canonical `HeroMark3D` |
+| `/` | Marketing `HomePage`: hero with `DimensionalZ` and the Ask Zev composer | Public | `POST /api/support/message` (public knowledge, FAQ or flagged AI); canonical `MARK_PATH` |
 | `/product` | Existing ProductPage | Public | Published content and explanatory preview, not authenticated tenant |
 | `/technology` / `/how-it-works` | Existing TechnologyPage; NEW redirect alias | Public | ZevIR/method docs and honest roadmap |
 | `/evaluation` / `/proof` | Existing EvaluationPage; NEW redirect alias | Public | Internal evidence, confidence qualifiers |

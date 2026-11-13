@@ -1,0 +1,885 @@
+/*
+  Homepage hero, dimensional Z mark and the Ask Zev composer.
+  Brand: Ink #0F1115 · Cloud #F7F8FA · Soft Blue #468BFF · Stone #E6E9EE · Satoshi Variable.
+*/
+
+/* ── Hero ─────────────────────────────────────────────────────────────── */
+/* No isolation/transform here: the docked composer is a fixed descendant and
+   must stack against the whole page, not inside the hero. */
+.zev-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100svh - 84px);
+  padding: clamp(28px, 5.5vh, 72px) 4.4vw 22px;
+  background: #080a0f;
+  color: #f7f8fa;
+}
+/* Main's flowing blue film, full bleed behind everything (EngineFilm). */
+.zev-hero-film {
+  position: absolute;
+  inset: -2% -3% -4% -2%;
+  z-index: 0;
+}
+/* Legibility only: darker where the copy and composer sit, open over the flow. */
+.zev-hero-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(8, 10, 15, 0.9) 0%, rgba(8, 10, 15, 0.62) 38%, rgba(8, 10, 15, 0.12) 64%, transparent 80%),
+    linear-gradient(0deg, rgba(8, 10, 15, 0.92), transparent 30%, transparent 78%, rgba(8, 10, 15, 0.4));
+}
+.zev-hero-grid,
+.zev-hero-foot {
+  position: relative;
+}
+/* Scroll-linked exit (--hero-exit 0→1, set by Hero; absent under reduced motion). */
+.zev-hero-copy {
+  transform: translate3d(0, calc(var(--hero-exit, 0) * -48px), 0);
+  opacity: calc(1 - var(--hero-exit, 0) * 0.55);
+}
+.zev-hero-art {
+  transform: translate3d(0, calc(var(--hero-exit, 0) * 36px), 0) scale(calc(1 - var(--hero-exit, 0) * 0.12));
+}
+.zev-hero-scrim {
+  opacity: calc(1 + var(--hero-exit, 0));
+}
+.zev-hero-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  align-items: center;
+  gap: clamp(24px, 4vw, 72px);
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+}
+.zev-hero-copy {
+  min-width: 0;
+}
+.zev-hero-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #aeb9ca;
+  font: 11px/1.5 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.zev-hero-eyebrow i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #468bff;
+}
+.zev-hero .zev-hero-copy h1 {
+  margin-top: 18px;
+  font-family: var(--font-sans);
+  font-size: clamp(54px, 8vw, 132px);
+  font-weight: 700;
+  letter-spacing: -0.055em;
+  line-height: 0.92;
+}
+.zev-hero .zev-hero-copy h1 > span {
+  display: block;
+}
+.zev-hero-period {
+  color: #468bff;
+}
+.zev-hero-lede {
+  max-width: 36ch;
+  margin-top: 22px;
+  color: #b9c2d0;
+  font-size: clamp(16px, 1.2vw, 19px);
+  line-height: 1.55;
+}
+.zev-hero-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 30px;
+  margin-top: 34px;
+}
+.zev-hero-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 26px;
+  min-height: 50px;
+  padding: 0 20px;
+  background: #f7f8fa;
+  color: #0f1115;
+  font: 600 14px/1 var(--font-sans);
+  transition: background 0.2s, color 0.2s;
+}
+.zev-hero-primary:hover {
+  background: #468bff;
+  color: #0f1115;
+}
+/* "Meet Zev": an arrow down to the next scene. */
+.zev-hero-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: #e3e8f1;
+  font: 500 14px/1 var(--font-sans);
+}
+.zev-hero-next-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(247, 248, 250, 0.35);
+  border-radius: 50%;
+  transition: border-color 0.2s, background 0.2s, transform 0.3s;
+}
+.zev-hero-next:hover .zev-hero-next-icon {
+  border-color: #468bff;
+  background: rgba(70, 139, 255, 0.16);
+  transform: translateY(3px);
+}
+.zev-hero-primary:focus-visible,
+.zev-hero-next:focus-visible,
+.zev-hero-foot a:focus-visible {
+  outline: 2px solid #468bff;
+  outline-offset: 4px;
+}
+.zev-hero-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+/* A soft pool of ink behind the mark separates it from the bright ribbons. */
+.zev-hero-art::before {
+  content: "";
+  position: absolute;
+  inset: 4% 2%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(8, 10, 15, 0.72), rgba(8, 10, 15, 0.35) 55%, transparent);
+  filter: blur(8px);
+  pointer-events: none;
+}
+.zev-hero-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+  max-width: 1480px;
+  margin: 32px auto 0;
+  padding-top: 16px;
+  border-top: 1px solid rgba(247, 248, 250, 0.16);
+  color: #9aa9c1;
+  font: 10px/1.4 var(--font-mono);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.zev-hero-foot a {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #c4cedd;
+}
+.zev-hero-chapters {
+  margin-left: auto;
+}
+.zev-hero-motion {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(247, 248, 250, 0.24);
+  border-radius: 999px;
+  color: #c4cedd;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+.zev-hero-motion:hover {
+  border-color: #468bff;
+  color: #f7f8fa;
+}
+.zev-hero-motion:focus-visible {
+  outline: 2px solid #468bff;
+  outline-offset: 3px;
+}
+
+/* ── Dimensional Z ────────────────────────────────────────────────────── */
+.zev-dimensional {
+  position: relative;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.zev-dimensional-shadow {
+  position: absolute;
+  inset: 6% 4% -6%;
+  z-index: -1;
+  opacity: 0.55;
+  filter: blur(26px);
+}
+.zev-dimensional-body {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.zev-dimensional-layer {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+}
+.zev-dimensional-face {
+  transform: translateZ(0.5px);
+}
+
+/* ── Ask Zev (one composer: hero slot or docked) ──────────────────────── */
+.zev-ask {
+  position: relative;
+  /* The stage centers its copy; the composer and the docked panel read left-aligned. */
+  text-align: left;
+  color: #f7f8fa;
+  font-family: var(--font-sans);
+  --zev-line: rgba(247, 248, 250, 0.16);
+}
+.zev-ask-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  border: 1px solid var(--zev-line);
+  border-radius: 18px;
+  background: rgba(20, 23, 30, 0.72);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+.zev-ask-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 2px 12px;
+}
+.zev-ask-head > div {
+  flex: 1;
+  min-width: 0;
+}
+.zev-ask .zev-ask-head h2 {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.zev-ask-head p {
+  color: #9aa5b5;
+  font-size: 12px;
+}
+.zev-ask-head-avatar,
+.zev-ask-pill-avatar {
+  display: grid;
+  flex: none;
+  place-items: end center;
+  overflow: hidden;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #f7f8fa;
+}
+.zev-ask-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  color: #c4cedd;
+}
+.zev-ask-icon:hover {
+  background: rgba(247, 248, 250, 0.08);
+}
+
+.zev-ask-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 260px;
+  margin-bottom: 12px;
+  padding-right: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  scrollbar-gutter: stable;
+}
+/* A quiet scrollbar that matches the panel instead of the platform default.
+   Chromium/WebKit: the ::-webkit-scrollbar rules (no arrow buttons). Setting
+   scrollbar-width/-color would make Chromium ignore them, so those are only
+   for browsers without the pseudo-elements (Firefox). */
+@supports not selector(::-webkit-scrollbar) {
+  .zev-ask-thread {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(247, 248, 250, 0.22) transparent;
+  }
+}
+.zev-ask-thread::-webkit-scrollbar {
+  width: 6px;
+}
+.zev-ask-thread::-webkit-scrollbar-track {
+  background: transparent;
+}
+.zev-ask-thread::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(247, 248, 250, 0.22);
+}
+.zev-ask-thread::-webkit-scrollbar-thumb:hover {
+  background: rgba(247, 248, 250, 0.36);
+}
+.zev-ask-thread::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+}
+.zev-ask-msg {
+  max-width: 88%;
+  padding: 10px 12px;
+  border: 1px solid rgba(247, 248, 250, 0.1);
+  border-radius: 14px;
+  background: rgba(247, 248, 250, 0.05);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.zev-ask-msg p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.zev-ask-msg.is-user {
+  align-self: flex-end;
+  border-color: rgba(70, 139, 255, 0.5);
+  background: rgba(70, 139, 255, 0.18);
+}
+.zev-ask-msg.is-zev {
+  align-self: flex-start;
+}
+.zev-ask-mode {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 2px 7px;
+  border: 1px solid rgba(247, 248, 250, 0.22);
+  border-radius: 999px;
+  color: #c4cedd;
+  font: 10px/1.5 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.zev-ask-mode.is-ai {
+  border-color: rgba(70, 139, 255, 0.55);
+  color: #a9c8ff;
+}
+.zev-ask-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 8px;
+}
+.zev-ask-links a {
+  color: #a9c8ff;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.zev-ask-status,
+.zev-ask-error,
+.zev-ask-offline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.zev-ask-status {
+  color: #b9c2d0;
+}
+.zev-ask-status button,
+.zev-ask-error button:not(.zev-ask-icon) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 5px 10px;
+  border: 1px solid rgba(247, 248, 250, 0.22);
+  border-radius: 999px;
+  color: #f7f8fa;
+  font-size: 12px;
+}
+.zev-ask-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.zev-ask-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #468bff;
+  animation: zev-dot 1.1s ease-in-out infinite;
+}
+.zev-ask-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.zev-ask-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes zev-dot {
+  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+.zev-ask-error {
+  justify-content: space-between;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid rgba(255, 128, 128, 0.4);
+  border-radius: 12px;
+  background: rgba(255, 128, 128, 0.1);
+  color: #ffdede;
+}
+.zev-ask-error-actions {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+.zev-ask-offline {
+  color: #ffd58a;
+}
+
+.zev-ask-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 5px 5px 5px 14px;
+  border: 1px solid rgba(247, 248, 250, 0.22);
+  border-radius: 14px;
+  background: rgba(10, 12, 16, 0.65);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.zev-ask-form:focus-within {
+  border-color: #468bff;
+  box-shadow: 0 0 0 3px rgba(70, 139, 255, 0.28);
+}
+.zev-ask-form textarea {
+  flex: 1;
+  min-width: 0;
+  max-height: 168px;
+  padding: 9px 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: #f7f8fa;
+  font: 16px/1.45 var(--font-sans); /* 16px keeps iOS from zooming on focus */
+}
+.zev-ask-form textarea::placeholder {
+  color: #8592a4;
+}
+.zev-ask-send {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #468bff;
+  color: #0f1115;
+  transition: background 0.15s, opacity 0.15s;
+}
+.zev-ask-send:disabled {
+  background: rgba(247, 248, 250, 0.12);
+  color: #8592a4;
+  cursor: not-allowed;
+}
+.zev-ask-send:focus-visible,
+.zev-ask-icon:focus-visible,
+.zev-ask-chips button:focus-visible,
+.zev-ask-pill:focus-visible,
+.zev-ask-status button:focus-visible,
+.zev-ask-error button:focus-visible,
+.zev-ask-links a:focus-visible,
+.zev-ask-suggestion button:focus-visible {
+  outline: 2px solid #468bff;
+  outline-offset: 2px;
+}
+.zev-ask-hint {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 16px;
+  margin: 8px 4px 0;
+  color: #8d98a8;
+  font-size: 11.5px;
+}
+.zev-ask-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.zev-ask-chips button {
+  min-height: 36px;
+  padding: 7px 13px;
+  border: 1px solid rgba(247, 248, 250, 0.2);
+  border-radius: 999px;
+  color: #dce2ea;
+  font-size: 13px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.zev-ask-chips button:hover:not(:disabled) {
+  border-color: #468bff;
+  background: rgba(70, 139, 255, 0.16);
+}
+
+/* Stage: just the composer (and the thread once asked); the scene supplies the heading. */
+.zev-ask.is-stage .zev-ask-head {
+  display: none;
+}
+.zev-ask.is-stage .zev-ask-panel {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.zev-ask.is-stage .zev-ask-thread {
+  max-height: min(380px, 48vh);
+  margin-bottom: 16px;
+  text-align: left;
+}
+.zev-ask.is-stage .zev-ask-form {
+  padding: 8px 8px 8px 20px;
+  border-color: rgba(247, 248, 250, 0.2);
+  border-radius: 22px;
+  background: #151922;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.zev-ask.is-stage .zev-ask-form textarea {
+  padding: 12px 0;
+  font-size: 17px;
+}
+.zev-ask.is-stage .zev-ask-send {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+}
+.zev-ask.is-stage .zev-ask-hint {
+  justify-content: center;
+  gap: 2px 18px;
+  margin-top: 12px;
+}
+.zev-ask.is-stage .zev-ask-chips {
+  justify-content: center;
+  margin-top: 18px;
+}
+.zev-ask.is-stage .zev-ask-chips button {
+  min-height: 34px;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: #c4cedd;
+}
+
+/* Docked: bottom-right, above the virtual keyboard and the safe area. */
+.zev-ask.is-docked {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: calc(max(16px, env(safe-area-inset-bottom)) + var(--zev-kb, 0px));
+  z-index: 65;
+  width: min(400px, calc(100vw - 32px));
+}
+.zev-ask.is-docked.is-collapsed {
+  width: auto;
+}
+.zev-ask.is-docked .zev-ask-panel {
+  /* Never taller than the space under the site header (84px) plus breathing room. */
+  max-height: min(600px, calc(var(--zev-vvh, 100dvh) - 84px - 32px));
+  background: #0f1115;
+  box-shadow: 0 24px 70px rgba(15, 17, 21, 0.42), 0 0 0 1px rgba(70, 139, 255, 0.12);
+  animation: zev-dock-in 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.zev-ask.is-docked .zev-ask-thread {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+.zev-ask.is-docked .zev-ask-chips button {
+  min-height: 32px;
+  font-size: 12.5px;
+}
+.zev-ask-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 18px 0 8px;
+  border: 1px solid rgba(70, 139, 255, 0.5);
+  border-radius: 999px;
+  background: #0f1115;
+  box-shadow: 0 14px 40px rgba(15, 17, 21, 0.35);
+  color: #f7f8fa;
+  font-size: 14px;
+  font-weight: 600;
+  animation: zev-dock-in 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.zev-ask-pill:hover {
+  border-color: #468bff;
+}
+.zev-ask-unread {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #468bff;
+  box-shadow: 0 0 0 3px rgba(70, 139, 255, 0.25);
+}
+@keyframes zev-dock-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.zev-ask-suggestion {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  width: min(300px, calc(100vw - 32px));
+  padding: 12px 10px 10px 14px;
+  border: 1px solid #e6e9ee;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 16px 44px rgba(15, 17, 21, 0.18);
+  color: #0f1115;
+  animation: zev-dock-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.zev-ask-suggestion-tag {
+  color: #5b6472;
+  font: 10px/1.4 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.zev-ask-suggestion p {
+  margin: 4px 0 8px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.zev-ask-suggestion > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.zev-ask-suggestion > div > button:first-child {
+  padding: 6px 0;
+  color: #1f5fd1;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.zev-ask-suggestion .zev-ask-icon {
+  color: #5b6472;
+}
+.zev-ask-suggestion .zev-ask-icon:hover {
+  background: #f7f8fa;
+}
+
+
+/* ── Scene 2: Ask Zev stage ───────────────────────────────────────────── */
+.zev-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: calc(100svh - 84px);
+  padding: clamp(64px, 11vh, 128px) 20px clamp(48px, 8vh, 96px);
+  background:
+    radial-gradient(ellipse 60% 45% at 50% 0%, rgba(70, 139, 255, 0.16), transparent 70%),
+    linear-gradient(180deg, #080a0f 0%, #0f1115 38%, #0f1115 100%);
+  color: #f7f8fa;
+  text-align: center;
+}
+.zev-stage-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(760px, 100%);
+}
+.zev-stage-avatar {
+  display: grid;
+  place-items: end center;
+  width: 148px;
+  height: 148px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, #ffffff, #e6e9ee 70%);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18), 0 0 0 10px rgba(70, 139, 255, 0.1), 0 30px 80px rgba(70, 139, 255, 0.25);
+}
+.zev-stage h2 {
+  margin-top: 30px;
+  font-family: var(--font-sans);
+  font-size: clamp(36px, 5vw, 64px);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+}
+.zev-stage-sub {
+  margin-top: 12px;
+  color: #aeb9ca;
+  font-size: clamp(16px, 1.3vw, 19px);
+}
+.zev-stage-slot {
+  width: 100%;
+  margin-top: 36px;
+}
+.zev-stage-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: clamp(40px, 7vh, 72px);
+  padding: 10px 6px;
+  color: #aeb9ca;
+  font-size: 14px;
+}
+.zev-stage-next:hover {
+  color: #f7f8fa;
+}
+.zev-stage-next:focus-visible {
+  outline: 2px solid #468bff;
+  outline-offset: 4px;
+}
+.zev-stage-next svg {
+  animation: zev-nudge 2.4s ease-in-out infinite;
+}
+@keyframes zev-nudge {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────── */
+@media (max-width: 940px) {
+  .zev-hero {
+    min-height: auto;
+    padding-top: 22px;
+  }
+  .zev-hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 6px;
+  }
+  .zev-hero-art {
+    order: -1;
+    place-items: start;
+    /* The tilted extrusion reaches past its box; keep clear air above the eyebrow. */
+    margin: 8px 0 26px 2px;
+  }
+  .zev-hero .zev-hero-copy h1 {
+    margin-top: 14px;
+    font-size: clamp(52px, 14.5vw, 96px);
+  }
+  .zev-hero-lede {
+    margin-top: 16px;
+  }
+  .zev-hero-foot > span {
+    display: none;
+  }
+  /* The flow sweeps in from the right; on narrow screens show more of it. */
+  .zev-hero-film {
+    inset: 0 -70% 0 -5%;
+  }
+  .zev-hero-film .engine-film > img {
+    object-position: 53% 50%;
+  }
+  .zev-hero-scrim {
+    background:
+      linear-gradient(180deg, rgba(8, 10, 15, 0.2), rgba(8, 10, 15, 0.55) 30%, rgba(8, 10, 15, 0.82) 55%, rgba(8, 10, 15, 0.95) 85%),
+      linear-gradient(90deg, rgba(8, 10, 15, 0.55), transparent 85%);
+  }
+}
+@media (max-width: 680px) {
+  .zev-hero {
+    padding-inline: 20px;
+  }
+  .zev-stage {
+    min-height: auto;
+    padding-block: 64px 48px;
+  }
+  .zev-stage-avatar {
+    width: 112px;
+    height: 112px;
+  }
+  .zev-stage-avatar img {
+    height: 100px;
+    width: auto;
+  }
+  .zev-ask.is-stage .zev-ask-form {
+    padding-left: 16px;
+  }
+  /* Centered overflow would clip the first chip; start-align the swipe row. */
+  .zev-ask.is-stage .zev-ask-chips {
+    justify-content: flex-start;
+  }
+  .zev-ask-panel {
+    padding: 12px;
+  }
+  .zev-ask-hint > span:last-child {
+    display: none;
+  }
+  /* One swipeable row of quick questions instead of a tall stack. */
+  .zev-ask-chips {
+    flex-wrap: nowrap;
+    margin-inline: -12px;
+    padding: 0 12px 2px;
+    overflow-x: auto;
+    scroll-padding-inline: 12px;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+  .zev-ask-chips::-webkit-scrollbar {
+    display: none;
+  }
+  .zev-ask-chips button {
+    flex: none;
+    scroll-snap-align: start;
+  }
+  .zev-ask.is-docked {
+    right: max(8px, env(safe-area-inset-right));
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + var(--zev-kb, 0px));
+    width: calc(100vw - 16px);
+  }
+  .zev-ask.is-docked.is-collapsed {
+    width: auto;
+  }
+  .zev-ask.is-docked .zev-ask-panel {
+    max-height: min(560px, calc(var(--zev-vvh, 100dvh) - 68px - 24px));
+  }
+}
+/* Touch keyboards: the Enter / Shift+Enter hint does not apply; show the privacy line instead. */
+@media (pointer: coarse) {
+  .zev-ask-hint > span:first-child {
+    display: none;
+  }
+  .zev-ask-hint > span:last-child {
+    display: inline;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zev-stage-next svg,
+  .zev-ask-dots i,
+  .zev-ask.is-docked .zev-ask-panel,
+  .zev-ask-pill,
+  .zev-ask-suggestion {
+    animation: none;
+  }
+  .zev-hero-primary,
+  .zev-ask-form,
+  .zev-ask-chips button,
+  .zev-ask-send {
+    transition: none;
+  }
+}

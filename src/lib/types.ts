@@ -7,6 +7,10 @@ export interface Workspace {
   owner_id: string;
   plan_override: string | null;
   data_retention_days: number;
+  /** Plan ceiling for data_retention_days (the API refuses more). */
+  retention_max_days?: number;
+  /** Retention the purge job enforces: the stricter of setting and plan. */
+  effective_retention_days?: number;
   settings: Record<string, unknown>;
   created_at: string;
   role: WorkspaceRole;

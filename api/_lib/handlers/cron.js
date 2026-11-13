@@ -2,11 +2,13 @@ import { on } from '../router.js';
 import { ApiError } from '../http.js';
 import { adminClient } from '../supabase.js';
 import { SECURITY_RETENTION_DAYS } from '../analytics/security.js';
+import { effectiveRetentionDays, retentionCeiling } from '../plan-limits.js';
 
 /**
  * Daily maintenance:
  *  1. Reset credit periods that Stripe does not manage (free and admin-assigned plans).
- *  2. Purge telemetry beyond each workspace's retention (plan ceiling, workspace setting).
+ *  2. Purge telemetry beyond each workspace's effective retention: the stricter of the plan
+ *     ceiling and the workspace setting; a setting above the ceiling is lowered to it.
  *  3. Purge website analytics after 400 days and security events after 90 days.
  *  4. Drop expired desktop handoffs and invites.
  */
@@ -56,11 +58,17 @@ on('GET', '/api/cron/daily', async ({ request }) => {
   // 2. Telemetry retention.
   const { data: workspaces } = await admin.from('workspaces').select('id,data_retention_days,plan_override,owner_id');
   let purged = 0;
+  let reconciled = 0;
   for (const ws of workspaces || []) {
     const { data: planId } = await admin.rpc('workspace_plan', { ws: ws.id });
     const plan = (plans || []).find((p) => p.id === planId);
-    const planDays = Number(plan?.limits?.telemetry_retention_days) || 30;
-    const days = Math.min(planDays, Number(ws.data_retention_days) || planDays);
+    // An unknown plan falls back to the strictest window (7 days), never a longer one.
+    const days = effectiveRetentionDays(plan, ws.data_retention_days);
+    // SEC-02: reconcile the stored setting after a downgrade so settings show what is enforced.
+    if (Number(ws.data_retention_days) > retentionCeiling(plan)) {
+      await admin.from('workspaces').update({ data_retention_days: retentionCeiling(plan) }).eq('id', ws.id);
+      reconciled += 1;
+    }
     const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
     const { count } = await admin.from('telemetry_events').delete({ count: 'exact' }).eq('workspace_id', ws.id).lt('occurred_at', cutoff);
     purged += count || 0;
@@ -76,5 +84,5 @@ on('GET', '/api/cron/daily', async ({ request }) => {
   await admin.from('desktop_auth_handoffs').delete().lt('expires_at', new Date(now.getTime() - 10 * 60 * 1000).toISOString());
   await admin.from('workspace_invites').delete().is('accepted_at', null).lt('expires_at', now.toISOString());
 
-  return { ok: true, creditResets: resets, telemetryPurged: purged, siteEventsPurged: siteEventsPurged || 0, securityEventsPurged: securityEventsPurged || 0 };
+  return { ok: true, creditResets: resets, telemetryPurged: purged, retentionReconciled: reconciled, siteEventsPurged: siteEventsPurged || 0, securityEventsPurged: securityEventsPurged || 0 };
 });

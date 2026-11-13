@@ -123,7 +123,8 @@ export function gradeClassification(actual, expected, cfg = {}) {
   if (actual === null || actual === undefined) return fail({ error: 'actual_missing' });
   const text = String(actual).trim();
   const pool = labels.length ? labels : expectedLabel ? [expectedLabel] : [];
-  if (!pool.length || !expectedLabel) return fail({ error: 'labels_or_expected_missing' });
+  // Without a recorded outcome the case cannot be judged either way: unknown, not 0.
+  if (!pool.length || !expectedLabel) return { grader: 'classification', version: '1.0.0', score: null, passed: false, unknown: true, details: { error: 'labels_or_expected_missing' } };
   let predicted;
   if (strict) {
     const normalized = text.toLowerCase();
@@ -165,6 +166,7 @@ export function gradeOutput(actual, expected, specs) {
     if (spec.name === 'required_facts') return gradeRequiredFacts(actual, expected, cfg);
     return gradeExactMatch(actual, expected, cfg);
   });
+  if (results.some((r) => r.unknown)) return { score: null, results, passed: false, unknown: true };
   return { score: results.reduce((a, r) => a + r.score, 0) / results.length, results, passed: results.every((r) => r.passed) };
 }
 
@@ -303,7 +305,7 @@ export function runEvaluation({ execution, plan, traces, gateConfig, cases }) {
     if (sample.status !== 'succeeded') caseErrors += 1;
     const b = gradeOutput(baseline.output_text, spec.expected, spec.graders);
     const c = gradeOutput(sample.output_text ?? null, spec.expected, spec.graders);
-    if (spec.protected) {
+    if (spec.protected && !c.unknown) {
       protectedCount += 1;
       if (!c.passed) protectedFailures += 1;
     }

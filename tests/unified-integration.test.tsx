@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 /**
  * Integration guards for the unified vNext + ZevIR frontend: the typed
- * evidence-source gateway, the role mirror against real handler source, and
- * the public/private boundary of the public Zev support panel.
+ * evidence-source gateway and the role mirror against real handler source.
+ * The public Ask Zev composer is covered in ask-zev.test.tsx.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, configure, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, configure, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import axe from 'axe-core';
 import { ApiClientError } from '@/lib/api';
@@ -162,38 +162,6 @@ describe('EnterpriseView', () => {
     expect(container.querySelectorAll('main').length).toBe(1);
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(await violations(container)).toEqual([]);
-    fetchSpy.mockRestore();
-  });
-});
-
-describe('public Zev support', () => {
-  it('stays off the cinematic hero and appears once the visitor scrolls past it', async () => {
-    const { SupportZevLauncher } = await import('@/marketing/SupportZevLauncher');
-    Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 });
-    render(<MemoryRouter><SupportZevLauncher afterHero /></MemoryRouter>);
-    expect(screen.queryByRole('button', { name: 'Open Ask Zev public support' })).toBeNull();
-    Object.defineProperty(window, 'scrollY', { configurable: true, value: window.innerHeight });
-    act(() => { window.dispatchEvent(new Event('scroll')); });
-    expect(screen.getByRole('button', { name: 'Open Ask Zev public support' })).toBeTruthy();
-    Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 });
-  });
-
-  it('is FAQ-only: no network, no private agent route, focus returns on Escape', async () => {
-    const src = read('src/marketing/SupportZevLauncher.tsx');
-    expect(src).not.toMatch(/\/api\/|fetch\(|engine\/agent|useProduct|experienceApi/);
-    const fetchSpy = vi.spyOn(globalThis, 'fetch');
-    const { SupportZevLauncher } = await import('@/marketing/SupportZevLauncher');
-    const { container } = render(<MemoryRouter><main><SupportZevLauncher /></main></MemoryRouter>);
-    const trigger = screen.getByRole('button', { name: 'Open Ask Zev public support' });
-    act(() => trigger.click());
-    const dialog = screen.getByRole('dialog', { name: /Ask Zev — ZEVQORA Support/ });
-    expect(dialog.textContent).toContain('Not a live agent');
-    expect(document.activeElement?.getAttribute('aria-label')).toBe('Close support');
-    expect(await violations(container)).toEqual([]);
-    fireEvent.keyDown(document, { key: 'Escape' });
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(document.activeElement?.getAttribute('aria-label')).toBe('Open Ask Zev public support');
-    expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
   });
 });

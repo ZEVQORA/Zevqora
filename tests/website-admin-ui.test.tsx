@@ -42,6 +42,27 @@ describe('website', () => {
     expect(document.querySelector('link[rel=canonical]')?.getAttribute('href')).toBe('https://zevqora.vercel.app');
   });
 
+  it('homepage is three scenes in order: hero without chat, the Ask Zev stage, then the workbench', async () => {
+    const { default: HomePage } = await import('@/marketing/HomePage');
+    wrap(<HomePage />);
+    const hero = document.querySelector('.zev-hero') as HTMLElement;
+    const stage = document.getElementById('ask-zev') as HTMLElement;
+    const workbench = document.getElementById('workbench') as HTMLElement;
+    expect(hero && stage && workbench).toBeTruthy();
+    // Exactly one composer on the page, in the second scene, none in the hero.
+    expect(document.querySelectorAll('textarea')).toHaveLength(1);
+    expect(hero.querySelector('textarea, .zev-ask')).toBeNull();
+    expect(stage.querySelector('textarea')).toBeTruthy();
+    expect(stage.textContent).toContain('Hello, any questions?');
+    // Document order: hero → Ask Zev → workbench → internal REJECTED evidence.
+    expect(hero.compareDocumentPosition(stage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(stage.compareDocumentPosition(workbench) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(workbench.compareDocumentPosition(document.getElementById('proof') as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The hero links to both next scenes.
+    expect(hero.querySelector('a[href="#ask-zev"]')?.textContent).toContain('Meet Zev');
+    expect(hero.querySelector('a[href="#workbench"]')?.textContent).toContain('Explore ZEVQORA');
+  });
+
   it('the security page says imported trace files keep prompt content, instead of claiming nothing is stored', async () => {
     const { default: SecurityPage } = await import('@/marketing/SecurityPage');
     wrap(<SecurityPage />);
@@ -125,7 +146,8 @@ describe('admin', () => {
     const { default: AdminRoutes } = await import('@/admin/AdminRoutes');
     wrap(<Routes><Route path="/admin/*" element={<AdminRoutes />} /></Routes>, '/admin/content');
     expect(await screen.findByText('404')).toBeTruthy();
-    expect(document.title).toMatch(/Page not found/);
+    // The page title is set in an effect after the 404 renders.
+    await waitFor(() => expect(document.title).toMatch(/Page not found/));
     expect(screen.queryByText('Website content')).toBeNull();
     expect(v3.cms).not.toHaveBeenCalled();
   });

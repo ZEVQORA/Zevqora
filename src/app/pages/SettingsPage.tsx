@@ -181,7 +181,7 @@ export default function SettingsPage() {
             <form onSubmit={saveWorkspace} className="flex flex-col gap-4 p-5">
               <Field id="ws-name" label="Workspace name"><Input id="ws-name" name="name" defaultValue={activeWorkspace.name} disabled={!isAdmin} required minLength={2} /></Field>
               <div className="grid gap-4 sm:grid-cols-3">
-                <Field id="retention" label="Telemetry retention (days)" hint="Capped by your plan."><Input id="retention" name="retention" type="number" min={7} max={730} defaultValue={activeWorkspace.data_retention_days} disabled={!isAdmin} /></Field>
+                <Field id="retention" label="Telemetry retention (days)" hint={`Your ${titleCase(activeWorkspace.plan)} plan keeps telemetry for up to ${activeWorkspace.retention_max_days ?? 7} days.`}><Input id="retention" name="retention" type="number" min={7} max={activeWorkspace.retention_max_days ?? 7} defaultValue={activeWorkspace.effective_retention_days ?? activeWorkspace.data_retention_days} disabled={!isAdmin} /></Field>
                 <Field id="ws-qg" label="Default quality gate"><Input id="ws-qg" name="quality_gate" type="number" step="0.01" min={0.5} max={1} defaultValue={Number(activeWorkspace.settings?.quality_gate ?? 0.95)} disabled={!isAdmin} /></Field>
                 <Field id="ws-lat" label="Max latency regression %"><Input id="ws-lat" name="max_latency" type="number" min={0} max={500} defaultValue={Number(activeWorkspace.settings?.max_latency_regression_pct ?? 50)} disabled={!isAdmin} /></Field>
               </div>
@@ -203,7 +203,7 @@ export default function SettingsPage() {
             <Panel>
               <PanelHeader title="Data retention & privacy" description="What ZEVQORA keeps, and for how long." />
               <div className="px-5 pb-5">
-                <KeyValue mono={false} items={[{ k: 'Telemetry', v: `Purged after ${activeWorkspace.data_retention_days} days or the plan window, whichever is shorter.` }, { k: 'Samples', v: 'Opt-in per connection, sanitized, size-capped.' }, { k: 'Experiments', v: 'Output hashes and short previews only.' }, { k: 'Revocation', v: 'Revoke any connection from Connections; effect is immediate.' }]} />
+                <KeyValue mono={false} items={[{ k: 'Telemetry', v: `Purged after ${activeWorkspace.effective_retention_days ?? activeWorkspace.data_retention_days} days (your setting, capped by the plan window).` }, { k: 'Samples', v: 'Opt-in per connection, sanitized, size-capped.' }, { k: 'Experiments', v: 'Output hashes and short previews only.' }, { k: 'Revocation', v: 'Revoke any connection from Connections; effect is immediate.' }]} />
               </div>
             </Panel>
             <Panel>

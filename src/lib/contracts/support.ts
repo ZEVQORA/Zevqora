@@ -1,23 +1,45 @@
-/** Planned public support server contract — no live endpoint in release. */
-export type PublicAnswerMode = 'public_faq' | 'generative' | 'human_ticket';
+/**
+ * Public support contract: POST /api/support/message (api/_lib/handlers/support.js).
+ *
+ * Signed-out, no tenant data. `faq` answers come from the vetted public
+ * knowledge list; `ai` answers are generated from that same list only, and
+ * only when the deployment enables it (PUBLIC_SUPPORT_AI_ENABLED and an
+ * OpenRouter key) and the shared rate limiter is available.
+ */
+export type PublicAnswerMode = 'faq' | 'ai';
+
+export interface PublicSupportTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface PublicSupportMessageRequest {
-  idempotency_key: string;
-  thread_id: string | null;
   message: string;
-  public_context: { page: string };
+  /** The last few turns, oldest first. The server bounds and trims them. */
+  history?: PublicSupportTurn[];
+  /** Homepage section the visitor was reading, e.g. "hero" or "pricing". */
+  page?: string;
 }
+
+export interface PublicSupportLink {
+  label: string;
+  href: string;
+}
+
 export interface PublicSupportMessageResponse {
-  thread_id: string;
   answer: string;
-  answer_mode: PublicAnswerMode;
-  source_refs: string[];
-  created_at: string;
+  mode: PublicAnswerMode;
+  topic: string;
+  links: PublicSupportLink[];
+  contact: string;
+  /** Set when a generative answer was attempted and the FAQ answered instead. */
+  fallback?: boolean;
 }
-export interface PublicSupportTicketRequest {
-  idempotency_key: string;
-  email: string;
-  message: string;
-  consent_to_contact: boolean;
-}
-/** This frontend ships vetted local FAQs only; it intentionally sends NO API requests. */
-export const PUBLIC_SUPPORT_MODE: PublicAnswerMode = 'public_faq';
+
+export const SUPPORT_MESSAGE_MAX_CHARS = 800;
+
+/** UI label for each answer mode. */
+export const ANSWER_MODE_LABEL: Record<PublicAnswerMode, string> = {
+  faq: 'Guide / FAQ',
+  ai: 'AI answer · public info only',
+};

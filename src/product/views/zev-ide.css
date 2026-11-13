@@ -1,0 +1,523 @@
+/* Engineering Zev — IDE-style workspace. Uses the app's theme tokens (light and dark). */
+.zide {
+  --zide-line: var(--zq-border);
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr) 300px;
+  grid-template-rows: minmax(0, 1fr) var(--zide-chat, 300px);
+  height: calc(100dvh - 3.5rem - 2.75rem);
+  min-height: 520px;
+  background: var(--zq-canvas);
+  color: var(--zq-fg);
+}
+.zide-explorer,
+.zide-inspector {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 10px;
+  background: var(--zq-surface);
+}
+.zide-explorer {
+  border-right: 1px solid var(--zide-line);
+}
+.zide-inspector {
+  border-left: 1px solid var(--zide-line);
+  padding: 14px 16px;
+}
+.zide-section-title {
+  margin: 6px 6px 8px;
+  color: var(--zq-fg-subtle);
+  font: 600 10.5px/1.4 var(--font-mono, monospace);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.zide-section-title:not(:first-child) {
+  margin-top: 18px;
+}
+.zide-explorer ul {
+  display: grid;
+  gap: 2px;
+  list-style: none;
+}
+.zide-explorer button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  color: var(--zq-fg-muted);
+  font-size: 13px;
+  text-align: left;
+}
+.zide-explorer button span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.zide-explorer button small {
+  color: var(--zq-fg-subtle);
+  font: 11px var(--font-mono, monospace);
+}
+.zide-explorer button:hover {
+  background: color-mix(in srgb, var(--zq-fg) 5%, transparent);
+  color: var(--zq-fg);
+}
+.zide-explorer button.is-active {
+  background: var(--zq-accent-subtle);
+  color: var(--zq-fg);
+}
+.zide-explorer button.is-active svg {
+  color: var(--zq-accent);
+}
+.zide button:focus-visible,
+.zide textarea:focus-visible,
+.zide select:focus-visible,
+.zide-chat-handle:focus-visible {
+  outline: 2px solid var(--zq-accent);
+  outline-offset: 1px;
+}
+.zide-empty {
+  padding: 8px 6px;
+  color: var(--zq-fg-subtle);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.zide-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.zide-mobile-picker {
+  display: none;
+}
+.zide-blank {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  height: 100%;
+  padding: 24px;
+  text-align: center;
+}
+.zide-blank h1 {
+  font-size: 22px;
+  font-weight: 650;
+}
+.zide-blank p {
+  max-width: 46ch;
+  color: var(--zq-fg-muted);
+  font-size: 14px;
+}
+.zide-main-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding: 16px 20px 0;
+  border-bottom: 1px solid var(--zide-line);
+}
+.zide-main-head h1 {
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.zide-main-head p {
+  margin-top: 2px;
+  color: var(--zq-fg-subtle);
+  font-size: 12.5px;
+}
+.zide-tabs {
+  display: flex;
+  gap: 2px;
+}
+.zide-tabs button {
+  padding: 8px 12px 10px;
+  border-bottom: 2px solid transparent;
+  color: var(--zq-fg-muted);
+  font-size: 13px;
+}
+.zide-tabs button.is-active {
+  border-color: var(--zq-accent);
+  color: var(--zq-fg);
+  font-weight: 600;
+}
+.zide-main-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 20px 20px;
+}
+.zide-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.zide-table th {
+  position: sticky;
+  top: 0;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--zide-line);
+  background: var(--zq-canvas);
+  color: var(--zq-fg-subtle);
+  font: 600 10.5px var(--font-mono, monospace);
+  letter-spacing: 0.06em;
+  text-align: left;
+  text-transform: uppercase;
+}
+.zide-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--zide-line) 60%, transparent);
+  color: var(--zq-fg-muted);
+}
+.zide-table td:first-child button {
+  color: var(--zq-fg);
+  font-weight: 550;
+  text-align: left;
+}
+.zide-table tr {
+  cursor: pointer;
+}
+.zide-table tr:hover td {
+  background: color-mix(in srgb, var(--zq-fg) 3%, transparent);
+}
+.zide-table tr.is-selected td {
+  background: var(--zq-accent-subtle);
+}
+.zide-verdict {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font: 600 10.5px var(--font-mono, monospace);
+  letter-spacing: 0.04em;
+}
+.zide-verdict.is-verified { background: color-mix(in srgb, #1f9d63 16%, transparent); color: #1f8f5a; }
+.zide-verdict.is-rejected { background: color-mix(in srgb, #d24b4b 15%, transparent); color: #c13d3d; }
+.zide-verdict.is-incomplete { background: color-mix(in srgb, #c98a1b 16%, transparent); color: #a8700f; }
+
+.zide-dl {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+.zide-dl dt {
+  margin-top: 10px;
+  color: var(--zq-fg-subtle);
+  font: 600 10.5px var(--font-mono, monospace);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.zide-dl dd {
+  color: var(--zq-fg);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.zide-gates {
+  display: grid;
+  gap: 4px;
+  list-style: none;
+}
+.zide-gates li {
+  padding-left: 8px;
+  border-left: 2px solid var(--zide-line);
+  color: var(--zq-fg-muted);
+  font-size: 12.5px;
+}
+.zide-gates li.is-pass { border-color: #1f9d63; }
+.zide-gates li.is-fail { border-color: #d24b4b; color: var(--zq-fg); }
+.zide-pre {
+  max-height: 180px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--zq-fg) 5%, transparent);
+  font: 11.5px/1.5 var(--font-mono, monospace);
+  white-space: pre-wrap;
+}
+.zide-note {
+  display: flex;
+  gap: 6px;
+  margin-top: 18px;
+  color: var(--zq-fg-subtle);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.mono {
+  font-family: var(--font-mono, monospace);
+}
+
+/* ── Bottom chat ── */
+.zide-chat {
+  position: relative;
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--zide-line);
+  background: var(--zq-surface);
+}
+.zide-chat-handle {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  right: 0;
+  height: 8px;
+  cursor: ns-resize;
+  z-index: 2;
+}
+.zide-chat-handle::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  width: 40px;
+  height: 3px;
+  margin-left: -20px;
+  border-radius: 999px;
+  background: var(--zq-border-strong);
+}
+.zide-chat-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--zide-line);
+  font-size: 13px;
+}
+.zide-chat-scope {
+  flex: 1;
+  overflow: hidden;
+  color: var(--zq-fg-subtle);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.zide-chat-provider {
+  padding: 2px 8px;
+  border: 1px solid var(--zide-line);
+  border-radius: 999px;
+  color: var(--zq-fg-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.zide-chat-provider.is-on { border-color: color-mix(in srgb, var(--zq-accent) 50%, transparent); color: var(--zq-accent-text); }
+.zide-chat-provider.is-off { border-color: color-mix(in srgb, #c98a1b 50%, transparent); color: #a8700f; }
+.zide-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  color: var(--zq-fg-muted);
+}
+.zide-icon:hover {
+  background: color-mix(in srgb, var(--zq-fg) 6%, transparent);
+}
+.zide-chat-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 16px;
+  scrollbar-width: thin;
+}
+.zide-msg {
+  max-width: min(780px, 92%);
+  margin-bottom: 10px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.zide-msg p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.zide-msg.is-user {
+  margin-left: auto;
+  background: var(--zq-accent-subtle);
+}
+.zide-msg.is-zev {
+  border: 1px solid var(--zide-line);
+  background: var(--zq-canvas);
+}
+.zide-msg small {
+  display: block;
+  margin-top: 4px;
+  color: var(--zq-fg-subtle);
+  font-size: 10.5px;
+}
+.zide-tools {
+  display: grid;
+  gap: 3px;
+  margin-top: 6px;
+  list-style: none;
+  font-size: 11.5px;
+}
+.zide-tools li {
+  color: var(--zq-fg-muted);
+}
+.zide-tools li.is-failed { color: #c13d3d; }
+.zide-status,
+.zide-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+.zide-status {
+  color: var(--zq-fg-muted);
+}
+.zide-status button,
+.zide-error button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: 1px solid var(--zide-line);
+  border-radius: 999px;
+  font-size: 12px;
+}
+.zide-error {
+  justify-content: space-between;
+  margin: 0 16px 6px;
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, #d24b4b 40%, transparent);
+  border-radius: 9px;
+  color: #c13d3d;
+}
+.zide-chat-actions {
+  display: flex;
+  gap: 6px;
+  padding: 0 16px 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.zide-chat-actions button {
+  flex: none;
+  padding: 5px 11px;
+  border: 1px solid var(--zide-line);
+  border-radius: 999px;
+  color: var(--zq-fg-muted);
+  font-size: 12px;
+}
+.zide-chat-actions button:hover:not(:disabled) {
+  border-color: var(--zq-accent);
+  color: var(--zq-fg);
+}
+.zide-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 0 16px 12px;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid var(--zq-border-strong);
+  border-radius: 12px;
+  background: var(--zq-canvas);
+}
+.zide-composer:focus-within {
+  border-color: var(--zq-accent);
+}
+.zide-composer textarea {
+  flex: 1;
+  max-height: 120px;
+  padding: 7px 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--zq-fg);
+  font: 14px/1.45 var(--font-sans);
+}
+.zide-composer button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--zq-accent);
+  color: #fff;
+}
+.zide-composer button:disabled {
+  background: color-mix(in srgb, var(--zq-fg) 10%, transparent);
+  color: var(--zq-fg-subtle);
+}
+.zide.is-chat-closed .zide-chat-head {
+  border-bottom: 0;
+}
+
+/* Tablet: inspector moves under the work area. */
+@media (max-width: 1180px) {
+  .zide {
+    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto var(--zide-chat, 300px);
+  }
+  .zide-inspector {
+    grid-column: 2;
+    max-height: 220px;
+    border-left: 0;
+    border-top: 1px solid var(--zide-line);
+  }
+}
+/* Phone: one column; the chat is a bottom sheet that can take the screen. */
+@media (max-width: 760px) {
+  .zide {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: calc(100dvh - 3.5rem);
+    padding-bottom: 60px;
+  }
+  .zide-explorer {
+    display: none;
+  }
+  .zide-mobile-picker {
+    display: block;
+    padding: 12px 16px 0;
+  }
+  .zide-mobile-picker select {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 10px;
+    border: 1px solid var(--zq-border-strong);
+    border-radius: 10px;
+    background: var(--zq-surface);
+    color: var(--zq-fg);
+  }
+  .zide-main-body {
+    overflow: visible;
+  }
+  .zide-inspector {
+    max-height: none;
+    border-top: 1px solid var(--zide-line);
+  }
+  .zide-chat {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    height: min(var(--zide-chat, 300px), calc(100dvh - 4rem));
+    padding-bottom: env(safe-area-inset-bottom);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -12px 40px rgba(15, 17, 21, 0.18);
+  }
+  .zide.is-chat-closed .zide-chat {
+    height: calc(52px + env(safe-area-inset-bottom));
+  }
+  .zide-chat-scope {
+    display: none;
+  }
+  .zide-composer textarea {
+    font-size: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zide * {
+    transition: none !important;
+  }
+}

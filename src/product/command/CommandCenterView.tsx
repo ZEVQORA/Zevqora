@@ -18,6 +18,8 @@ import { LineChart } from '@/components/charts/LineChart';
 import { HBarChart } from '@/components/charts/Bars';
 import { ZevFace } from '@/brand/Zev';
 import { experienceApi, fmt, type CommandCenter, type ProductCard } from '../experience';
+import { WelcomeArea } from './Welcome';
+import './welcome.css';
 import { DecisionQueue, EvaluatedPlanLine, Pipeline, ProjectionNote, RiskList, freshness, lowerIsBetter, orUnknown, primaryWorkload, spendConcentration, useOpenWorkload } from './parts';
 
 const DAY_OPTIONS = [
@@ -259,6 +261,7 @@ export default function CommandCenterView() {
 
   return (
     <div className="mx-auto w-full max-w-[1320px] px-4 py-6 lg:px-8 lg:py-8">
+      <WelcomeArea cc={cc ?? null} />
       <ViewHeader
         eyebrow={activeWorkspace?.name}
         title="Command Center"
