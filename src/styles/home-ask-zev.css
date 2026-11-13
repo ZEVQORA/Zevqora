@@ -257,6 +257,34 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   list-style: none;
+  scrollbar-gutter: stable;
+}
+/* A quiet scrollbar that matches the panel instead of the platform default.
+   Chromium/WebKit: the ::-webkit-scrollbar rules (no arrow buttons). Setting
+   scrollbar-width/-color would make Chromium ignore them, so those are only
+   for browsers without the pseudo-elements (Firefox). */
+@supports not selector(::-webkit-scrollbar) {
+  .zev-ask-thread {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(247, 248, 250, 0.22) transparent;
+  }
+}
+.zev-ask-thread::-webkit-scrollbar {
+  width: 6px;
+}
+.zev-ask-thread::-webkit-scrollbar-track {
+  background: transparent;
+}
+.zev-ask-thread::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(247, 248, 250, 0.22);
+}
+.zev-ask-thread::-webkit-scrollbar-thumb:hover {
+  background: rgba(247, 248, 250, 0.36);
+}
+.zev-ask-thread::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
 }
 .zev-ask-msg {
   max-width: 88%;
@@ -476,7 +504,8 @@
   width: auto;
 }
 .zev-ask.is-docked .zev-ask-panel {
-  max-height: min(620px, calc(var(--zev-vvh, 100dvh) - 32px));
+  /* Never taller than the space under the site header (84px) plus breathing room. */
+  max-height: min(600px, calc(var(--zev-vvh, 100dvh) - 84px - 32px));
   background: #0f1115;
   box-shadow: 0 24px 70px rgba(15, 17, 21, 0.42), 0 0 0 1px rgba(70, 139, 255, 0.12);
   animation: zev-dock-in 0.24s cubic-bezier(0.16, 1, 0.3, 1);
@@ -638,7 +667,7 @@
     width: auto;
   }
   .zev-ask.is-docked .zev-ask-panel {
-    max-height: min(560px, calc(var(--zev-vvh, 100dvh) - 16px));
+    max-height: min(560px, calc(var(--zev-vvh, 100dvh) - 68px - 24px));
   }
 }
 /* Touch keyboards: the Enter / Shift+Enter hint does not apply; show the privacy line instead. */

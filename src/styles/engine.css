@@ -166,9 +166,17 @@
   justify-content: center;
   border: 1px solid #ffffff40;
 }
+/* Anchored to the header, not the viewport: the header is composited with a
+   transform (refinements.css), which makes it the containing block of any
+   position: fixed child. The menu fills the screen below the header. */
 .engine-mobile-menu {
-  position: fixed;
-  inset: 84px 0 0;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: calc(100vh - 84px);
+  height: calc(100dvh - 84px);
+  overscroll-behavior: contain;
   background: #080a0f;
   padding: 24px 7vw 40px;
   overflow-y: auto;
@@ -1921,7 +1929,8 @@
     height: 73px;
   }
   .engine-mobile-menu {
-    top: 73px;
+    height: calc(100vh - 73px);
+    height: calc(100dvh - 73px);
   }
   .engine-header-inner {
     padding-inline: 30px;
@@ -2199,7 +2208,8 @@
     width: 33px;
   }
   .engine-mobile-menu {
-    top: 68px;
+    height: calc(100vh - 68px);
+    height: calc(100dvh - 68px);
     padding: 15px 24px 35px;
   }
   .engine-mobile-menu a {
