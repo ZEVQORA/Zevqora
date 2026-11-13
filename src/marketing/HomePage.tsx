@@ -1,19 +1,10 @@
 import { Hero } from "./Hero";
+import { AskZevStage } from "./AskZevStage";
+import { WorkbenchStage, ZevirMap } from "./HomeStory";
 import { PageTitle } from "./Editorial";
-import {
-  EngineBoundaries,
-  EngineEnd,
-  EngineProductStage,
-  EngineProof,
-} from "./EngineSections";
-import {
-  ClarityAudience,
-  ClarityClose,
-  ClarityFlow,
-  ClarityIntro,
-} from "./PremiumNarrative";
+import { EngineBoundaries, EngineProof } from "./EngineSections";
+import { ClarityAudience, ClarityClose } from "./PremiumNarrative";
 import { PricingGrid } from "./Pricing";
-import { AskZev } from "./askzev/AskZev";
 import { SITE_URL } from "@/lib/seo";
 
 const DESCRIPTION =
@@ -27,30 +18,31 @@ const JSON_LD = {
   ],
 };
 
+/**
+ * The homepage as one journey, each section with a single job:
+ *   1. Hero — what ZEVQORA is (film + dimensional Z, no chat).
+ *   2. Ask Zev — a calm place to ask; the only Ask Zev instance on the page.
+ *   3. The work — the problem and the loop, driving the real product preview.
+ *   4. The evidence — an honest REJECTED decision from an internal benchmark.
+ *   5. Under the hood — ZevIR in plain language.
+ *   6. Boundaries — security and human review.
+ *   7. Who it is for, pricing, and one closing call to action.
+ */
 export default function HomePage() {
   return (
     <>
       <PageTitle title="Make AI lighter." description={DESCRIPTION} jsonLd={JSON_LD} />
-      {/* Retain the single Ask Zev instance as it moves from the hero into the dock. */}
-      <Hero composer={<AskZev />} />
-
-      {/* Lead with customer clarity instead of a repeating ticker and abstract manifesto. */}
-      <ClarityIntro />
-      <ClarityFlow />
-
-      {/* Existing functional product preview and evidence remain intact. */}
-      <EngineProductStage />
+      <Hero />
+      <AskZevStage />
+      <WorkbenchStage />
       <EngineProof />
-
-      <ClarityAudience />
+      <ZevirMap />
       <EngineBoundaries />
-
+      <ClarityAudience />
       <section className="engine-home-pricing">
         <PricingGrid />
       </section>
-
       <ClarityClose />
-      <EngineEnd />
     </>
   );
 }

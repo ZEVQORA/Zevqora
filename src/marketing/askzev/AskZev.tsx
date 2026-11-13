@@ -7,15 +7,18 @@ import { ANSWER_MODE_LABEL, SUPPORT_MESSAGE_MAX_CHARS } from '@/lib/contracts/su
 import { useAskZev } from './useAskZev';
 import { useSectionSuggestion } from './useSectionSuggestion';
 
-export const QUICK_CHIPS = ['What does ZEVQORA do?', 'How do I connect my server?', 'Why verify before optimizing?', 'Can I talk to your team?'] as const;
+export const QUICK_CHIPS = ['What does ZEVQORA do?', 'How do I connect my server?', 'Why verify before optimizing?'] as const;
 
-/** Header height the hero slot must clear before the composer docks. */
+const NARROW = '(max-width: 420px)';
+const narrowNow = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(NARROW).matches;
+
+/** Header height the stage slot must clear before the composer docks. */
 const HEADER_OFFSET = 80;
 
 /**
  * Ask Zev, the public homepage composer.
  *
- * Exactly one composer is mounted, rendered inside the hero slot so that it
+ * Exactly one composer is mounted, rendered inside the Ask Zev stage so that it
  * follows the headline in reading and tab order. Once the slot scrolls under
  * the header the composer docks bottom-right (position: fixed) — the same DOM
  * node, so the draft, the thread and focus all carry over — and the slot keeps
@@ -47,9 +50,7 @@ export function AskZev() {
   useEffect(() => {
     const slot = root.current?.parentElement;
     if (!slot || typeof IntersectionObserver === 'undefined') return;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        const past = !entry.isIntersecting && entry.boundingClientRect.top < HEADER_OFFSET;
+    const apply = (past: boolean) => {
         if (past === dockedRef.current) return;
         dockedRef.current = past;
         // Decide before the re-render: a collapsed panel is hidden, and hiding it would drop focus.
@@ -61,14 +62,33 @@ export function AskZev() {
           if (focusedInside) setAnnouncement('Ask Zev moved to the bottom-right corner. Your message is still here.');
         } else {
           setUnread(false);
-          if (focusedInside) setAnnouncement('Ask Zev is back under the headline.');
+          if (focusedInside) setAnnouncement('Ask Zev is back in its section.');
         }
         setDocked(past);
-      },
+    };
+    const io = new IntersectionObserver(
+      ([entry]) => apply(!entry.isIntersecting && entry.boundingClientRect.top < HEADER_OFFSET),
       { rootMargin: `-${HEADER_OFFSET}px 0px 0px 0px`, threshold: 0 },
     );
     io.observe(slot);
-    return () => io.disconnect();
+    // An instant jump (Home key, an anchor, "back to top") can go from above the
+    // slot to below it without ever intersecting, so the observer never fires.
+    // A throttled scroll check catches those jumps.
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const r = slot.getBoundingClientRect();
+        if (r.height > 0) apply(r.bottom <= HEADER_OFFSET);
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      io.disconnect();
+      window.removeEventListener('scroll', onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, []);
 
   // An answer that lands while the panel is minimized marks the launcher (a real answer, never a teaser).
@@ -112,7 +132,9 @@ export function AskZev() {
     };
   }, []);
 
-  const page = docked ? section || 'page' : 'hero';
+  const page = docked ? section || 'page' : 'ask-zev';
+  // The full placeholder wraps on very narrow phones; keep it on one line there.
+  const [narrow] = useState(narrowNow);
   const submit = useCallback(() => {
     send(undefined, page);
   }, [send, page]);
@@ -158,8 +180,8 @@ export function AskZev() {
   return (
     <div
       ref={root}
-      className={cn('zev-ask', docked ? 'is-docked' : 'is-hero', collapsed && 'is-collapsed', asked && 'has-thread')}
-      data-state={docked ? (expanded ? 'docked-open' : 'docked-closed') : 'hero'}
+      className={cn('zev-ask', docked ? 'is-docked' : 'is-stage', collapsed && 'is-collapsed', asked && 'has-thread')}
+      data-state={docked ? (expanded ? 'docked-open' : 'docked-closed') : 'stage'}
     >
       <p className="sr-only" aria-live="polite">
         {announcement}
@@ -302,7 +324,7 @@ export function AskZev() {
             maxLength={SUPPORT_MESSAGE_MAX_CHARS}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Ask a question…"
+            placeholder={narrow ? 'Ask Zev anything…' : 'Ask Zev anything about ZEVQORA…'}
             aria-describedby={ids.hint}
             enterKeyHint="send"
             autoComplete="off"
@@ -313,7 +335,7 @@ export function AskZev() {
         </form>
         <p id={ids.hint} className="zev-ask-hint">
           <span>Enter to send · Shift+Enter for a new line</span>
-          <span>No signup. Nothing you type is stored.</span>
+          <span>No signup. Public info only; ZEVQORA doesn't save your messages.</span>
         </p>
 
         {!asked && (

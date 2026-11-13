@@ -98,11 +98,11 @@ afterEach(() => {
 describe('Ask Zev composer', () => {
   it('starts in the hero with the four quick chips, one input, no thread and no request', async () => {
     const { container } = mount();
-    expect(container.querySelector('.zev-ask')?.className).toContain('is-hero');
+    expect(container.querySelector('.zev-ask')?.className).toContain('is-stage');
     expect(screen.getAllByRole('textbox')).toHaveLength(1);
     const chips = screen.getByRole('group', { name: 'Suggested questions' });
     expect(Array.from(chips.querySelectorAll('button')).map((b) => b.textContent)).toEqual([...QUICK_CHIPS]);
-    expect(QUICK_CHIPS).toEqual(['What does ZEVQORA do?', 'How do I connect my server?', 'Why verify before optimizing?', 'Can I talk to your team?']);
+    expect(QUICK_CHIPS).toEqual(['What does ZEVQORA do?', 'How do I connect my server?', 'Why verify before optimizing?']);
     // Never an unprompted message: no thread until the visitor asks.
     expect(screen.queryByRole('log')).toBeNull();
     expect(apiMock.fn).not.toHaveBeenCalled();
@@ -128,7 +128,7 @@ describe('Ask Zev composer', () => {
     expect(apiMock.fn).toHaveBeenCalledTimes(1);
     const [path, opts] = apiMock.fn.mock.calls[0];
     expect(path).toBe('/api/support/message');
-    expect(opts).toMatchObject({ method: 'POST', auth: false, body: { message: 'What is it?', history: [], page: 'hero' } });
+    expect(opts).toMatchObject({ method: 'POST', auth: false, body: { message: 'What is it?', history: [], page: 'ask-zev' } });
     expect(textbox().value).toBe('');
     const log = await screen.findByRole('log', { name: 'Conversation with Zev' });
     await screen.findByText(/replays lighter plans/);
@@ -174,7 +174,7 @@ describe('Ask Zev composer', () => {
   it('keeps the question after a server error or a rate limit and offers Retry', async () => {
     apiMock.fn.mockRejectedValueOnce(new ApiClientError(429, 'You are sending messages quickly. Wait a moment and try again.', 'RATE_LIMITED'));
     mount();
-    fireEvent.click(screen.getByRole('button', { name: 'Can I talk to your team?' }));
+    fireEvent.click(screen.getByRole('button', { name: 'How do I connect my server?' }));
     expect((await screen.findByRole('alert')).textContent).toContain('sending messages quickly');
     apiMock.fn.mockRejectedValueOnce(new ApiClientError(500, 'x', 'INTERNAL'));
     fireEvent.click(screen.getByRole('button', { name: /Retry/ }));
@@ -233,7 +233,7 @@ describe('Ask Zev composer', () => {
     expect(container.querySelectorAll('textarea')).toHaveLength(1);
 
     scrollBackToHero(slot);
-    expect(root.className).toContain('is-hero');
+    expect(root.className).toContain('is-stage');
     expect(slot.style.minHeight).toBe('');
     expect(textbox()).toBe(input);
     expect(input.value).toBe('half-typed question');

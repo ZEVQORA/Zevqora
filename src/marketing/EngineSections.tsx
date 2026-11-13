@@ -20,61 +20,6 @@ import { ZevqoraMark } from "@/brand/ZevqoraMark";
 import { ProductPreview } from "./ProductPreview";
 import { Rise } from "./Editorial";
 
-export function EngineTicker() {
-  return (
-    // role="img" lets the repeated, aria-hidden marquee carry one spoken label.
-    <div className="engine-ticker" role="img" aria-label="Less waste. More possibility.">
-      <div aria-hidden>
-        {Array.from({ length: 4 }, (_, i) => (
-          <span key={i}>
-            LESS WASTE <i>↗</i> MORE POSSIBILITY <b>✳</b>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-export function EngineManifesto() {
-  return (
-    <section className="engine-manifesto" id="manifesto">
-      <div className="engine-section-meta">
-        <span>THE WEIGHT OF INTELLIGENCE</span>
-        <span>01 / A DIFFERENT WAY</span>
-      </div>
-      <Rise>
-        <h2>
-          AI is moving
-          <br />
-          <span>fast.</span> Your costs
-          <br />
-          shouldn’t follow.
-        </h2>
-      </Rise>
-      <div className="engine-manifesto-bottom">
-        <span className="engine-asterisk" aria-hidden>
-          ✳
-        </span>
-        <p>
-          Models get bigger. Context gets longer.
-          <br />
-          The bill gets heavier.
-        </p>
-        <div>
-          <p>
-            ZEVQORA finds the unnecessary work hiding inside your AI system. It
-            tests the alternative, checks the evidence, and keeps quality in the
-            decision.
-          </p>
-          <Link to="/product" className="engine-inline-link">
-            Meet your optimization engineer
-            <ArrowUpRight size={17} />
-          </Link>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 export { TypeMethod as EngineChapters } from "./TypeMethod";
 
 export function EngineProductStage() {
@@ -177,7 +122,7 @@ export function EngineBoundaries() {
     <section className="engine-boundaries">
       <div className="engine-section-meta">
         <span>TRUST, ENGINEERED IN</span>
-        <span>04 / YOUR BOUNDARIES</span>
+        <span>05 / YOUR BOUNDARIES</span>
       </div>
       <div className="engine-boundaries-layout">
         <Rise>

@@ -36,6 +36,17 @@
 .zev-hero-foot {
   position: relative;
 }
+/* Scroll-linked exit (--hero-exit 0→1, set by Hero; absent under reduced motion). */
+.zev-hero-copy {
+  transform: translate3d(0, calc(var(--hero-exit, 0) * -48px), 0);
+  opacity: calc(1 - var(--hero-exit, 0) * 0.55);
+}
+.zev-hero-art {
+  transform: translate3d(0, calc(var(--hero-exit, 0) * 36px), 0) scale(calc(1 - var(--hero-exit, 0) * 0.12));
+}
+.zev-hero-scrim {
+  opacity: calc(1 + var(--hero-exit, 0));
+}
 .zev-hero-grid {
   flex: 1;
   display: grid;
@@ -85,16 +96,12 @@
   font-size: clamp(16px, 1.2vw, 19px);
   line-height: 1.55;
 }
-.zev-hero-slot {
-  max-width: 640px;
-  margin-top: 28px;
-}
 .zev-hero-ctas {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 14px 28px;
-  margin-top: 22px;
+  gap: 16px 30px;
+  margin-top: 34px;
 }
 .zev-hero-primary {
   display: inline-flex;
@@ -111,17 +118,30 @@
   background: #468bff;
   color: #0f1115;
 }
-.zev-hero-secondary {
+/* "Meet Zev": an arrow down to the next scene. */
+.zev-hero-next {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding-bottom: 3px;
-  border-bottom: 1px solid rgba(247, 248, 250, 0.3);
+  gap: 12px;
   color: #e3e8f1;
-  font-size: 13px;
+  font: 500 14px/1 var(--font-sans);
+}
+.zev-hero-next-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(247, 248, 250, 0.35);
+  border-radius: 50%;
+  transition: border-color 0.2s, background 0.2s, transform 0.3s;
+}
+.zev-hero-next:hover .zev-hero-next-icon {
+  border-color: #468bff;
+  background: rgba(70, 139, 255, 0.16);
+  transform: translateY(3px);
 }
 .zev-hero-primary:focus-visible,
-.zev-hero-secondary:focus-visible,
+.zev-hero-next:focus-visible,
 .zev-hero-foot a:focus-visible {
   outline: 2px solid #468bff;
   outline-offset: 4px;
@@ -515,13 +535,52 @@
   background: rgba(70, 139, 255, 0.16);
 }
 
-/* Hero: the composer is part of the headline block; a compact label row. */
-.zev-ask.is-hero .zev-ask-head {
-  padding-bottom: 10px;
+/* Stage: just the composer (and the thread once asked); the scene supplies the heading. */
+.zev-ask.is-stage .zev-ask-head {
+  display: none;
 }
-.zev-ask.is-hero .zev-ask-head-avatar {
-  width: 28px;
-  height: 28px;
+.zev-ask.is-stage .zev-ask-panel {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.zev-ask.is-stage .zev-ask-thread {
+  max-height: min(380px, 48vh);
+  margin-bottom: 16px;
+  text-align: left;
+}
+.zev-ask.is-stage .zev-ask-form {
+  padding: 8px 8px 8px 20px;
+  border-color: rgba(247, 248, 250, 0.2);
+  border-radius: 22px;
+  background: #151922;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.zev-ask.is-stage .zev-ask-form textarea {
+  padding: 12px 0;
+  font-size: 17px;
+}
+.zev-ask.is-stage .zev-ask-send {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+}
+.zev-ask.is-stage .zev-ask-hint {
+  justify-content: center;
+  gap: 2px 18px;
+  margin-top: 12px;
+}
+.zev-ask.is-stage .zev-ask-chips {
+  justify-content: center;
+  margin-top: 18px;
+}
+.zev-ask.is-stage .zev-ask-chips button {
+  min-height: 34px;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: #c4cedd;
 }
 
 /* Docked: bottom-right, above the virtual keyboard and the safe area. */
@@ -628,6 +687,77 @@
   background: #f7f8fa;
 }
 
+
+/* ── Scene 2: Ask Zev stage ───────────────────────────────────────────── */
+.zev-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: calc(100svh - 84px);
+  padding: clamp(64px, 11vh, 128px) 20px clamp(48px, 8vh, 96px);
+  background:
+    radial-gradient(ellipse 60% 45% at 50% 0%, rgba(70, 139, 255, 0.16), transparent 70%),
+    linear-gradient(180deg, #080a0f 0%, #0f1115 38%, #0f1115 100%);
+  color: #f7f8fa;
+  text-align: center;
+}
+.zev-stage-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(760px, 100%);
+}
+.zev-stage-avatar {
+  display: grid;
+  place-items: end center;
+  width: 148px;
+  height: 148px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, #ffffff, #e6e9ee 70%);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18), 0 0 0 10px rgba(70, 139, 255, 0.1), 0 30px 80px rgba(70, 139, 255, 0.25);
+}
+.zev-stage h2 {
+  margin-top: 30px;
+  font-family: var(--font-sans);
+  font-size: clamp(36px, 5vw, 64px);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+}
+.zev-stage-sub {
+  margin-top: 12px;
+  color: #aeb9ca;
+  font-size: clamp(16px, 1.3vw, 19px);
+}
+.zev-stage-slot {
+  width: 100%;
+  margin-top: 36px;
+}
+.zev-stage-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: clamp(40px, 7vh, 72px);
+  padding: 10px 6px;
+  color: #aeb9ca;
+  font-size: 14px;
+}
+.zev-stage-next:hover {
+  color: #f7f8fa;
+}
+.zev-stage-next:focus-visible {
+  outline: 2px solid #468bff;
+  outline-offset: 4px;
+}
+.zev-stage-next svg {
+  animation: zev-nudge 2.4s ease-in-out infinite;
+}
+@keyframes zev-nudge {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
+}
+
 /* ── Responsive ───────────────────────────────────────────────────────── */
 @media (max-width: 940px) {
   .zev-hero {
@@ -652,9 +782,6 @@
   .zev-hero-lede {
     margin-top: 16px;
   }
-  .zev-hero-slot {
-    margin-top: 22px;
-  }
   .zev-hero-foot > span {
     display: none;
   }
@@ -674,6 +801,25 @@
 @media (max-width: 680px) {
   .zev-hero {
     padding-inline: 20px;
+  }
+  .zev-stage {
+    min-height: auto;
+    padding-block: 64px 48px;
+  }
+  .zev-stage-avatar {
+    width: 112px;
+    height: 112px;
+  }
+  .zev-stage-avatar img {
+    height: 100px;
+    width: auto;
+  }
+  .zev-ask.is-stage .zev-ask-form {
+    padding-left: 16px;
+  }
+  /* Centered overflow would clip the first chip; start-align the swipe row. */
+  .zev-ask.is-stage .zev-ask-chips {
+    justify-content: flex-start;
   }
   .zev-ask-panel {
     padding: 12px;
@@ -699,9 +845,6 @@
     flex: none;
     scroll-snap-align: start;
   }
-  .zev-ask.is-hero .zev-ask-head {
-    padding-bottom: 8px;
-  }
   .zev-ask.is-docked {
     right: max(8px, env(safe-area-inset-right));
     bottom: calc(max(8px, env(safe-area-inset-bottom)) + var(--zev-kb, 0px));
@@ -724,6 +867,7 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .zev-stage-next svg,
   .zev-ask-dots i,
   .zev-ask.is-docked .zev-ask-panel,
   .zev-ask-pill,

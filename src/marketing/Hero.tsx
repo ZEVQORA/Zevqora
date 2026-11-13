@@ -1,6 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUpRight, Pause, Play } from "lucide-react";
-import { Link } from "react-router";
 import { DimensionalZ } from "@/brand/DimensionalZ";
 import { EngineFilm } from "@/brand/EngineFilm";
 
@@ -17,24 +16,53 @@ function useMarkSize() {
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
   }, []);
-  return compact ? 96 : 430;
+  return compact ? 112 : 440;
 }
 
 /**
- * First viewport, in layers: main's flowing blue EngineFilm (WebGL, with
- * its canvas and still-image fallbacks) fills the hero; a scrim keeps the
- * copy legible; the dimensional Z stands in front; the headline, the Ask Zev
- * slot and the CTAs sit on top. The composer is passed in and mounted once in
- * the slot; it docks on scroll without being remounted. Text and CTAs are
- * plain markup with no entrance animation, so nothing waits on the film or
- * the mark. The film can be paused (WCAG 2.2.2); it already stops offscreen,
- * in hidden tabs and under prefers-reduced-motion.
+ * Scroll-linked exit: as the hero leaves, the copy settles upward and the Z
+ * drifts deeper. Driven by ordinary scroll position (no scroll hijack), written
+ * to one CSS variable, and skipped entirely under reduced motion.
  */
-export function Hero({ composer }: { composer: ReactNode }) {
+function useHeroExit(ref: React.RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const h = el.offsetHeight || 1;
+      const p = Math.min(1, Math.max(0, window.scrollY / (h * 0.85)));
+      el.style.setProperty("--hero-exit", p.toFixed(3));
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [ref]);
+}
+
+/**
+ * Scene 1 — the cinematic introduction. Main's flowing blue EngineFilm fills
+ * the screen; the dimensional Z stands in front of it; one headline, one
+ * sentence, one action, and an arrow down to Zev. No chat here: Ask Zev has
+ * its own scene directly below. Text is plain markup with no entrance delay,
+ * so nothing waits on the film or the mark. The film can be paused (WCAG
+ * 2.2.2) and already stops offscreen, in hidden tabs and under reduced motion.
+ */
+export function Hero() {
   const markSize = useMarkSize();
   const [playing, setPlaying] = useState(true);
+  const ref = useRef<HTMLElement>(null);
+  useHeroExit(ref);
   return (
-    <section className="zev-hero" aria-labelledby="zev-hero-title">
+    <section ref={ref} className="zev-hero" aria-labelledby="zev-hero-title">
       <div className="zev-hero-film" aria-hidden>
         <EngineFilm playing={playing} />
       </div>
@@ -51,19 +79,19 @@ export function Hero({ composer }: { composer: ReactNode }) {
             </span>
           </h1>
           <p className="zev-hero-lede">
-            Find expensive AI execution, test a lighter way, and keep only the
-            changes that pass your quality gates.
+            Find expensive AI work. Test a lighter alternative. Keep quality in control.
           </p>
-          <div className="zev-hero-slot">{composer}</div>
           <div className="zev-hero-ctas">
-            <Link to="/signup" className="zev-hero-primary">
-              Start optimizing
+            <a href="#workbench" className="zev-hero-primary">
+              Explore ZEVQORA
               <ArrowUpRight size={18} aria-hidden />
-            </Link>
-            <Link to="/product" className="zev-hero-secondary">
-              Inside the product
-              <ArrowUpRight size={14} aria-hidden />
-            </Link>
+            </a>
+            <a href="#ask-zev" className="zev-hero-next">
+              <span className="zev-hero-next-icon" aria-hidden>
+                <ArrowDown size={16} />
+              </span>
+              Meet Zev
+            </a>
           </div>
         </div>
         <div className="zev-hero-art">
@@ -71,11 +99,7 @@ export function Hero({ composer }: { composer: ReactNode }) {
         </div>
       </div>
       <div className="zev-hero-foot">
-        <a href="#manifesto">
-          <ArrowDown size={14} aria-hidden />
-          <span>Scroll to get lighter</span>
-        </a>
-        <span className="zev-hero-chapters">Observe · Challenge · Verify · Release</span>
+        <span className="zev-hero-chapters">Observe · Challenge · Verify · Review</span>
         <button
           type="button"
           className="zev-hero-motion"

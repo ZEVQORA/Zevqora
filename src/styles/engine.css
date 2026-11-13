@@ -382,95 +382,6 @@
 }
 
 /* A slashed motion band gives way to quiet, oversized editorial type. */
-.engine-ticker {
-  background: #468bff;
-  color: #080a0f;
-  overflow: hidden;
-  padding-block: 21px;
-  transform: rotate(-1.6deg) scale(1.025);
-  position: relative;
-  z-index: 2;
-  margin-block: 0;
-}
-.engine-ticker > div {
-  display: flex;
-  width: max-content;
-  animation: engine-ticker 32s linear infinite;
-}
-.engine-ticker span {
-  font: 500 clamp(32px, 4.3vw, 67px) / 1 var(--engine-display);
-  letter-spacing: -0.045em;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  gap: 35px;
-  padding-right: 35px;
-}
-.engine-ticker i {
-  font-style: normal;
-  font-weight: 300;
-  font-size: 1.1em;
-}
-.engine-ticker b {
-  font-weight: 400;
-  color: #e4eeff;
-  font-size: 1.2em;
-}
-.engine-ticker:hover > div {
-  animation-play-state: paused;
-}
-@keyframes engine-ticker {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-25%);
-  }
-}
-.engine-manifesto {
-  padding: 118px 6vw 100px;
-  background: #f2f3f3;
-  scroll-margin-top: 84px;
-}
-.engine-manifesto > .engine-section-meta {
-  color: #5f666e;
-}
-.engine-manifesto h2 {
-  font: 500 clamp(58px, 8.9vw, 142px) / 0.99 var(--engine-display);
-  letter-spacing: -0.075em;
-  margin: 69px 0 70px;
-  max-width: 1300px;
-}
-.engine-manifesto h2 span {
-  color: #2f6fdc;
-}
-.engine-manifesto-bottom {
-  display: grid;
-  grid-template-columns: 0.5fr 1fr 1.25fr;
-  gap: 7vw;
-  align-items: start;
-  border-top: 1px solid #afb6bd;
-  padding-top: 35px;
-}
-.engine-asterisk {
-  font: 200 100px/0.8 var(--engine-display);
-  color: #2f6fdc;
-}
-.engine-manifesto-bottom > p {
-  font-size: 16px;
-  line-height: 1.7;
-  letter-spacing: -0.02em;
-}
-.engine-manifesto-bottom > div > p {
-  font-size: 14px;
-  line-height: 1.85;
-  color: #59616b;
-  max-width: 440px;
-}
-.engine-manifesto-bottom .engine-inline-link {
-  margin-top: 23px;
-  font-size: 12px;
-}
 
 /* Four scroll chapters share a physically readable signal field. */
 .engine-chapter-scroll {
@@ -2074,9 +1985,6 @@
   .engine-product-heading h2 {
     font-size: 74px;
   }
-  .engine-manifesto-bottom {
-    gap: 5vw;
-  }
   .engine-zev-stage {
     height: 405px;
   }
@@ -2114,26 +2022,6 @@
   .engine-film-trigger-icon {
     height: 52px;
     width: 52px;
-  }
-  .engine-manifesto {
-    padding-block: 90px 75px;
-  }
-  .engine-manifesto h2 {
-    margin-block: 55px;
-    font-size: 10vw;
-  }
-  .engine-manifesto-bottom {
-    grid-template-columns: 0.3fr 1fr 1.5fr;
-    gap: 30px;
-  }
-  .engine-manifesto-bottom > p {
-    font-size: 13px;
-  }
-  .engine-manifesto-bottom > div > p {
-    font-size: 13px;
-  }
-  .engine-asterisk {
-    font-size: 70px;
   }
   .engine-chapter-scroll {
     height: auto;
@@ -2415,15 +2303,6 @@
     font-size: 9px;
     margin-top: 6px;
   }
-  .engine-ticker {
-    padding-block: 17px;
-    transform: rotate(-2deg) scale(1.04);
-  }
-  .engine-ticker span {
-    font-size: 34px;
-    gap: 20px;
-    padding-right: 20px;
-  }
   .engine-section-meta {
     font-size: 7px;
     gap: 20px;
@@ -2431,38 +2310,6 @@
   }
   .engine-section-meta > span:last-child {
     text-align: right;
-  }
-  .engine-manifesto {
-    padding: 65px 24px 55px;
-    scroll-margin-top: 68px;
-  }
-  .engine-manifesto h2 {
-    font-size: 11.8vw;
-    line-height: 1.04;
-    margin: 43px 0 42px;
-    letter-spacing: -0.07em;
-  }
-  .engine-manifesto-bottom {
-    grid-template-columns: 42px 1fr;
-    gap: 25px 19px;
-    padding-top: 25px;
-  }
-  .engine-asterisk {
-    font-size: 49px;
-  }
-  .engine-manifesto-bottom > p {
-    font-size: 12px;
-  }
-  .engine-manifesto-bottom > div {
-    grid-column: 1/-1;
-  }
-  .engine-manifesto-bottom > div > p {
-    font-size: 13px;
-    line-height: 1.85;
-  }
-  .engine-manifesto-bottom .engine-inline-link {
-    font-size: 11px;
-    margin-top: 18px;
   }
   .engine-chapter-sticky {
     padding: 32px 24px 23px;
@@ -3023,9 +2870,6 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .engine-ticker > div {
-    animation: none;
-  }
   .engine-chapter-scroll {
     height: auto;
   }
@@ -3054,11 +2898,11 @@
 .engine-world .proof-card.verified .proof-record dd {
   color: #dceaff;
 }
-[role="dialog"].glass-pop{border-radius:0;background:#f2f3f3;border:1px solid #9aaac0;box-shadow:0 35px 100px #080a0f35;}
-.d-form input:not([type="checkbox"]),.d-form textarea,.d-form select{border-radius:0;}
+[role="dialog"].glass-pop {border-radius:0;background:#f2f3f3;border:1px solid #9aaac0;box-shadow:0 35px 100px #080a0f35;}
+.d-form input:not([type="checkbox"]),.d-form textarea,.d-form select {border-radius:0;}
 /* Keep the navigation on its own compositing plane above the scroll film. */
-.engine-world{padding-top:84px;}
-.engine-header{position:fixed;top:0;left:0;right:0;}
-.engine-header-inner{position:relative;z-index:1;transform:translateZ(0);}
-@media(max-width:940px){.engine-world{padding-top:73px;}}
-@media(max-width:680px){.engine-world{padding-top:68px;}}
+.engine-world {padding-top:84px;}
+.engine-header {position:fixed;top:0;left:0;right:0;}
+.engine-header-inner {position:relative;z-index:1;transform:translateZ(0);}
+@media(max-width:940px) {.engine-world {padding-top:73px;}}
+@media(max-width:680px) {.engine-world {padding-top:68px;}}

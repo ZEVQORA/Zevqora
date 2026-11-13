@@ -2,7 +2,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
-import { ClarityAudience, ClarityClose, ClarityFlow, ClarityIntro } from "../src/marketing/PremiumNarrative";
+import { ClarityAudience, ClarityClose } from "../src/marketing/PremiumNarrative";
+import { WorkbenchStage, ZevirMap } from "../src/marketing/HomeStory";
+import { fireEvent } from "@testing-library/react";
 
 afterEach(() => cleanup());
 function mount(component: React.ReactElement) {
@@ -10,22 +12,35 @@ function mount(component: React.ReactElement) {
 }
 
 describe("outcome-first premium marketing narrative", () => {
-  it("states the customer problem without inventing revenue or savings", () => {
-    const { container } = mount(<ClarityIntro />);
+  it("states the customer problem in the workbench without inventing revenue or savings", () => {
+    const { container } = mount(<WorkbenchStage />);
+    expect(container.querySelector("#workbench")).not.toBeNull();
     expect(screen.getByRole("heading", { level: 2, name: /cheaper ai means nothing/i })).toBeTruthy();
     expect(screen.getByText(/switching models is easy/i)).toBeTruthy();
-    expect(within(container).getByRole("link", { name: /understand the method/i }).getAttribute("href")).toBe("/how-it-works");
+    expect(screen.getByText(/illustrative values/i)).toBeTruthy();
     expect(container.textContent).not.toMatch(/customer savings|trusted by|saved \$\d/i);
   });
 
-  it("explains four distinct accountable optimization stages with outcome gates", () => {
-    const { container } = mount(<ClarityFlow />);
-    expect(container.querySelector("#how-it-works")).not.toBeNull();
-    expect(container.querySelectorAll(".zq-flow-stage")).toHaveLength(4);
+  it("explains four accountable stages; each drives the product preview, review is human", () => {
+    mount(<WorkbenchStage />);
+    const steps = within(screen.getByRole("list", { name: /how zevqora works/i })).getAllByRole("button");
+    expect(steps.map((b) => b.querySelector("b")?.textContent)).toEqual(["Observe", "Challenge", "Verify", "Review"]);
+    expect(steps[0].getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(steps[2]);
     expect(screen.getByText(/VERIFIED \/ REJECTED \/ INCOMPLETE/)).toBeTruthy();
+    fireEvent.click(steps[3]);
     expect(screen.getByText(/human approval before any ship/i)).toBeTruthy();
-    expect(screen.getByText(/current implementation/i)).toBeTruthy();
-    expect(screen.getByRole("link", { name: /explore the actual product/i }).getAttribute("href")).toBe("/product");
+    expect(screen.getByRole("note").textContent).toMatch(/not a deployment/i);
+  });
+
+  it("explains ZevIR honestly: unknown is not zero, no prompt content, flagged preview", () => {
+    mount(<ZevirMap />);
+    expect(screen.getByRole("heading", { level: 2, name: /one map of how your ai actually runs/i })).toBeTruthy();
+    expect(screen.getByText(/never as zero/i)).toBeTruthy();
+    expect(screen.getByText(/not captured by default/i)).toBeTruthy();
+    expect(screen.getByText(/feature flag/i)).toBeTruthy();
+    expect(screen.getByText(/never changes a verdict/i)).toBeTruthy();
+    expect(screen.getByText(/illustrative graph/i)).toBeTruthy();
   });
 
   it("presents two real target workflow categories without fabricated customers", () => {
