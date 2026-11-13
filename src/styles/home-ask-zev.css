@@ -581,7 +581,8 @@
   .zev-hero-art {
     order: -1;
     place-items: start;
-    margin: 10px 0 0 -4px;
+    /* The tilted extrusion reaches past its box; keep clear air above the eyebrow. */
+    margin: 8px 0 26px 2px;
   }
   .zev-hero .zev-hero-copy h1 {
     margin-top: 14px;
@@ -638,6 +639,15 @@
   }
   .zev-ask.is-docked .zev-ask-panel {
     max-height: min(560px, calc(var(--zev-vvh, 100dvh) - 16px));
+  }
+}
+/* Touch keyboards: the Enter / Shift+Enter hint does not apply; show the privacy line instead. */
+@media (pointer: coarse) {
+  .zev-ask-hint > span:first-child {
+    display: none;
+  }
+  .zev-ask-hint > span:last-child {
+    display: inline;
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -86,7 +86,6 @@
   gap: 32px;
 }
 
-
 /* Full bleed navigation and a proper, numbered mobile menu. */
 .engine-header {
   position: sticky;
@@ -197,323 +196,6 @@
   color: #468bff;
 }
 
-/* The film fills the screen. Typography belongs to the page, not to a poster. */
-.engine-hero {
-  position: relative;
-  isolation: isolate;
-  min-height: 760px;
-  height: calc(100svh - 84px);
-  max-height: 1150px;
-  color: #f2f3f3;
-  background: #080a0f;
-  padding: 28px 4.4vw 23px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.engine-hero-art {
-  position: absolute;
-  inset: -2% -3% -4% -2%;
-  z-index: -3;
-}
-.engine-film {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  background: #05070c;
-}
-.engine-film > img,
-.engine-film > canvas {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  inset: 0;
-  object-fit: cover;
-}
-.engine-film > img {
-  object-position: 50% 50%;
-}
-.engine-film > canvas {
-  transition: opacity 0.8s;
-}
-.engine-hero-scrim {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    linear-gradient(90deg, #080a0fdb 0%, #080a0f52 43%, transparent 75%),
-    linear-gradient(
-      0deg,
-      #080a0fed,
-      transparent 42%,
-      transparent 75%,
-      #080a0f5c
-    );
-}
-.engine-hero-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 30px;
-  color: #aeb9ca;
-  font: 9px/1.5 var(--font-mono);
-  letter-spacing: 0.055em;
-}
-.engine-hero-top > span:first-child {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-.engine-hero-top i {
-  height: 5px;
-  width: 5px;
-  background: #468bff;
-}
-.engine-hero-title {
-  margin-top: 52px;
-  position: relative;
-}
-.engine-hero-title h1 {
-  font-family: var(--engine-display);
-  font-size: clamp(88px, 11.4vw, 192px);
-  font-weight: 500;
-  letter-spacing: -0.075em;
-  line-height: 0.94;
-}
-.engine-hero-title h1 > span {
-  display: block;
-}
-.engine-hero-title h1 > span:last-child {
-  color: transparent;
-  -webkit-text-stroke: 1.2px #f2f3f3;
-  font-weight: 500;
-}
-.engine-hero-title h1 .engine-period {
-  color: #468bff;
-  -webkit-text-stroke: 0;
-}
-.engine-hero-side-label {
-  position: absolute;
-  right: 0;
-  top: 45%;
-  font: 9px/1.9 var(--font-mono);
-  letter-spacing: 0.07em;
-  color: #99a7bf;
-}
-.engine-hero-bottom {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 55px;
-  margin-top: auto;
-  padding-block: 32px 36px;
-}
-.engine-hero-pitch > p {
-  font-size: 17px;
-  font-weight: 500;
-  letter-spacing: -0.025em;
-}
-.engine-hero-pitch > span {
-  display: block;
-  margin-top: 12px;
-  font-size: 13px;
-  line-height: 1.85;
-  color: #a8b3c5;
-}
-.engine-hero-pitch > div {
-  display: flex;
-  align-items: center;
-  gap: 29px;
-  margin-top: 25px;
-}
-.engine-hero-pitch .engine-inline-link {
-  font-size: 11px;
-  border: 0;
-  color: #e3e8f1;
-}
-.engine-hero-pitch .engine-button {
-  min-height: 48px;
-  font-size: 12px;
-}
-.engine-film-trigger {
-  display: flex;
-  align-items: center;
-  gap: 17px;
-  text-align: left;
-  padding: 12px 0 12px 20px;
-  color: #f2f3f3;
-}
-.engine-film-trigger-icon {
-  height: 64px;
-  width: 64px;
-  display: grid;
-  place-items: center;
-  border: 1px solid #d6e2f37a;
-  border-radius: 50%;
-  transition:
-    background 0.3s,
-    border 0.3s,
-    transform 0.4s;
-}
-.engine-film-trigger:hover .engine-film-trigger-icon {
-  background: #468bff;
-  border-color: #468bff;
-  color: #080a0f;
-  transform: scale(1.1);
-}
-.engine-film-trigger > span:nth-child(2) {
-  font: 10px var(--font-mono);
-  letter-spacing: 0.06em;
-}
-.engine-film-trigger small {
-  display: block;
-  color: #a8b5c9;
-  font: 11px var(--font-sans);
-  letter-spacing: 0;
-  margin-top: 8px;
-}
-.engine-film-trigger > svg {
-  margin-left: 32px;
-}
-.engine-hero-transport {
-  padding-top: 19px;
-  border-top: 1px solid #ffffff35;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 25px;
-  font: 8px var(--font-mono);
-  letter-spacing: 0.055em;
-  color: #9aa9c1;
-}
-.engine-hero-transport > a {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: #c4cedd;
-}
-.engine-hero-transport > div {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-}
-.engine-hero-transport > div > i {
-  height: 2px;
-  width: 62px;
-  background: #ffffff26;
-  position: relative;
-  overflow: hidden;
-}
-.engine-hero-transport > div > i::after {
-  content: "";
-  display: block;
-  height: 100%;
-  width: 100%;
-  background: #468bff;
-  transform: scaleX(0.1);
-  transform-origin: left;
-}
-.engine-hero-transport > div > i.is-playing::after {
-  animation: engine-progress 5.5s linear infinite;
-}
-.engine-hero-transport button {
-  height: 25px;
-  width: 25px;
-  display: grid;
-  place-items: center;
-  color: #d0d9e9;
-}
-@keyframes engine-progress {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
-}
-
-.engine-cinema {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100svh;
-  max-width: none;
-  max-height: none;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: #080a0f;
-  color: #fff;
-  overflow: hidden;
-}
-.engine-cinema::backdrop {
-  background: #080a0f;
-}
-.engine-cinema .engine-film {
-  inset: 0;
-}
-.engine-cinema::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(90deg, #080a0fb3, transparent 65%),
-    linear-gradient(0deg, #080a0fcf, transparent 45%);
-  pointer-events: none;
-}
-.engine-cinema-top,
-.engine-cinema-copy,
-.engine-cinema-controls {
-  position: absolute;
-  z-index: 2;
-  left: 4.4vw;
-  right: 4.4vw;
-}
-.engine-cinema-top {
-  top: 33px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font: 10px var(--font-mono);
-  letter-spacing: 0.07em;
-  color: #b8c9e3;
-}
-.engine-cinema-top button {
-  height: 44px;
-  width: 44px;
-  display: grid;
-  place-items: center;
-  border: 1px solid #ffffff55;
-}
-.engine-cinema-copy {
-  top: 28%;
-  pointer-events: none;
-}
-.engine-cinema-copy > p {
-  font: 10px var(--font-mono);
-  color: #a4bce0;
-}
-.engine-cinema-copy h2 {
-  font: 500 clamp(48px, 7vw, 112px) / 0.98 var(--engine-display);
-  letter-spacing: -0.065em;
-  white-space: pre-line;
-  margin-top: 25px;
-}
-.engine-cinema-copy > span {
-  display: block;
-  font-size: 12px;
-  color: #c4d1e6;
-  margin-top: 30px;
-}
-.engine-cinema-controls {
-  bottom: 35px;
-  display: flex;
-  align-items: center;
-  gap: 35px;
-  border-top: 1px solid #ffffff40;
-  padding-top: 25px;
-}
 .engine-play-button {
   height: 42px;
   width: 42px;
@@ -522,30 +204,6 @@
   border: 1px solid #ffffff45;
   border-radius: 50%;
   flex-shrink: 0;
-}
-.engine-cinema-controls > div {
-  display: flex;
-  gap: 30px;
-  flex: 1;
-}
-.engine-cinema-controls > div > button {
-  font-size: 12px;
-  color: #9baccc;
-}
-.engine-cinema-controls button[aria-pressed="true"] {
-  color: #fff;
-}
-.engine-cinema-controls small {
-  font: 8px var(--font-mono);
-  display: block;
-  margin-bottom: 10px;
-  color: #6e9ee8;
-}
-.engine-cinema-controls > a {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  font-size: 12px;
 }
 
 /* A slashed motion band gives way to quiet, oversized editorial type. */
@@ -1866,10 +1524,7 @@
   padding: 37px 3.5vw;
   background: #080a0f;
 }
-.auth-aside .engine-film {
-  inset: 0;
-  opacity: 0.9;
-}
+
 .auth-aside::after {
   content: "";
   position: absolute;
@@ -2209,21 +1864,8 @@
 }
 
 @media (min-width: 1700px) {
-  .engine-hero,
   .engine-header-inner {
     padding-inline: 6vw;
-  }
-  .engine-hero-title {
-    margin-top: 75px;
-  }
-  .engine-hero-title h1 {
-    font-size: 190px;
-  }
-  .engine-hero-pitch > p {
-    font-size: 20px;
-  }
-  .engine-hero-pitch > span {
-    font-size: 15px;
   }
 }
 @media (max-width: 1180px) {
@@ -2238,15 +1880,6 @@
   }
   .engine-header-actions {
     gap: 17px;
-  }
-  .engine-hero-side-label {
-    display: none;
-  }
-  .engine-hero {
-    min-height: 740px;
-  }
-  .engine-hero-title {
-    margin-top: 65px;
   }
   .engine-chapter-copy h2 {
     font-size: 62px;
@@ -2292,35 +1925,6 @@
   }
   .engine-header-inner {
     padding-inline: 30px;
-  }
-  .engine-hero {
-    height: calc(100svh - 73px);
-    min-height: 810px;
-  }
-  .engine-hero-title {
-    margin-top: 80px;
-  }
-  .engine-hero-title h1 {
-    font-size: 11.8vw;
-  }
-  .engine-hero-top > span:last-child {
-    display: none;
-  }
-  .engine-hero-bottom {
-    gap: 30px;
-  }
-  .engine-film-trigger > svg {
-    display: none;
-  }
-  .engine-film-trigger > span:nth-child(2) {
-    font-size: 8px;
-  }
-  .engine-film-trigger-icon {
-    height: 52px;
-    width: 52px;
-  }
-  .engine-hero-transport > span:last-child {
-    display: none;
   }
   .engine-manifesto {
     padding-block: 90px 75px;
@@ -2601,111 +2205,6 @@
   .engine-mobile-menu a {
     font-size: 31px;
     padding-block: 19px;
-  }
-  .engine-hero {
-    height: calc(100svh - 68px);
-    min-height: 815px;
-    max-height: 1100px;
-    padding: 25px 23px 20px;
-  }
-  .engine-hero-art {
-    inset: 0 -70% 0 -5%;
-    transform: translateY(25px);
-  }
-  .engine-hero-art .engine-film > img {
-    object-position: 53% 50%;
-  }
-  .engine-hero-scrim {
-    background:
-      linear-gradient(
-        180deg,
-        #080a0f12,
-        transparent 30%,
-        #080a0f20 52%,
-        #080a0ff5 82%
-      ),
-      linear-gradient(90deg, #080a0f60, transparent 85%);
-  }
-  .engine-hero-top {
-    font-size: 7px;
-    gap: 14px;
-  }
-  .engine-hero-title {
-    margin-top: 58px;
-  }
-  .engine-hero-title h1 {
-    font-size: clamp(48px, 12.1vw, 82px);
-    font-weight: 500;
-    line-height: 1.02;
-    letter-spacing: -0.07em;
-  }
-  .engine-hero-title h1 > span:last-child {
-    -webkit-text-stroke: 0.7px #f2f3f3;
-  }
-  .engine-hero-bottom {
-    margin-top: auto;
-    display: block;
-    padding: 250px 0 26px;
-  }
-  .engine-hero-pitch > p {
-    font-size: 14px;
-    max-width: 285px;
-  }
-  .engine-hero-pitch > span {
-    font-size: 11px;
-    line-height: 1.9;
-    max-width: 320px;
-  }
-  .engine-hero-pitch > div {
-    gap: 22px;
-    margin-top: 22px;
-  }
-  .engine-hero-pitch .engine-button {
-    min-height: 44px;
-    font-size: 11px;
-    padding-inline: 16px;
-    gap: 22px;
-  }
-  .engine-hero-pitch .engine-inline-link {
-    font-size: 10px;
-    gap: 10px;
-  }
-  .engine-film-trigger {
-    position: absolute;
-    left: 23px;
-    top: 45%;
-    padding: 0;
-    gap: 12px;
-  }
-  .engine-film-trigger-icon {
-    height: 43px;
-    width: 43px;
-    background: #080a0f55;
-  }
-  .engine-film-trigger > span:nth-child(2) {
-    font-size: 8px;
-  }
-  .engine-film-trigger small {
-    font-size: 9px;
-    margin-top: 6px;
-  }
-  .engine-hero-transport {
-    font-size: 7px;
-    padding-top: 16px;
-    gap: 12px;
-  }
-  .engine-hero-transport > a {
-    gap: 8px;
-  }
-  .engine-hero-transport > div {
-    gap: 9px;
-  }
-  .engine-hero-transport > div > i {
-    width: 30px;
-  }
-  .engine-hero-transport button {
-    height: 20px;
-    width: 20px;
   }
   .engine-ticker {
     padding-block: 17px;
@@ -3228,49 +2727,6 @@
   .engine-world .design-device-stage {
     padding: 10px;
   }
-  .engine-cinema-top {
-    left: 23px;
-    right: 23px;
-    top: 25px;
-    font-size: 7px;
-  }
-  .engine-cinema-copy {
-    left: 23px;
-    right: 23px;
-    top: 26%;
-  }
-  .engine-cinema-copy h2 {
-    font-size: 13vw;
-    line-height: 1.03;
-  }
-  .engine-cinema-copy > span {
-    font-size: 10px;
-    max-width: 240px;
-    line-height: 1.9;
-  }
-  .engine-cinema-controls {
-    left: 23px;
-    right: 23px;
-    bottom: 25px;
-    gap: 18px;
-    flex-wrap: wrap;
-  }
-  .engine-cinema-controls > div {
-    gap: 17px;
-  }
-  .engine-cinema-controls > div > button {
-    font-size: 9px;
-  }
-  .engine-cinema-controls small {
-    font-size: 7px;
-    margin-bottom: 8px;
-  }
-  .engine-cinema-controls > a {
-    width: 100%;
-    font-size: 10px;
-    justify-content: flex-end;
-    margin-top: 5px;
-  }
   .engine-play-button {
     height: 33px;
     width: 33px;
@@ -3315,8 +2771,7 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .engine-ticker > div,
-  .engine-hero-transport > div > i::after {
+  .engine-ticker > div {
     animation: none;
   }
   .engine-chapter-scroll {

@@ -1,13 +1,4 @@
 /* Native geometry, a clearer evidence decision and dedicated account screens. */
-.engine-hero-title {
-  margin-top: 70px;
-}
-.engine-hero-bottom {
-  justify-content: flex-start;
-}
-.engine-hero-pitch > div {
-  gap: 27px;
-}
 .kinetic-sculpture {
   position: relative;
   height: 100%;
@@ -1263,12 +1254,6 @@
   }
 }
 @media (max-width: 560px) {
-  .engine-hero-title {
-    margin-top: 58px;
-  }
-  .engine-hero-pitch > div {
-    gap: 18px;
-  }
   .engine-chapter-visual {
     height: 335px;
   }

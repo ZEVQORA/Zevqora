@@ -16,7 +16,7 @@ function useMarkSize() {
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
   }, []);
-  return compact ? 112 : 430;
+  return compact ? 96 : 430;
 }
 
 /**

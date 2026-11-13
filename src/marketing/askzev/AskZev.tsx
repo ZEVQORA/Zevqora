@@ -302,7 +302,7 @@ export function AskZev() {
             maxLength={SUPPORT_MESSAGE_MAX_CHARS}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Ask Zev about ZEVQORA…"
+            placeholder="Ask a question…"
             aria-describedby={ids.hint}
             enterKeyHint="send"
             autoComplete="off"

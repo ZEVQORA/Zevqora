@@ -1264,12 +1264,6 @@
   }
 }
 @media (max-width: 560px) {
-  .engine-hero-title h1 {
-    font-size: clamp(78px, 17.8vw, 100px);
-  }
-  .engine-hero-title {
-    margin-top: 42px;
-  }
   .engine-chapter-visual {
     height: 345px;
   }
@@ -1626,7 +1620,4 @@
   color: #a9cdff;
   background: #27477533;
 }
-/* Focusing a film control must not scroll the clipped hero internally. */
-.engine-hero {
-  overflow: clip;
-}
+
