@@ -31,6 +31,32 @@ import { badDayReplay, BadDayError, normalizeProfile } from './badday.js';
 export const INTELLIGENCE_FLAG = 'optimization_intelligence_vnext';
 export const DEFAULT_SEED = 'zevqora-search-v1';
 const STAGE_SLICE_MS = 25_000;
+/** Reasons a paid plan was skipped for the provider-spend budget (persisted in replay_state). */
+const SPEND_SKIP_RE = /^(max_provider_spend_usd|provider cost not estimable|provider spend became unmeasurable)/;
+
+/**
+ * A stage can span several time slices; plans skipped for spend in an earlier
+ * slice are already marked and are not revisited, so the final slice must read
+ * them back from the plans instead of relying on its own local list.
+ */
+/** A later budget stop must not erase why a plan was already skipped for spend. */
+function keepSpendReason(previous, next) {
+  return typeof previous === 'string' && SPEND_SKIP_RE.test(previous) ? previous : next;
+}
+
+async function withPersistedSpendSkips(admin, searchId, spendSkipped, { status, key }) {
+  const out = [...spendSkipped];
+  for (const p of await plansOf(admin, searchId)) {
+    const reason = p.replay_state?.[key];
+    if (p.status === status && typeof reason === 'string' && SPEND_SKIP_RE.test(reason) && !out.some((x) => x.id === p.id)) out.push({ id: p.id, name: p.name, reason });
+  }
+  return out;
+}
+/** Test hook: end a stage slice after this many plan steps (simulates a slow, time-sliced run). */
+let sliceStepsForTests = Infinity;
+export function setStageSliceStepsForTests(n) {
+  sliceStepsForTests = n;
+}
 const LOCK_TTL_S = 120;
 const STALE_EXECUTION_MS = 15 * 60_000;
 const TERMINAL = new Set(['completed', 'budget_exhausted', 'cancelled', 'failed']);
@@ -298,9 +324,11 @@ export async function calibrateSearch(admin, { search: s0, user }) {
     const processed = [];
     const spendSkipped = [];
     let budget = null;
+    let steps = 0;
 
     for (;;) {
-      if (Date.now() - started > STAGE_SLICE_MS) return { search: await reloadSearch(admin, search.id), done: false, continuation: true, processed };
+      if (Date.now() - started > STAGE_SLICE_MS || steps >= sliceStepsForTests) return { search: await reloadSearch(admin, search.id), done: false, continuation: true, processed };
+      steps += 1;
       const fresh = await reloadSearch(admin, search.id);
       if (fresh.status === 'cancelled') return { search: fresh, done: true, continuation: false, processed, cancelled: true };
       const plans = await plansOf(admin, search.id);
@@ -312,13 +340,13 @@ export async function calibrateSearch(admin, { search: s0, user }) {
       const round = plan.status === 'CALIBRATING' ? plan.replay_budget.round : plan.replay_budget?.next_round || 1;
       if (round === 1 && spend.plans_calibrated >= search.bounds.max_calibration_plans) {
         budget = { code: 'SEARCH_BUDGET_EXHAUSTED', stage: 'calibration', reason: `max_calibration_plans = ${search.bounds.max_calibration_plans}`, not_calibrated: ready.filter((p) => !(p.replay_budget?.next_round > 1)).map((p) => ({ id: p.id, name: p.name })) };
-        for (const p of ready) if (!(p.replay_budget?.next_round > 1)) await updatePlan(admin, p.id, { replay_state: { ...p.replay_state, not_calibrated: budget.reason } });
+        for (const p of ready) if (!(p.replay_budget?.next_round > 1)) await updatePlan(admin, p.id, { replay_state: { ...p.replay_state, not_calibrated: keepSpendReason(p.replay_state?.not_calibrated, budget.reason) } });
         break;
       }
       const sample = selectSample({ plan: { plan_hash: plan.plan_hash, ordered: compositionOf(plan), estimate: { simulation: plan.estimated_effects.simulation } }, rows, round, perPlan: search.bounds.max_calibration_samples_per_plan, rounds: search.bounds.calibration_rounds, seed: search.seed, requirements: contract.requirements });
       if (spend.calibration_samples + sample.ids.length > search.bounds.max_calibration_samples_total) {
         budget = { code: 'SEARCH_BUDGET_EXHAUSTED', stage: 'calibration', reason: `max_calibration_samples_total = ${search.bounds.max_calibration_samples_total}`, not_calibrated: ready.map((p) => ({ id: p.id, name: p.name })) };
-        for (const p of ready) await updatePlan(admin, p.id, { status: 'CALIBRATION_READY', replay_state: { ...p.replay_state, not_calibrated: budget.reason } });
+        for (const p of ready) await updatePlan(admin, p.id, { status: 'CALIBRATION_READY', replay_state: { ...p.replay_state, not_calibrated: keepSpendReason(p.replay_state?.not_calibrated, budget.reason) } });
         break;
       }
       const composition = compositionOf(plan);
@@ -353,7 +381,8 @@ export async function calibrateSearch(admin, { search: s0, user }) {
       });
       processed.push({ plan_id: plan.id, round, outcome: decision.outcome, next: decision.next });
     }
-    if (spendSkipped.length) budget = budget ? { ...budget, spend_skipped: spendSkipped } : { code: 'SEARCH_BUDGET_EXHAUSTED', stage: 'calibration', reason: 'max_provider_spend_usd', not_calibrated: spendSkipped, spend_skipped: spendSkipped };
+    const skippedAll = await withPersistedSpendSkips(admin, search.id, spendSkipped, { status: 'CALIBRATION_READY', key: 'not_calibrated' });
+    if (skippedAll.length) budget = budget ? { ...budget, spend_skipped: skippedAll } : { code: 'SEARCH_BUDGET_EXHAUSTED', stage: 'calibration', reason: 'max_provider_spend_usd', not_calibrated: skippedAll, spend_skipped: skippedAll };
     const after = await reloadSearch(admin, search.id);
     return { search: after, budget, done: true, continuation: false, processed };
   });
@@ -384,8 +413,10 @@ export async function replaySearch(admin, { search: s0, user }) {
     const processed = [];
     const spendSkipped = [];
     let budget = null;
+    let steps = 0;
     for (;;) {
-      if (Date.now() - started > STAGE_SLICE_MS) return { search: await reloadSearch(admin, search.id), done: false, continuation: true, processed };
+      if (Date.now() - started > STAGE_SLICE_MS || steps >= sliceStepsForTests) return { search: await reloadSearch(admin, search.id), done: false, continuation: true, processed };
+      steps += 1;
       const fresh = await reloadSearch(admin, search.id);
       if (fresh.status === 'cancelled') return { search: fresh, done: true, continuation: false, processed, cancelled: true };
       const plans = await plansOf(admin, search.id);
@@ -395,7 +426,7 @@ export async function replaySearch(admin, { search: s0, user }) {
       const spend = fresh.spend;
       if (plan.status !== 'REPLAYING' && spend.plans_replayed >= search.bounds.max_full_replay_plans) {
         budget = { code: 'SEARCH_BUDGET_EXHAUSTED', stage: 'full_replay', reason: `max_full_replay_plans = ${search.bounds.max_full_replay_plans}`, not_replayed: ready.map((p) => ({ id: p.id, name: p.name })) };
-        for (const p of ready) await updatePlan(admin, p.id, { replay_state: { ...p.replay_state, not_replayed: budget.reason } });
+        for (const p of ready) await updatePlan(admin, p.id, { replay_state: { ...p.replay_state, not_replayed: keepSpendReason(p.replay_state?.not_replayed, budget.reason) } });
         break;
       }
       if (plan.status !== 'REPLAYING' && spend.replay_samples + evaluation.ids.length > search.bounds.max_replay_samples_total) {
@@ -437,7 +468,8 @@ export async function replaySearch(admin, { search: s0, user }) {
       });
       processed.push({ plan_id: plan.id, verdict });
     }
-    if (spendSkipped.length) budget = budget ? { ...budget, spend_skipped: spendSkipped } : { code: 'SEARCH_BUDGET_EXHAUSTED', stage: 'full_replay', reason: 'max_provider_spend_usd', not_replayed: spendSkipped, spend_skipped: spendSkipped };
+    const skippedAll = await withPersistedSpendSkips(admin, search.id, spendSkipped, { status: 'FULL_REPLAY_READY', key: 'not_replayed' });
+    if (skippedAll.length) budget = budget ? { ...budget, spend_skipped: skippedAll } : { code: 'SEARCH_BUDGET_EXHAUSTED', stage: 'full_replay', reason: 'max_provider_spend_usd', not_replayed: skippedAll, spend_skipped: skippedAll };
     const plans = await plansOf(admin, search.id);
     const after = await finalizeFrontier(admin, await reloadSearch(admin, search.id), plans, { status: 'completed', budget_report: budget });
     return { search: after, budget, done: true, continuation: false, processed };
