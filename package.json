@@ -20,6 +20,7 @@
     "test:staging": "node scripts/staging/guard.mjs && vitest run --config vitest.staging.config.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
     "@supabase/supabase-js": "^2.57.4",
     "@xyflow/react": "^12.12.0",
     "ajv": "^8.20.0",

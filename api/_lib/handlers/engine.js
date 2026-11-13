@@ -25,6 +25,7 @@ import { planExactReuse, planModelSubstitution } from '../product/strategies.js'
 import { runEvaluation, enforceRequirements, sanitizeRequirements } from '../product/evaluator.js';
 import { unifiedDiff } from '../product/diff.js';
 import { runZev } from '../product/zev.js';
+import { claudeModel, engineeringZevProvider, runZevClaude } from '../anthropic.js';
 import { mergeTrial } from '../product/trial.js';
 import { projectEngineProduct, zevirEnabled } from '../zevir/store.js';
 import { runPlanExecution } from '../product/run-plan.js';
@@ -125,7 +126,9 @@ async function pricingAndModels(admin) {
 on('GET', '/api/engine/health', async ({ request }) => {
   await requireUser(request);
   const configured = openRouterConfigured();
-  return { status: 'ok', version: VERSION, openrouter_configured: configured, provider_mode: configured ? 'platform' : 'none', platform_connected: true };
+  // Booleans and a provider name only; never key material.
+  const zev = engineeringZevProvider({ openRouterConfigured: configured });
+  return { status: 'ok', version: VERSION, openrouter_configured: configured, provider_mode: configured ? 'platform' : 'none', platform_connected: true, engineering_zev_provider: zev, engineering_zev_model: zev === 'anthropic' ? claudeModel() : null };
 });
 
 on('GET', '/api/engine/platform/status', async ({ request, query }) => {
@@ -601,14 +604,16 @@ on('POST', '/api/engine/agent/chat', async ({ request }) => {
   const body = await readJson(request, { maxBytes: 200_000 });
   const history = Array.isArray(body?.messages) ? body.messages.filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string').slice(-16).map((m) => ({ role: m.role, content: m.content.slice(0, 8000) })) : [];
   if (!history.length) throw new ApiError(400, 'messages is required.', 'VALIDATION');
+  if (history[0].role !== 'user') history.shift();
+  if (!history.length) throw new ApiError(400, 'messages must start with a user turn.', 'VALIDATION');
+  // Authorization first: the product is loaded through the caller's membership (viewer or above).
   let product = null;
   if (body?.product_id) product = (await loadProduct(admin, user, body.product_id, 'viewer')).product;
   const workspaceId = product?.workspace_id || (body?.workspace_id ? uuid(body.workspace_id, 'workspace') : null);
-  if (!openRouterConfigured()) {
-    return { message: 'Zev is ready, but platform compute is not configured on this deployment yet.', model: 'none', provider: 'none', tool_events: [], openrouter_configured: false };
+  const provider = engineeringZevProvider({ openRouterConfigured: openRouterConfigured() });
+  if (provider === 'none') {
+    return { message: 'Engineering Zev is not configured for this environment. Evidence, runs and verdicts are still available in the workspace.', model: 'none', provider: 'none', tool_events: [], openrouter_configured: false, provider_configured: false };
   }
-  const billing = await resolveBilling({ admin, user, workspaceId, projectId: product?.project_id || null });
-  const complete = async (payload) => completeText({ admin, user, billing, payload, operation: 'zev_chat', extraMeta: { product_id: product?.id || null } });
   const ctx = {
     product: async () => productOut(product || {}),
     aiCalls: async () => (product ? rows(admin, 'engine_ai_calls', product.id, null) : []),
@@ -616,8 +621,36 @@ on('POST', '/api/engine/agent/chat', async ({ request }) => {
     economics: async () => (product ? economics(await rows(admin, 'engine_traces', product.id), canonicalVerified(await rows(admin, 'engine_evaluations', product.id))) : { trace_count: 0 }),
     evaluations: async () => (product ? rows(admin, 'engine_evaluations', product.id) : []),
   };
+  if (provider === 'anthropic') {
+    await takeEngineeringZevBudget(admin, workspaceId || `user:${user.id}`);
+    const out = await runZevClaude({ ctx, history, productId: product?.id || null, signal: request.signal });
+    return { ...out, openrouter_configured: openRouterConfigured(), provider_configured: true };
+  }
+  const billing = await resolveBilling({ admin, user, workspaceId, projectId: product?.project_id || null });
+  const complete = async (payload) => completeText({ admin, user, billing, payload, operation: 'zev_chat', extraMeta: { product_id: product?.id || null } });
   const requested = str(body?.model, { name: 'model', max: 160 }) || DEFAULT_MODEL;
   const model = requested === 'openrouter/auto' ? DEFAULT_MODEL : requested;
   const out = await runZev({ complete, ctx, history, model, productId: product?.id || null });
-  return { ...out, provider: 'zevqora-platform', openrouter_configured: true };
+  return { ...out, provider: 'zevqora-platform', openrouter_configured: true, provider_configured: true };
 });
+
+/**
+ * Daily Claude request cap per workspace, counted in the durable limiter
+ * (migration 021) so it holds across serverless instances. Fails closed: if the
+ * limiter cannot answer, no paid call is made.
+ */
+async function takeEngineeringZevBudget(admin, scope) {
+  const raw = Number(process.env.ENGINEERING_ZEV_DAILY_CAP);
+  const cap = Number.isInteger(raw) && raw >= 0 && raw <= 100_000 ? raw : 200;
+  if (cap === 0) throw new ApiError(429, 'Engineering Zev is paused for this deployment (daily cap is 0).', 'BUDGET_EXHAUSTED');
+  const day = new Date().toISOString().slice(0, 10);
+  let ok = null;
+  try {
+    const { data, error } = await admin.rpc('public_rate_limit_hit', { p_bucket: `engzev:${scope}:${day}`.slice(0, 128), p_limit: cap, p_window_seconds: 86_400 });
+    ok = error || typeof data !== 'boolean' ? null : data;
+  } catch {
+    ok = null;
+  }
+  if (ok === null) throw new ApiError(503, 'Engineering Zev spending limits are unavailable, so no request was sent to the provider.', 'BUDGET_UNAVAILABLE');
+  if (!ok) throw new ApiError(429, 'This workspace reached today’s Engineering Zev limit. It resets within 24 hours.', 'BUDGET_EXHAUSTED');
+}
