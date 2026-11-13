@@ -1,114 +1,18 @@
-import { ArrowUpRight } from "lucide-react";
-import { Link } from "react-router";
-import { EndCta, FAQ, Intro, Kicker, PageTitle } from "./Editorial";
-import { EngineChapters } from "./EngineSections";
+import { ArrowRight } from 'lucide-react';
+import { Link } from 'react-router';
+import { PageTitle } from './Editorial';
 
 export default function HowItWorksPage() {
-  return (
-    <>
-      <PageTitle title="How it works" />
-      <Intro
-        kicker="MEASURE. REPLAY. VERIFY. THEN OPTIMIZE."
-        title={
-          <>
-            The shortest path
-            <br />
-            to <span>a sound decision.</span>
-          </>
-        }
-        body="One loop, in order. Nothing is recommended until it has survived the same work it is meant to replace."
-      >
-        <div className="z-actions">
-          <Link className="z-button z-button-ink" to="/evaluation">
-            Evaluate your workload
-            <ArrowUpRight size={15} />
-          </Link>
-        </div>
-      </Intro>
-      <EngineChapters />
-      <section className="z-section proof-section">
-        <div className="z-wrap">
-          <Kicker>SEVEN STEPS. ONE AUDITABLE PATH.</Kicker>
-          <div className="feature-rows" style={{ marginTop: 35 }}>
-            {[
-              [
-                "01",
-                "Connect",
-                "Choose your repository, runtime or imported traces. Connections define exactly what can be read and revoked.",
-              ],
-              [
-                "02",
-                "Map",
-                "Models, calls, tokens, cost drivers and latency become a consistent baseline.",
-              ],
-              [
-                "03",
-                "Diagnose",
-                "Deterministic analysis attaches evidence to a specific source of waste.",
-              ],
-              [
-                "04",
-                "Experiment",
-                "Create a candidate model, route, cache or context change with bounded scope.",
-              ],
-              [
-                "05",
-                "Replay",
-                "Run representative captured cases through the candidate and compare with the baseline.",
-              ],
-              [
-                "06",
-                "Verify",
-                "Apply named, versioned gates. A failure remains visible and blocks verification.",
-              ],
-              [
-                "07",
-                "Review",
-                "Read the diff and evidence together. Your team decides whether the change ships.",
-              ],
-            ].map(([n, t, b]) => (
-              <div key={n} className="feature-row">
-                <span>{n}</span>
-                <h3>{t}</h3>
-                <p>{b}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-      <section className="z-section">
-        <div className="z-wrap loop-layout">
-          <div>
-            <Kicker>BEFORE YOUR FIRST REPLAY</Kicker>
-            <h2 className="z-heading" style={{ marginTop: 22 }}>
-              Good inputs.
-              <br />
-              Useful evidence.
-            </h2>
-          </div>
-          <FAQ
-            items={[
-              [
-                "What do I need to start?",
-                "One workload and its captured execution metadata. For a replay, import representative request and baseline output samples that you are allowed to process.",
-              ],
-              [
-                "What if the candidate fails?",
-                "The failed gate and supporting evidence stay in the experiment. The candidate does not become a verified recommendation.",
-              ],
-              [
-                "Can ZEVQORA change production?",
-                "ZEVQORA prepares reviewable changes. A person approves, merges and deploys them through your existing process.",
-              ],
-              [
-                "Is a replay the same as a production result?",
-                "No. A replay is evidence about the selected workload and configured gates. You still review the change and observe its production behaviour.",
-              ],
-            ]}
-          />
-        </div>
-      </section>
-      <EndCta />
-    </>
-  );
+  return <>
+    <PageTitle title="How it works" />
+    <header className="atelier-document-intro"><p className="atelier-section-label">How it works</p><h1>From spend<br /><span>to a sound decision.</span></h1><p>One workload. A measured baseline.<br />A better alternative, tested before it ships.</p></header>
+    <section className="atelier-method" aria-label="The optimization workflow">
+      {[
+        ['Connect one workload.', 'Bring a repository, runtime metadata or representative traces. ZEVQORA maps the calls, context and retries behind your AI spend. Access stays scoped and revocable.'],
+        ['Test a lighter route.', 'Turn a finding into a candidate. Replay the same representative work with a bounded budget, then compare cost, latency and quality against the baseline.'],
+        ['Keep the evidence.', 'Frozen evaluation gates decide whether a candidate passes, fails or needs more evidence. Review the change and its results together. Your team decides what ships.'],
+      ].map(([title, body]) => <article key={title}><h2>{title}</h2><p>{body}</p></article>)}
+    </section>
+    <section className="atelier-method-ready"><h2>A fair test starts<br />with the right inputs.</h2><div><p>Representative traces from the work you actually run. A quality floor agreed before replay. A clear budget and a human reviewer.</p><p>Static findings are opportunities. Passing evaluation gates earns verification. Neither is a promise of production savings.</p><Link to="/signup" className="atelier-button atelier-button-dark">Start optimizing<ArrowRight size={18} /></Link></div></section>
+  </>;
 }

@@ -1,48 +1,25 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Link } from "react-router";
-import { ArrowLeft, ArrowRight, Check, Info } from "lucide-react";
-import { ZevqoraLogo } from "@/brand/ZevqoraLogo";
-import { ZevqoraMark } from "@/brand/ZevqoraMark";
-import { getEnabledOAuthProviders, type OAuthProvider } from "@/lib/supabase";
+import { useEffect, useState, type ReactNode } from 'react';
+import { Link } from 'react-router';
+import { ArrowLeft, Info } from 'lucide-react';
+import { ZevqoraLogo } from '@/brand/ZevqoraLogo';
+import { WeightlessEngine } from '@/brand/WeightlessEngine';
+import { getEnabledOAuthProviders, type OAuthProvider } from '@/lib/supabase';
 
 export function AuthShell({ title, subtitle, children, footer, aside }: {
   title: string; subtitle?: ReactNode; children: ReactNode; footer?: ReactNode; aside?: ReactNode;
 }) {
-  return (
-    <main id="main" className="z-auth polished-auth">
-      <header className="polished-auth-header">
-        <Link to="/" aria-label="ZEVQORA home"><ZevqoraLogo size={27} /></Link>
-        <Link to="/"><ArrowLeft size={16} /> Back to website</Link>
-      </header>
-      <div className="polished-auth-layout">
-        <aside className="polished-auth-story">
-          <span className="polished-eyebrow">YOUR NEXT LIGHTER STEP</span>
-          <h2>Big ideas.<br />A lighter way<span>.</span></h2>
-          <p>Understand your AI spend. Test a better approach. Keep quality in the decision.</p>
-          {aside || <div className="polished-auth-diagram" aria-hidden="true">
-            <div className="polished-auth-source">Your AI workload<span>Calls · Context · Retries</span></div>
-            <div className="polished-auth-connector" />
-            <div className="polished-auth-node"><ZevqoraMark height={34} /><span>Measure. Replay. Verify.</span></div>
-            <div className="polished-auth-connector" />
-            <div className="polished-auth-result"><Check size={17} /> Evidence for your next decision</div>
-          </div>}
-          <Link to="/product">Take a look inside <ArrowRight size={17} /></Link>
-        </aside>
-        <section className="polished-auth-surface" aria-label={title}>
-          <div className="polished-auth-form">
-            <h1>{title}</h1>
-            {subtitle && <p className="auth-subtitle">{subtitle}</p>}
-            <div className="auth-form">{children}</div>
-            {footer && <div className="auth-form-footer">{footer}</div>}
-          </div>
-        </section>
-      </div>
-      <footer className="polished-auth-footer">
-        <span>© {new Date().getFullYear()} ZEVQORA</span>
-        <nav aria-label="Legal"><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link></nav>
-      </footer>
-    </main>
-  );
+  const [engaged, setEngaged] = useState(false);
+  return <main id="main" className="z-auth atelier-auth">
+    <div className="atelier-auth-art" aria-hidden="true"><WeightlessEngine centered paused={engaged} /></div>
+    <header className="atelier-auth-header"><Link to="/" aria-label="ZEVQORA home"><ZevqoraLogo variant="inverse" size={29} /></Link><Link to="/" className="atelier-auth-back" aria-label="Back to website"><ArrowLeft size={16} /><span>Back to website</span></Link></header>
+    <div className="atelier-auth-layout">
+      <aside className="atelier-auth-story">{aside || <><h2>A lighter way<br />forward.</h2><p>Your AI. Its full potential.</p></>}</aside>
+      <section className="atelier-auth-surface" aria-label={title}>
+        <div className="atelier-auth-form"><h1>{title}</h1>{subtitle && <p className="auth-subtitle">{subtitle}</p>}<div className="auth-form" onFocusCapture={() => setEngaged(true)} onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setEngaged(false); }}>{children}</div>{footer && <div className="auth-form-footer">{footer}</div>}</div>
+        <footer className="atelier-auth-legal"><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link></footer>
+      </section>
+    </div>
+  </main>;
 }
 
 export function AuthPreviewNote() {

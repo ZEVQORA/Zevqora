@@ -1,10 +1,10 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router";
-import { ArrowUp, ArrowUpRight, MessageCircle, RotateCcw, X } from "lucide-react";
+import { ArrowUp, ArrowUpRight, RotateCcw, X } from "lucide-react";
 import { ZevqoraMark } from "@/brand/ZevqoraMark";
 import { api, errorMessage } from "@/lib/api";
 
-const PROMPTS = ["How do I get started?", "How does verification work?", "What can I connect?"];
+const PROMPTS = ["How do I get started?", "How does verification work?"];
 const ANSWER_ROUTE = /(\/(?:signup|login|forgot-password|pricing|proof|product|app\/(?:connections|docs|zev|usage|settings|team))\b)/g;
 
 export function openZevSupport() {
@@ -90,26 +90,26 @@ export function SupportZevLauncher() {
   function submit(event: FormEvent) { event.preventDefault(); void send(input); }
 
   return (
-    <div className="zev-support">
+    <div className="zev-support zev-studio">
       <button ref={trigger} className="zev-support-trigger" type="button" hidden={open}
         aria-haspopup="dialog" aria-expanded={open} aria-controls={`${titleId}-panel`}
         aria-label="Open Ask Zev public support" onClick={() => setOpen(true)}>
-        <MessageCircle size={20} /><span>Ask Zev</span>
+        <span className="zev-trigger-mark"><ZevqoraMark height={22} /></span><span>Ask Zev</span>
       </button>
       {open && <>
         <button className="zev-support-backdrop" aria-label="Close Zev support" tabIndex={-1} onClick={() => setOpen(false)} />
         <section className="zev-support-panel" id={`${titleId}-panel`} ref={panel} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={`${titleId}-scope`}>
           <header>
             <div className="zev-support-avatar"><ZevqoraMark height={25} /></div>
-            <div><h2 id={titleId}>Ask Zev</h2><p>{mode === "generative" ? "AI assistant" : "ZEVQORA product guide"}</p></div>
+            <div><h2 id={titleId}>Ask Zev</h2><p>{mode === "generative" ? "Your AI assistant" : "Your product guide"}</p></div>
+            <button className="zev-new-conversation" type="button" disabled={busy || !lines.length} aria-label="New conversation" title="New conversation" onClick={() => { setLines([]); setError(''); setFailed(''); setInput(''); }}><RotateCcw size={17} /></button>
             <button ref={close} type="button" onClick={() => setOpen(false)} aria-label="Close support"><X size={20} /></button>
           </header>
           <div className="zev-support-messages" ref={scroll} role="log" aria-live="polite" aria-relevant="additions text" aria-busy={busy}>
             {!lines.length && <div className="zev-support-welcome">
-              <span className="polished-eyebrow">A LITTLE CLARITY</span>
-              <h3>Where can I help?</h3>
-              <p>Ask about getting started, connecting your stack, or understanding the evidence.</p>
-              <div className="zev-support-prompts">{PROMPTS.map((text) => <button key={text} type="button" onClick={() => void send(text)}>{text}<ArrowUpRight size={16} /></button>)}</div>
+              <span className="zev-lens" aria-hidden="true"><i /></span>
+              <h3>Make your<br />next move clear.</h3>
+              <p>Setup. Your stack. The evidence.</p>
             </div>}
             {lines.map((line, i) => <div key={i} className={`zev-support-message ${line.role}`}><span>{line.role === "user" ? "You" : "Zev"}</span><p>{line.role === "user" ? line.text : line.text.split(ANSWER_ROUTE).map((part, index) => index % 2 ? <Link key={index} to={part} onClick={() => setOpen(false)}>{part}</Link> : part)}</p></div>)}
             {busy && <p className="zev-support-thinking" role="status"><i /><i /><i /><span>Zev is finding an answer…</span></p>}
@@ -121,7 +121,8 @@ export function SupportZevLauncher() {
               onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send(input); } }} />
             <button type="submit" disabled={busy || !input.trim()} aria-label="Send question"><ArrowUp size={20} /></button>
           </form>
-          <footer><p id={`${titleId}-scope`}>{mode === "generative" ? "AI answers · Check important details" : "Product guide · FAQ answers"}. No account access.</p><Link to="/app/zev" onClick={() => setOpen(false)}>Open workspace <ArrowUpRight size={13} /></Link></footer>
+          {!lines.length && <div className="zev-support-prompts">{PROMPTS.map((text, index) => <button key={text} type="button" onClick={() => void send(text)} aria-label={text}>{index === 0 ? 'Getting started' : 'Understanding verification'}</button>)}</div>}
+          <footer><p id={`${titleId}-scope`}>{mode === "generative" ? "AI answers · Check important details" : "Product guide · FAQ answers"}. No account access.</p><Link to="/app/zev" onClick={() => setOpen(false)}>Workspace <ArrowUpRight size={13} /></Link></footer>
         </section>
       </>}
     </div>

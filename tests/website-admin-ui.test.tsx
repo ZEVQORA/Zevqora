@@ -28,14 +28,14 @@ vi.mock('@/lib/analytics', () => ({ track: vi.fn(), trackProductView: vi.fn(), i
 const wrap = (ui: React.ReactNode, path = '/') => render(<ToastProvider><MemoryRouter initialEntries={[path]}>{ui}</MemoryRouter></ToastProvider>);
 
 describe('website', () => {
-  it('homepage leads with the design headline and a labelled interactive product preview', async () => {
+  it('homepage gives one clear starting action and keeps both benchmark decisions visible', async () => {
     const { default: HomePage } = await import('@/marketing/HomePage');
     wrap(<HomePage />);
-    // The design (207cab5) hero sets its two-line headline as one accessible name.
-    expect(screen.getByRole('heading', { level: 1, name: 'Make AI lighter.' })).toBeTruthy();
-    expect(screen.getByText('PRODUCT PREVIEW · SAMPLE DATA')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Opportunities', exact: true }));
-    expect(screen.getByRole('heading', { name: 'Opportunities', exact: true })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: /Less spend/ })).toBeTruthy();
+    expect(screen.getByText('42.01%')).toBeTruthy();
+    expect(screen.getByText('12.32%')).toBeTruthy();
+    expect(screen.getByText(/confidence interval crosses zero/)).toBeTruthy();
+    expect(document.querySelector('.decision-dial, .decision-switch, .type-method-scroll')).toBeNull();
     const text = document.body.textContent || '';
     expect(text).not.toMatch(/our customers|trusted by|paying customers|saved \$|realized savings of/i);
     expect(screen.getByRole('link', { name: 'Start optimizing' }).getAttribute('href')).toBe('/signup');

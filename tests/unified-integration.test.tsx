@@ -180,6 +180,9 @@ describe('public Zev support', () => {
     expect(screen.getAllByText('Where do I start?')).toHaveLength(1);
     expect(apiMock.fn).toHaveBeenCalledTimes(2);
     expect(apiMock.fn.mock.calls[1][1]).toMatchObject({ method: 'POST', auth: false, body: { message: 'Where do I start?' } });
+    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }));
+    expect(screen.queryByText('Where do I start?')).toBeNull();
+    expect(screen.getByRole('heading', { name: /Make your next move clear/ })).toBeTruthy();
   });
 
   it('is available immediately and the page CTA opens the same support dialog', async () => {

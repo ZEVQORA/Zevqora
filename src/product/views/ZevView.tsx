@@ -5,11 +5,10 @@ import {
   Check,
   Copy,
   Github,
-  MessageCircle,
   Plus,
   ShieldCheck,
-  Sparkles,
 } from "lucide-react";
+import { ZevqoraMark } from "@/brand/ZevqoraMark";
 import { ProductFrame } from "../Frame";
 import { useProduct } from "../store";
 import { useSession } from "@/lib/session";
@@ -35,7 +34,7 @@ const suggestions = [
     description: "Turn AI execution data into clarity.",
     prompt:
       "How do I understand my AI costs and verify an optimization safely?",
-    Icon: Sparkles,
+    Icon: BookOpen,
   },
 ];
 
@@ -112,13 +111,13 @@ export default function ZevView() {
   };
   return (
     <ProductFrame padded={false} inspector={false}>
-      <div className="nova-chat">
+      <div className="nova-chat atelier-workspace-zev">
         <header className="nova-chat-header">
           <div>
-            <MessageCircle size={18} className="text-accent-text" />
+            <ZevqoraMark height={23} />
             <b>Zev</b>
             <small>
-              <span className="nova-live-dot" /> AI helpdesk
+              Workspace assistant
             </small>
           </div>
           <button
@@ -137,16 +136,13 @@ export default function ZevView() {
             {!lines.length && (
               <section className="nova-chat-welcome">
                 <div className="nova-chat-spark">
-                  <Sparkles size={29} strokeWidth={1.3} />
+                  <span className="zev-lens" aria-hidden="true"><i /></span>
                 </div>
-                <span>YOUR SPACE TO MAKE THINGS LIGHTER</span>
                 <h1>
-                  Welcome back, <em>{name}.</em>
+                  What’s next, <em>{name}?</em>
                 </h1>
                 <p>
-                  A fresh perspective. A little guidance.
-                  <br />
-                  What can I help you with today?
+                  Let’s make your next move clear.
                 </p>
                 <div className="nova-chat-suggestions">
                   {suggestions.map(({ title, description, prompt, Icon }) => (
@@ -172,7 +168,7 @@ export default function ZevView() {
                 >
                   {line.role === "assistant" && (
                     <div className="nova-icon-box shrink-0 !h-8 !w-8 !rounded-xl">
-                      <Sparkles size={14} />
+                      <ZevqoraMark height={18} />
                     </div>
                   )}
                   <div className="min-w-0 max-w-[88%]">
@@ -220,7 +216,6 @@ export default function ZevView() {
               ))}
               {busy && (
                 <div className="flex items-center gap-3 text-xs text-subtle">
-                  <Sparkles size={16} />
                   <span className="pthinking">
                     <i />
                     <i />
@@ -273,7 +268,7 @@ export default function ZevView() {
             />
             <div>
               <span>
-                <Sparkles size={12} /> Zev helpdesk{" "}
+                Zev{" "}
                 {selected ? `· ${selected.name}` : ""}
               </span>
               <button
@@ -286,8 +281,7 @@ export default function ZevView() {
             </div>
           </form>
           <p>
-            <ShieldCheck size={10} className="inline mr-1" />
-            Zev can make mistakes. You stay in control of your workspace.
+            Zev can make mistakes. Review important decisions.
           </p>
         </div>
       </div>
