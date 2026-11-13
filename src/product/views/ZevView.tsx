@@ -1,161 +1,294 @@
-import { useMemo, useRef, useState, type FormEvent } from 'react';
-import { ArrowUp, Braces, RefreshCw, ShieldCheck } from 'lucide-react';
-import { Zev, ZevFace } from '@/brand/Zev';
-import { ProductFrame } from '../Frame';
-import { useProduct, type ZevState } from '../store';
-import { engineErrorMessage } from '../engine';
-import type { ChatLine } from '../types';
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  ArrowUp,
+  BookOpen,
+  Check,
+  Copy,
+  Github,
+  MessageCircle,
+  Plus,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
+import { ProductFrame } from "../Frame";
+import { useProduct } from "../store";
+import { useSession } from "@/lib/session";
+import { engineErrorMessage } from "../engine";
+import type { ChatLine } from "../types";
 
-function uid() {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
-
-function stateForPrompt(value: string): ZevState {
-  const text = value.toLowerCase();
-  if (/verify|experiment|test|quality|evidence/.test(text)) return 'verifying';
-  if (/scan|analy|inspect|find|waste|spend/.test(text)) return 'scanning';
-  if (/implement|patch|change|fix|candidate/.test(text)) return 'experimenting';
-  return 'thinking';
-}
+const suggestions = [
+  {
+    title: "Connect my project",
+    description: "Bring your GitHub repo or server.",
+    prompt: "How do I connect my GitHub repository or server to ZEVQORA?",
+    Icon: Github,
+  },
+  {
+    title: "Show me around",
+    description: "Find your way. Make yourself at home.",
+    prompt:
+      "I am new to ZEVQORA. Walk me through the workspace and help me get started.",
+    Icon: BookOpen,
+  },
+  {
+    title: "Help me understand",
+    description: "Turn AI execution data into clarity.",
+    prompt:
+      "How do I understand my AI costs and verify an optimization safely?",
+    Icon: Sparkles,
+  },
+];
 
 export default function ZevView() {
-  const { engine, selected, health, model, setModel, refreshProductData, zevState, setZevState } = useProduct();
+  const { engine, selected, model, refreshProductData, setZevState } =
+    useProduct();
+  const { me, session } = useSession();
+  const rawName =
+    me?.profile.display_name ||
+    session?.user.user_metadata?.full_name ||
+    me?.profile.username ||
+    session?.user.email?.split("@")[0] ||
+    "there";
+  const name = String(rawName).trim().split(/\s+/)[0];
   const [lines, setLines] = useState<ChatLine[]>([]);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  const suggestions = useMemo(
-    () => (selected ? ['Analyze this product', 'Show the highest-impact waste', 'What evidence is missing?', 'Explain the latest verdict'] : ['What can Zev optimize?', 'Why is verification required?']),
-    [selected],
-  );
-
-  const providerLabel = health?.provider_mode === 'platform' ? 'Platform compute' : health?.provider_mode === 'local_key' ? 'OpenRouter (local key)' : 'Tools only';
-
-  const scrollToEnd = () => window.setTimeout(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }), 30);
-
+  const controller = useRef(0);
+  useEffect(() => {
+    scrollRef.current?.scrollTo?.({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [lines, busy]);
+  useEffect(() => {
+    setLines([]);
+    setError("");
+    controller.current += 1;
+  }, [selected?.id, session?.user.id]);
   const submit = async (text: string) => {
     const value = text.trim();
     if (!value || busy) return;
-    const next = [...lines, { id: uid(), role: 'user' as const, content: value }];
+    const requestId = controller.current;
+    const next = [
+      ...lines,
+      { id: crypto.randomUUID(), role: "user" as const, content: value },
+    ];
     setLines(next);
-    setInput('');
+    setInput("");
     setBusy(true);
-    setError('');
-    setZevState(stateForPrompt(value));
-    scrollToEnd();
+    setError("");
+    setZevState("thinking");
     try {
-      const response = await engine.chat(selected?.id || null, next.map((l) => ({ role: l.role, content: l.content })).slice(-16), model || undefined);
-      setLines((current) => [...current, { id: uid(), role: 'assistant', content: response.message, toolEvents: response.tool_events, model: response.model }]);
+      const response = await engine.chat(
+        selected?.id || null,
+        next.map((l) => ({ role: l.role, content: l.content })).slice(-16),
+        model || undefined,
+      );
+      if (requestId !== controller.current) return;
+      setLines((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: response.message,
+          toolEvents: response.tool_events,
+          model: response.model,
+        },
+      ]);
       if (response.tool_events.length) await refreshProductData();
-      setZevState('done');
-      window.setTimeout(() => setZevState('idle'), 1200);
     } catch (err) {
-      setError(engineErrorMessage(err));
-      setZevState('idle');
+      if (requestId === controller.current) setError(engineErrorMessage(err));
     } finally {
       setBusy(false);
-      scrollToEnd();
+      setZevState("idle");
     }
   };
-
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     void submit(input);
   };
-
   return (
-    <ProductFrame padded={false}>
-      <div className="flex min-h-[calc(100dvh-3.5rem-2.75rem)] flex-col">
-        <header className="flex h-[58px] shrink-0 items-center justify-between border-b border-line/80 px-6">
-          <div className="flex items-center gap-3">
-            <ZevFace expression={zevState === 'idle' ? 'friendly-idle' : zevState === 'done' ? 'delighted' : 'focused'} size={34} />
-            <div>
-              <div className="text-[13.5px] font-semibold text-ink">Zev</div>
-              <div className="text-[11.5px] text-subtle">{selected ? `AI cost engineer for ${selected.name}` : 'AI cost optimization engineer'} · {zevState === 'idle' ? 'ready' : zevState}</div>
-            </div>
+    <ProductFrame padded={false} inspector={false}>
+      <div className="nova-chat">
+        <header className="nova-chat-header">
+          <div>
+            <MessageCircle size={18} className="text-accent-text" />
+            <b>Zev</b>
+            <small>
+              <span className="nova-live-dot" /> AI helpdesk
+            </small>
           </div>
-          <div className="flex items-center gap-2">
-            <label className="flex h-[32px] items-center gap-2 rounded-lg border border-line bg-cloud px-2.5">
-              <Braces size={12} className="text-subtle" />
-              <input value={model} onChange={(e) => setModel(e.target.value)} className="mono w-[170px] bg-transparent text-[11.5px] text-ink outline-none" aria-label="Model id" placeholder="openai/gpt-4o-mini" />
-            </label>
-            <span className={`pchip ${health?.openrouter_configured ? 'pchip-verified' : 'pchip-neutral'}`}>{providerLabel}</span>
-          </div>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setLines([]);
+              setError("");
+            }}
+          >
+            <Plus size={13} /> New conversation
+          </button>
         </header>
-
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-6">
-          <div className="mx-auto max-w-[860px]">
+        <div className="nova-chat-scroll" ref={scrollRef}>
+          <div className="nova-chat-inner">
             {!lines.length && (
-              <section className="mb-8 flex items-center gap-6">
-                <Zev view="pose-thinking" height={120} />
-                <div>
-                  <div className="peyebrow">Measure. Replay. Verify. Then optimize.</div>
-                  <h1 className="ph1 mt-2 max-w-[600px] !text-[26px]">Ask where the AI cost comes from. Then prove the safer path.</h1>
-                  <p className="plede">Chat is the interface. Runtime evidence, replay, quality gates and your approval remain the authority. Zev can run read-only tools and start verifications; it cannot mark anything verified.</p>
+              <section className="nova-chat-welcome">
+                <div className="nova-chat-spark">
+                  <Sparkles size={29} strokeWidth={1.3} />
+                </div>
+                <span>YOUR SPACE TO MAKE THINGS LIGHTER</span>
+                <h1>
+                  Welcome back, <em>{name}.</em>
+                </h1>
+                <p>
+                  A fresh perspective. A little guidance.
+                  <br />
+                  What can I help you with today?
+                </p>
+                <div className="nova-chat-suggestions">
+                  {suggestions.map(({ title, description, prompt, Icon }) => (
+                    <button
+                      key={title}
+                      type="button"
+                      onClick={() => void submit(prompt)}
+                      disabled={busy}
+                    >
+                      <Icon size={19} />
+                      <b>{title}</b>
+                      <small>{description}</small>
+                    </button>
+                  ))}
                 </div>
               </section>
             )}
-            <div className="grid gap-4">
+            <div className="grid gap-6" aria-live="polite" aria-busy={busy}>
               {lines.map((line) => (
-                <div key={line.id} className={`pmsg ${line.role === 'user' ? 'is-user' : 'is-zev'}`}>
-                  {line.role === 'assistant' && <ZevFace expression="calm-confidence" size={30} className="mt-1" />}
-                  <div className="min-w-0 max-w-[76%]">
-                    <div className="pmsg-bubble">{line.content}</div>
+                <article
+                  key={line.id}
+                  className={`pmsg ${line.role === "user" ? "is-user" : "is-zev"}`}
+                >
+                  {line.role === "assistant" && (
+                    <div className="nova-icon-box shrink-0 !h-8 !w-8 !rounded-xl">
+                      <Sparkles size={14} />
+                    </div>
+                  )}
+                  <div className="min-w-0 max-w-[88%]">
+                    <div className="pmsg-bubble whitespace-pre-wrap">
+                      {line.content}
+                    </div>
                     {!!line.toolEvents?.length && (
                       <div className="mt-2 grid gap-1">
-                        {line.toolEvents.map((event, index) => (
-                          <div key={`${event.name}-${index}`} className="ptool-event">
-                            <RefreshCw size={11} className={event.status === 'done' ? 'text-blue' : 'text-rejected'} />
-                            <b>{event.name}</b>
-                            <span className="truncate">{event.summary}</span>
+                        {line.toolEvents.map((event, i) => (
+                          <div key={i} className="ptool-event">
+                            <ShieldCheck size={11} />
+                            <span>{event.summary}</span>
                           </div>
                         ))}
                       </div>
                     )}
-                    {line.model && <div className="mt-1 text-[10.5px] text-subtle">{line.model}</div>}
+                    {line.role === "assistant" && (
+                      <button
+                        type="button"
+                        aria-label="Copy answer"
+                        className="mt-2 text-subtle"
+                        onClick={() => {
+                          void navigator.clipboard
+                            .writeText(line.content)
+                            .then(() => {
+                              setCopied(line.id);
+                              window.setTimeout(() => setCopied(""), 1800);
+                            })
+                            .catch(() =>
+                              setError(
+                                "Copy is unavailable in this browser. Select the answer to copy it.",
+                              ),
+                            );
+                        }}
+                      >
+                        {copied === line.id ? (
+                          <Check size={12} />
+                        ) : (
+                          <Copy size={12} />
+                        )}
+                      </button>
+                    )}
                   </div>
-                </div>
+                </article>
               ))}
               {busy && (
-                <div className="pmsg is-zev">
-                  <ZevFace expression="focused" size={30} className="mt-1" />
-                  <div className="flex items-center gap-2 py-2 text-[12px] text-subtle"><span className="pthinking"><i /><i /><i /></span> Zev is working through the evidence</div>
+                <div className="flex items-center gap-3 text-xs text-subtle">
+                  <Sparkles size={16} />
+                  <span className="pthinking">
+                    <i />
+                    <i />
+                    <i />
+                  </span>{" "}
+                  Zev is thinking
                 </div>
               )}
             </div>
           </div>
         </div>
-
-        <div className="sticky bottom-0 z-20 bg-gradient-to-t from-canvas via-canvas/95 to-transparent px-6 pb-5 pt-6">
-          <div className="mx-auto max-w-[860px]">
-            {error && <div className="pnote pnote-error mb-2">{error}</div>}
-            <div className="mb-2 flex flex-wrap gap-1.5">
-              {suggestions.map((item) => (
-                <button key={item} type="button" onClick={() => void submit(item)} className="psuggestion">{item}</button>
-              ))}
-            </div>
-            <form onSubmit={onSubmit} className="pcomposer">
-              <textarea
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.shiftKey) {
-                    event.preventDefault();
-                    void submit(input);
+        <div className="nova-chat-composer">
+          {error && (
+            <div role="alert" className="pnote pnote-error">
+              {error}
+              <button
+                type="button"
+                className="ml-2 underline"
+                onClick={() => {
+                  const last = lines.at(-1);
+                  if (last?.role === "user") {
+                    setLines((current) => current.slice(0, -1));
+                    setInput(last.content);
+                    setError("");
                   }
                 }}
-                rows={1}
-                placeholder={selected ? 'Ask Zev to analyze cost, waste, evidence, or a candidate…' : 'Connect a repository or ask Zev how verification works…'}
-              />
-              <div className="flex items-center gap-2 pb-0.5">
-                <span className="hidden items-center gap-1 text-[11px] text-subtle md:flex"><ShieldCheck size={11} /> Human review stays on</span>
-                <button type="submit" className="psend" disabled={!input.trim() || busy} aria-label="Send"><ArrowUp size={15} /></button>
-              </div>
-            </form>
-            <div className="mt-1.5 text-center text-[10.5px] text-subtle">Zev may propose actions. Verification gates decide what is verified. You decide what ships.</div>
-          </div>
+              >
+                Edit and retry
+              </button>
+            </div>
+          )}
+          <form onSubmit={onSubmit}>
+            <textarea
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (
+                  event.key === "Enter" &&
+                  !event.shiftKey &&
+                  !event.nativeEvent.isComposing
+                ) {
+                  event.preventDefault();
+                  void submit(input);
+                }
+              }}
+              rows={2}
+              maxLength={8000}
+              aria-label="Message Zev"
+              placeholder="Ask Zev anything about ZEVQORA…"
+            />
+            <div>
+              <span>
+                <Sparkles size={12} /> Zev helpdesk{" "}
+                {selected ? `· ${selected.name}` : ""}
+              </span>
+              <button
+                type="submit"
+                disabled={!input.trim() || busy}
+                aria-label="Send message"
+              >
+                <ArrowUp size={16} />
+              </button>
+            </div>
+          </form>
+          <p>
+            <ShieldCheck size={10} className="inline mr-1" />
+            Zev can make mistakes. You stay in control of your workspace.
+          </p>
         </div>
       </div>
     </ProductFrame>

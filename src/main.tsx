@@ -8,6 +8,8 @@ import '@/styles/refinements.css';
 import '@/styles/kinetic-experience.css';
 import '@/styles/type-edition.css';
 import '@/styles/unified.css';
+import '@/styles/nova.css';
+import '@/styles/cinema.css';
 import { App } from '@/App';
 import { SessionProvider } from '@/lib/session';
 import { ToastProvider } from '@/components/ui/Toast';

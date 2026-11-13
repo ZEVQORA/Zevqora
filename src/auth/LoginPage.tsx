@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useSearchParams } from "react-router";
-import { ArrowRight, Mail } from "lucide-react";
+import { ArrowRight, Mail, ShieldCheck } from "lucide-react";
 import { PasswordInput } from "./PasswordInput";
 import {
   AuthShell,
@@ -93,8 +93,8 @@ export default function LoginPage() {
 
   return (
     <AuthShell
-      title="Sign in."
-      subtitle="Welcome back. Let’s pick up where you left off."
+      title="Welcome back"
+      subtitle="Log in to your ZEVQORA account"
       footer={
         <p className="text-caption text-muted">
           New to ZEVQORA?{" "}
@@ -144,6 +144,12 @@ export default function LoginPage() {
             {error}
           </p>
         )}
+        <div className="nova-auth-note">
+          <span>
+            <ShieldCheck size={12} /> You’ll stay signed in
+          </span>
+          <Link to="/forgot-password">Forgot password?</Link>
+        </div>
         <Button
           type="submit"
           size="lg"
@@ -151,15 +157,9 @@ export default function LoginPage() {
           disabled={status === "unconfigured"}
           className="mt-1 w-full"
         >
-          <span>Sign in to your workspace</span>
+          <span>Log in</span>
           <ArrowRight size={17} />
         </Button>
-        <Link
-          to="/forgot-password"
-          className="text-caption text-center text-muted underline-offset-4 hover:underline"
-        >
-          Forgot your password?
-        </Link>
       </form>
       {status === "unconfigured" && <AuthPreviewNote />}
     </AuthShell>

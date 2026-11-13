@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router';
 import { AnimatePresence, motion } from 'motion/react';
-import { BarChart3, BookOpen, Boxes, ClipboardCheck, ChevronsUpDown, FileCheck2, FlaskConical, FolderGit2, Gauge, GitPullRequest, Home, LayoutDashboard, Lightbulb, LogOut, Menu, MessageSquare, Monitor, Network, Plug, Scale, Search, Settings, Shield, Stethoscope, Users, X, PanelLeftClose, PanelLeftOpen, ChevronRight, Check, Plus } from 'lucide-react';
+import { BarChart3, BookOpen, Boxes, ClipboardCheck, ChevronsUpDown, FileCheck2, FlaskConical, FolderGit2, Gauge, GitPullRequest, Home, LayoutDashboard, Lightbulb, LogOut, Menu, MessageSquare, Network, Plug, Scale, Search, Settings, Shield, Stethoscope, Users, X, PanelLeftClose, PanelLeftOpen, ChevronRight, Check, Plus } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useSession } from '@/lib/session';
 import { ZevqoraMark } from '@/brand/ZevqoraMark';
@@ -15,7 +15,8 @@ import { experienceApi, type CommandCenter } from '@/product/experience';
 import { Bell, Eye } from 'lucide-react';
 
 export const NAV: Array<{ to: string; label: string; Icon: typeof Home; end?: boolean; section?: string; flag?: string }> = [
-  { to: '/app', label: 'Command Center', Icon: LayoutDashboard, end: true },
+  { to: '/app', label: 'Ask Zev', Icon: MessageSquare, end: true },
+  { to: '/app/command', label: 'Overview', Icon: LayoutDashboard },
   { to: '/app/workloads', label: 'Workloads', Icon: Boxes },
   // Shown only to workspaces with the flag on (no global launch).
   { to: '/app/graph', label: 'Execution Graph', Icon: Network, flag: 'zevir_graph_ui' },
@@ -33,10 +34,8 @@ export const NAV: Array<{ to: string; label: string; Icon: typeof Home; end?: bo
   { to: '/app/opportunities', label: 'Opportunities', Icon: Lightbulb, end: true },
   { to: '/app/evaluation', label: 'Evaluation', Icon: ClipboardCheck },
   { to: '/app/savings', label: 'Savings ledger', Icon: BarChart3 },
-  { to: '/app/zev', label: 'Ask Zev', Icon: MessageSquare },
   { to: '/app/usage', label: 'Usage', Icon: BarChart3 },
   { to: '/app/docs', label: 'Docs', Icon: BookOpen },
-  { to: '/download', label: 'Desktop app', Icon: Monitor },
 ];
 
 /** A nav item behind a workspace flag is shown only where that flag is on. */
@@ -45,7 +44,7 @@ export function navVisible(item: { flag?: string }, features: Record<string, boo
 }
 
 /** Product routes render edge-to-edge (they carry their own toolbar and Evidence Inspector). */
-const PRODUCT_PATHS = new Set(['/app', '/app/overview', '/app/workloads', '/app/graph', '/app/diagnoses', '/app/value', '/app/project', '/app/optimize', '/app/opportunities', '/app/experiments', '/app/evidence', '/app/savings', '/app/evaluation', '/app/changes', '/app/connections', '/app/zev']);
+const PRODUCT_PATHS = new Set(['/app', '/app/command', '/app/overview', '/app/workloads', '/app/graph', '/app/diagnoses', '/app/value', '/app/project', '/app/optimize', '/app/opportunities', '/app/experiments', '/app/evidence', '/app/savings', '/app/evaluation', '/app/changes', '/app/connections', '/app/zev']);
 export function isProductPath(pathname: string) {
   return PRODUCT_PATHS.has(pathname.replace(/\/+$/, '') || '/app');
 }
@@ -122,7 +121,7 @@ function UserMenu() {
   );
 }
 
-const TITLES: Record<string, string> = Object.fromEntries(NAV.map((n) => [n.to, n.label]));
+const TITLES: Record<string, string> = { ...Object.fromEntries(NAV.map((n) => [n.to, n.label])), '/app/zev': 'Ask Zev' };
 
 /** Presentation view (CEO / CTO / Developer). Changes emphasis only — never permissions. */
 function ModeMenu() {
@@ -200,6 +199,7 @@ export function AppShell() {
   });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
 
   useEffect(() => {
@@ -248,10 +248,10 @@ export function AppShell() {
       </div>
       <nav aria-label="Application" className="scrollbar-thin mt-3 flex-1 overflow-y-auto px-2.5">
         <ul className="flex flex-col gap-0.5">
-          {NAV.filter((item) => navVisible(item, activeWorkspace.features)).map((item) => (
+          {NAV.filter((item) => navVisible(item, activeWorkspace.features) && (showAdvanced || ['/app', '/app/command', '/app/project', '/app/connections', '/app/experiments', '/app/evidence', '/app/settings', '/app/usage', '/app/team', '/app/docs'].includes(item.to))).map((item) => (
             <li key={item.to} className={item.section ? 'mt-2 border-t border-line/60 pt-2' : undefined}>
               {item.section && !collapsed && <div className="text-technical px-2.5 pb-1 pt-1 font-medium uppercase tracking-[0.08em] text-subtle">{item.section}</div>}
-              <NavLink to={item.to} end={item.end} title={collapsed ? item.label : undefined} className={({ isActive }) => cn('text-caption group flex items-center gap-2.5 rounded-md px-2.5 py-2 transition-control', isActive ? 'bg-surface text-ink shadow-[0_1px_2px_rgb(15_17_21/0.06),inset_0_0_0_1px_rgb(15_17_21/0.04)]' : 'text-muted hover:bg-surface/60 hover:text-ink', collapsed && 'justify-center px-0')}>
+              <NavLink to={item.to === '/app' ? '/app/zev' : item.to} end={item.end} title={collapsed ? item.label : undefined} className={({ isActive }) => cn('text-caption group flex items-center gap-2.5 rounded-md px-2.5 py-2 transition-control', isActive ? 'bg-surface text-ink shadow-[0_1px_2px_rgb(15_17_21/0.06),inset_0_0_0_1px_rgb(15_17_21/0.04)]' : 'text-muted hover:bg-surface/60 hover:text-ink', collapsed && 'justify-center px-0')}>
                 {({ isActive }) => (
                   <>
                     <item.Icon size={16} className={cn('shrink-0', isActive ? 'text-accent-text' : 'text-subtle group-hover:text-ink')} aria-hidden />
@@ -270,12 +270,13 @@ export function AppShell() {
             </li>
           )}
         </ul>
+        {!collapsed && <button type="button" aria-expanded={showAdvanced} onClick={() => setShowAdvanced(value => !value)} className="mt-3 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-[11px] text-subtle hover:text-ink"><ChevronRight size={12} className={showAdvanced ? 'rotate-90' : ''}/>{showAdvanced ? 'Fewer tools' : 'Advanced tools'}</button>}
       </nav>
       {!collapsed && (
         <div className="m-2.5 rounded-lg border border-line/60 bg-surface/60 p-3">
           <div className="flex items-center gap-2.5">
             <img src="/assets/zev/zev-face-calm-confidence.webp" alt="" width={28} height={28} className="h-7 w-7 rounded-full border border-line object-cover" style={{ objectPosition: '50% 38%' }} />
-            <p className="text-technical text-muted">Zev only reports what the evidence supports.</p>
+            <p className="text-technical text-muted">A little guidance? Ask Zev.</p>
           </div>
         </div>
       )}

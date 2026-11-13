@@ -20,7 +20,7 @@ export default function ProjectView() {
   if (!selected) {
     return (
       <NoProject>
-        <Empty title="No repository connected" description="Connect the folder you actually develop in. ZEVQORA inspects supported source files read-only and never changes code during this step." action={<Button onClick={dialogs.openConnect}><FolderOpen size={15} /> Connect repository</Button>} />
+        <Empty title="No repository connected" description="Connect a GitHub repository to inspect supported source files in the cloud. Read-only scanning; no local folder needed." action={<Button onClick={dialogs.openConnect}><FolderOpen size={15} /> Connect repository</Button>} />
       </NoProject>
     );
   }
@@ -47,7 +47,7 @@ export default function ProjectView() {
 
   const archiveModal = (
     <Modal open={confirmArchive} onClose={() => setConfirmArchive(false)} size="sm" title="Disconnect this repository?" description={`${selected.name} will leave the switcher. Evaluations and evidence it produced remain stored and unchanged.`} footer={<><Button variant="ghost" onClick={() => setConfirmArchive(false)}>Cancel</Button><Button variant="danger" onClick={() => void archive()} loading={archiving}>Disconnect</Button></>}>
-        <div className="text-caption text-muted">Nothing is deleted from the folder itself. Read-only access stops.</div>
+        <div className="text-caption text-muted">Your repository stays unchanged. This removes it from the workspace.</div>
       </Modal>
   );
 

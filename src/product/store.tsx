@@ -1,26 +1,54 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useSession } from '@/lib/session';
-import { cloudEngine, localEngine, syncLocalEngineSession, engineErrorMessage, type Engine } from './engine';
-import { desktopBridge, isDesktop } from './bridge';
-import { pickRepository, pickTraceFile, type PickedRepository } from './browserScan';
-import { useProductToast } from './ui';
-import { isWorkloadProduct } from './types';
-import type { AICall, Economics, EngineHealth, EnginePlatformStatus, Evaluation, Experiment, Finding, Implementation, OptimizationExecution, OptimizationPlan, Product, ScanResult } from './types';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import { useSession } from "@/lib/session";
+import {
+  cloudEngine,
+  localEngine,
+  syncLocalEngineSession,
+  engineErrorMessage,
+  type Engine,
+} from "./engine";
+import { desktopBridge, isDesktop } from "./bridge";
+import { pickTraceFile, type PickedRepository } from "./browserScan";
+import { useProductToast } from "./ui";
+import { isWorkloadProduct } from "./types";
+import type {
+  AICall,
+  Economics,
+  EngineHealth,
+  EnginePlatformStatus,
+  Evaluation,
+  Experiment,
+  Finding,
+  Implementation,
+  OptimizationExecution,
+  OptimizationPlan,
+  Product,
+  ScanResult,
+} from "./types";
 
 export type InspectTarget =
-  | { kind: 'finding'; id: string }
-  | { kind: 'evaluation'; id: string }
-  | { kind: 'experiment'; id: string }
-  | { kind: 'implementation'; id: string }
-  | { kind: 'execution'; id: string }
-  | { kind: 'plan'; id: string }
+  | { kind: "finding"; id: string }
+  | { kind: "evaluation"; id: string }
+  | { kind: "experiment"; id: string }
+  | { kind: "implementation"; id: string }
+  | { kind: "execution"; id: string }
+  | { kind: "plan"; id: string }
   | null;
 
-export type ZevState = 'idle' | 'thinking' | 'scanning' | 'experimenting' | 'verifying' | 'done';
+export type ZevState =
+  "idle" | "thinking" | "scanning" | "experimenting" | "verifying" | "done";
 
 interface ProductStore {
   engine: Engine;
-  runtime: 'browser' | 'desktop';
+  runtime: "browser" | "desktop";
   /** False for workspace viewers: they can inspect evidence but not scan, import, test or prepare changes. */
   canEdit: boolean;
   inspect: InspectTarget;
@@ -48,7 +76,11 @@ interface ProductStore {
   refreshProducts: () => Promise<void>;
   refreshProductData: () => Promise<void>;
   /** Browser: folder picker + local scan + upload. Desktop: local engine scans the folder. */
-  connectRepository: (input?: { path?: string; name?: string }) => Promise<ScanResult | null>;
+  connectRepository: (input?: {
+    path?: string;
+    name?: string;
+    source?: "github" | "server";
+  }) => Promise<ScanResult | null>;
   runScan: () => Promise<ScanResult | null>;
   toggleMonitoring: () => Promise<void>;
   importTraceFile: () => Promise<void>;
@@ -68,12 +100,15 @@ const Ctx = createContext<ProductStore | null>(null);
 
 export function useProduct() {
   const ctx = useContext(Ctx);
-  if (!ctx) throw new Error('useProduct must be used within ProductProvider');
+  if (!ctx) throw new Error("useProduct must be used within ProductProvider");
   return ctx;
 }
 
 /** Make a product the selection for its workspace before the product views mount (onboarding). */
-export function rememberSelectedProduct(workspaceId: string, productId: string) {
+export function rememberSelectedProduct(
+  workspaceId: string,
+  productId: string,
+) {
   try {
     localStorage.setItem(`zevqora.selectedProduct:${workspaceId}`, productId);
   } catch {
@@ -92,21 +127,30 @@ function readSelection(key: string) {
 export function ProductProvider({ children }: { children: ReactNode }) {
   const { me, activeWorkspace } = useSession();
   const toast = useProductToast();
-  const runtime: 'browser' | 'desktop' = isDesktop() ? 'desktop' : 'browser';
+  const runtime: "browser" | "desktop" = isDesktop() ? "desktop" : "browser";
   const workspaceId = activeWorkspace?.id || null;
-  const canEdit = runtime === 'desktop' || (activeWorkspace ? activeWorkspace.role !== 'viewer' : false);
-  const engine = useMemo<Engine>(() => (runtime === 'desktop' ? localEngine() : cloudEngine(workspaceId || '')), [runtime, workspaceId]);
+  const canEdit =
+    runtime === "desktop" ||
+    (activeWorkspace ? activeWorkspace.role !== "viewer" : false);
+  const engine = useMemo<Engine>(
+    () =>
+      runtime === "desktop" ? localEngine() : cloudEngine(workspaceId || ""),
+    [runtime, workspaceId],
+  );
 
   const [inspect, setInspect] = useState<InspectTarget>(null);
   const [health, setHealth] = useState<EngineHealth | null>(null);
-  const [engineError, setEngineError] = useState('');
-  const [platformStatus, setPlatformStatus] = useState<EnginePlatformStatus | null>(null);
+  const [engineError, setEngineError] = useState("");
+  const [platformStatus, setPlatformStatus] =
+    useState<EnginePlatformStatus | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   // The selection is remembered per workspace so switching workspaces never
   // carries another workspace's product id along.
-  const selectionKey = `zevqora.selectedProduct:${workspaceId || 'none'}`;
-  const [selectedId, setSelectedId] = useState<string | null>(() => readSelection(selectionKey));
+  const selectionKey = `zevqora.selectedProduct:${workspaceId || "none"}`;
+  const [selectedId, setSelectedId] = useState<string | null>(() =>
+    readSelection(selectionKey),
+  );
   useEffect(() => {
     setSelectedId(readSelection(selectionKey));
   }, [selectionKey]);
@@ -120,32 +164,38 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const [executions, setExecutions] = useState<OptimizationExecution[]>([]);
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
-  const [dataError, setDataError] = useState('');
-  const [zevState, setZevState] = useState<ZevState>('idle');
+  const [dataError, setDataError] = useState("");
+  const [zevState, setZevState] = useState<ZevState>("idle");
   const [model, setModelState] = useState(() => {
     try {
-      return localStorage.getItem('zevqora.agentModel') || 'openai/gpt-4o-mini';
+      return localStorage.getItem("zevqora.agentModel") || "openai/gpt-4o-mini";
     } catch {
-      return 'openai/gpt-4o-mini';
+      return "openai/gpt-4o-mini";
     }
   });
-  const picked = useRef<PickedRepository | null>(null);
-  const [pickedRepository, setPickedRepository] = useState<PickedRepository | null>(null);
+  const pickedRepository: PickedRepository | null = null;
 
-  const selected = useMemo(() => products.find((p) => p.id === selectedId) || null, [products, selectedId]);
+  const selected = useMemo(
+    () => products.find((p) => p.id === selectedId) || null,
+    [products, selectedId],
+  );
 
   // Desktop: hand the account session to the local engine so it can use platform compute.
   useEffect(() => {
-    if (runtime !== 'desktop' || !me) return;
-    void syncLocalEngineSession(workspaceId, { id: me.user.id, email: me.user.email }, me.account?.plan || null).catch(() => undefined);
+    if (runtime !== "desktop" || !me) return;
+    void syncLocalEngineSession(
+      workspaceId,
+      { id: me.user.id, email: me.user.email },
+      me.account?.plan || null,
+    ).catch(() => undefined);
   }, [runtime, me, workspaceId]);
 
   const refreshHealth = useCallback(async () => {
-    if (runtime === 'browser' && !workspaceId) return;
+    if (runtime === "browser" && !workspaceId) return;
     try {
       const next = await engine.health();
       setHealth(next);
-      setEngineError('');
+      setEngineError("");
       try {
         setPlatformStatus(await engine.platformStatus());
       } catch {
@@ -160,24 +210,33 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refreshHealth();
-    const id = window.setInterval(() => void refreshHealth(), runtime === 'desktop' ? 10_000 : 60_000);
+    const id = window.setInterval(
+      () => void refreshHealth(),
+      runtime === "desktop" ? 10_000 : 60_000,
+    );
     return () => window.clearInterval(id);
   }, [refreshHealth, runtime]);
 
   const refreshProducts = useCallback(async () => {
-    if (runtime === 'browser' && !workspaceId) return;
+    if (runtime === "browser" && !workspaceId) return;
     setProductsLoading(true);
     try {
       const rows = await engine.products();
       setProducts(rows);
-      setSelectedId((current) => (current && rows.some((r) => r.id === current) ? current : rows[0]?.id || null));
+      setSelectedId((current) =>
+        current && rows.some((r) => r.id === current)
+          ? current
+          : rows[0]?.id || null,
+      );
     } finally {
       setProductsLoading(false);
     }
   }, [engine, runtime, workspaceId]);
 
   useEffect(() => {
-    void refreshProducts().catch((error) => setEngineError(engineErrorMessage(error)));
+    void refreshProducts().catch((error) =>
+      setEngineError(engineErrorMessage(error)),
+    );
   }, [refreshProducts]);
 
   const selectProduct = useCallback(
@@ -196,7 +255,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const refreshProductData = useCallback(async () => {
     if (!selectedId) {
-      setDataError('');
+      setDataError("");
       setAiCalls([]);
       setFindings([]);
       setEconomics(null);
@@ -209,7 +268,16 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     }
     setDataLoading(true);
     try {
-      const [calls, nextFindings, nextEconomics, nextExperiments, nextImplementations, nextPlans, nextExecutions, nextEvaluations] = await Promise.all([
+      const [
+        calls,
+        nextFindings,
+        nextEconomics,
+        nextExperiments,
+        nextImplementations,
+        nextPlans,
+        nextExecutions,
+        nextEvaluations,
+      ] = await Promise.all([
         engine.aiCalls(selectedId),
         engine.findings(selectedId),
         engine.economics(selectedId),
@@ -227,7 +295,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       setPlans(nextPlans);
       setExecutions(nextExecutions);
       setEvaluations(nextEvaluations);
-      setDataError('');
+      setDataError("");
     } catch (error) {
       setDataError(engineErrorMessage(error));
       throw error;
@@ -243,84 +311,131 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const viewOnly = useCallback(() => {
     if (canEdit) return false;
-    toast({ tone: 'err', title: 'View only', description: 'Viewers can inspect evidence but not change it. Ask a workspace admin for a member role.' });
+    toast({
+      tone: "err",
+      title: "View only",
+      description:
+        "Viewers can inspect evidence but not change it. Ask a workspace admin for a member role.",
+    });
     return true;
   }, [canEdit, toast]);
 
   const connectRepository = useCallback(
-    async (input?: { path?: string; name?: string }) => {
+    async (input?: {
+      path?: string;
+      name?: string;
+      source?: "github" | "server";
+    }) => {
       if (viewOnly()) return null;
-      setZevState('scanning');
+      setZevState("scanning");
       try {
         let result: ScanResult;
-        if (runtime === 'desktop') {
+        if (input?.source === "server") {
+          const product = await engine.createWorkload({
+            name: input.name || "Server workload",
+          });
+          result = {
+            product,
+            files_scanned: 0,
+            ai_calls: [],
+            findings: [],
+            detected_stack: [],
+            skipped_sensitive_paths: 0,
+          };
+        } else if (input?.source === "github") {
+          if (!activeWorkspace)
+            throw new Error("Select a workspace before connecting GitHub.");
+          // Remote repositories always use the authenticated cloud engine, including desktop.
+          result = await cloudEngine(activeWorkspace.id).connect({
+            rootPath: input.path || "",
+            name: input.name,
+          });
+        } else if (runtime === "desktop") {
           const bridge = desktopBridge();
-          const path = input?.path || (await bridge?.selectFolder()) || '';
+          const path = input?.path || (await bridge?.selectFolder()) || "";
           if (!path) {
-            setZevState('idle');
+            setZevState("idle");
             return null;
           }
           result = await engine.connect({ rootPath: path, name: input?.name });
         } else {
-          const repo = await pickRepository();
-          if (!repo) {
-            setZevState('idle');
-            return null;
-          }
-          picked.current = repo;
-          setPickedRepository(repo);
-          result = await engine.connect({ rootPath: repo.rootPath, name: input?.name || repo.name, upload: repo.upload });
+          throw new Error(
+            "Enter your GitHub repository URL or connect a server from the connection dialog.",
+          );
         }
         setScan(result);
         await refreshProducts();
         selectProduct(result.product.id);
-        setZevState('done');
-        window.setTimeout(() => setZevState('idle'), 1200);
+        setZevState("done");
+        window.setTimeout(() => setZevState("idle"), 1200);
         return result;
       } catch (error) {
-        setZevState('idle');
+        setZevState("idle");
         throw error;
       }
     },
-    [engine, runtime, refreshProducts, selectProduct, viewOnly],
+    [
+      engine,
+      runtime,
+      activeWorkspace,
+      refreshProducts,
+      selectProduct,
+      viewOnly,
+    ],
   );
 
   const runScan = useCallback(async () => {
     if (!selected || viewOnly()) return null;
     if (isWorkloadProduct(selected)) {
-      toast({ tone: 'err', title: 'No repository to scan', description: 'This project is a workload: its evidence is imported traces. Connect a repository as a separate project to scan code.' });
+      toast({
+        tone: "err",
+        title: "No repository to scan",
+        description:
+          "This project is a workload: its evidence is imported traces. Connect a repository as a separate project to scan code.",
+      });
       return null;
     }
-    setZevState('scanning');
+    setZevState("scanning");
     try {
       let result: ScanResult;
-      if (runtime === 'desktop') result = await engine.scan(selected.id);
+      if (selected.root_path.startsWith("https://github.com/"))
+        result = await cloudEngine(activeWorkspace!.id).scan(selected.id);
+      else if (runtime === "desktop") result = await engine.scan(selected.id);
       else {
-        let repo = picked.current && picked.current.rootPath === selected.root_path ? picked.current : null;
-        if (!repo) {
-          repo = await pickRepository();
-          if (!repo) {
-            setZevState('idle');
-            return null;
-          }
-          picked.current = repo;
-          setPickedRepository(repo);
-        }
-        result = await engine.scan(selected.id, repo.upload);
+        throw new Error(
+          "This older project uses a local folder. Connect its GitHub URL to scan it in the cloud.",
+        );
       }
       setScan(result);
       await refreshProducts();
       await refreshProductData();
-      setZevState('done');
-      window.setTimeout(() => setZevState('idle'), 1200);
-      toast({ tone: 'ok', title: `Scanned ${result.files_scanned} files`, description: `${result.ai_calls.length} AI call sites · ${result.findings.length} opportunities · ${result.skipped_sensitive_paths} sensitive paths skipped` });
+      setZevState("done");
+      window.setTimeout(() => setZevState("idle"), 1200);
+      toast({
+        tone: "ok",
+        title: `Scanned ${result.files_scanned} files`,
+        description: `${result.ai_calls.length} AI call sites · ${result.findings.length} opportunities · ${result.skipped_sensitive_paths} sensitive paths skipped`,
+      });
       return result;
     } catch (error) {
-      setZevState('idle');
-      toast({ tone: 'err', title: 'Scan failed', description: engineErrorMessage(error) });
+      setZevState("idle");
+      toast({
+        tone: "err",
+        title: "Scan failed",
+        description: engineErrorMessage(error),
+      });
       throw error;
     }
-  }, [engine, runtime, selected, refreshProducts, refreshProductData, toast, viewOnly]);
+  }, [
+    engine,
+    runtime,
+    selected,
+    activeWorkspace,
+    refreshProducts,
+    refreshProductData,
+    toast,
+    viewOnly,
+  ]);
 
   const toggleMonitoring = useCallback(async () => {
     if (!selected || viewOnly()) return;
@@ -330,23 +445,43 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
   const importTraceFile = useCallback(async () => {
     if (!selected || viewOnly()) return;
-    const file = runtime === 'desktop' ? await desktopBridge()?.selectTraceFile() : await pickTraceFile();
+    const file =
+      runtime === "desktop"
+        ? await desktopBridge()?.selectTraceFile()
+        : await pickTraceFile();
     if (!file) return;
     if (!file.content) {
-      toast({ tone: 'err', title: 'Refusing to import a secret-bearing file name', description: 'Choose an explicit JSON/JSONL trace export.' });
+      toast({
+        tone: "err",
+        title: "Refusing to import a secret-bearing file name",
+        description: "Choose an explicit JSON/JSONL trace export.",
+      });
       return;
     }
-    setZevState('verifying');
+    setZevState("verifying");
     try {
       const result = await engine.importTraces(selected.id, file.content);
       await refreshProductData();
-      setZevState('done');
-      window.setTimeout(() => setZevState('idle'), 1200);
-      if (result.rejected) toast({ tone: 'err', title: `Imported ${result.imported}, rejected ${result.rejected}`, description: result.errors[0] || 'Some rows were invalid.' });
-      else toast({ tone: 'ok', title: `Imported ${result.imported} execution traces` });
+      setZevState("done");
+      window.setTimeout(() => setZevState("idle"), 1200);
+      if (result.rejected)
+        toast({
+          tone: "err",
+          title: `Imported ${result.imported}, rejected ${result.rejected}`,
+          description: result.errors[0] || "Some rows were invalid.",
+        });
+      else
+        toast({
+          tone: "ok",
+          title: `Imported ${result.imported} execution traces`,
+        });
     } catch (error) {
-      setZevState('idle');
-      toast({ tone: 'err', title: 'Import failed', description: engineErrorMessage(error) });
+      setZevState("idle");
+      toast({
+        tone: "err",
+        title: "Import failed",
+        description: engineErrorMessage(error),
+      });
     }
   }, [engine, runtime, selected, refreshProductData, toast, viewOnly]);
 
@@ -358,33 +493,132 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     [engine, refreshProducts],
   );
 
-  const readRepositoryFile = useCallback(async (relPath: string) => {
-    if (picked.current) return picked.current.read(relPath);
-    return null;
-  }, []);
+  const readRepositoryFile = useCallback(
+    async (relPath: string) => {
+      if (
+        selected?.root_path.startsWith("https://github.com/") &&
+        activeWorkspace
+      )
+        return cloudEngine(activeWorkspace.id).readSource(selected.id, relPath);
+      return null;
+    },
+    [selected, activeWorkspace],
+  );
 
   const ensureRepository = useCallback(async () => {
-    if (runtime === 'desktop') return null;
-    if (picked.current && (!selected || picked.current.rootPath === selected.root_path)) return picked.current;
-    const repo = await pickRepository();
-    if (!repo) return null;
-    picked.current = repo;
-    setPickedRepository(repo);
-    return repo;
-  }, [runtime, selected]);
+    if (runtime === "desktop") return null;
+    if (
+      selected?.root_path.startsWith("https://github.com/") &&
+      activeWorkspace
+    ) {
+      return {
+        name: selected.name,
+        rootPath: selected.root_path,
+        fileCount: selected.files_scanned || 0,
+        upload: {
+          files_scanned: 0,
+          ai_calls: [],
+          findings: [],
+          detected_stack: [],
+          skipped_sensitive_paths: 0,
+        },
+        read: (path: string) =>
+          cloudEngine(activeWorkspace.id).readSource(selected.id, path),
+      };
+    }
+    throw new Error(
+      "Connect a GitHub repository to prepare changes in the cloud.",
+    );
+  }, [runtime, selected, activeWorkspace]);
 
   const setModel = useCallback((value: string) => {
     setModelState(value);
     try {
-      localStorage.setItem('zevqora.agentModel', value);
+      localStorage.setItem("zevqora.agentModel", value);
     } catch {
       /* ignore */
     }
   }, []);
 
   const value = useMemo<ProductStore>(
-    () => ({ engine, runtime, canEdit, inspect, setInspect, health, engineError, platformStatus, refreshHealth, products, productsLoading, selected, selectProduct, scan, aiCalls, findings, economics, experiments, implementations, plans, executions, evaluations, dataLoading, dataError, refreshProducts, refreshProductData, connectRepository, runScan, toggleMonitoring, importTraceFile, archiveProduct, readRepositoryFile, ensureRepository, pickedRepository, zevState, setZevState, model, setModel }),
-    [engine, runtime, canEdit, inspect, health, engineError, platformStatus, refreshHealth, products, productsLoading, selected, selectProduct, scan, aiCalls, findings, economics, experiments, implementations, plans, executions, evaluations, dataLoading, dataError, refreshProducts, refreshProductData, connectRepository, runScan, toggleMonitoring, importTraceFile, archiveProduct, readRepositoryFile, ensureRepository, pickedRepository, zevState, model, setModel],
+    () => ({
+      engine,
+      runtime,
+      canEdit,
+      inspect,
+      setInspect,
+      health,
+      engineError,
+      platformStatus,
+      refreshHealth,
+      products,
+      productsLoading,
+      selected,
+      selectProduct,
+      scan,
+      aiCalls,
+      findings,
+      economics,
+      experiments,
+      implementations,
+      plans,
+      executions,
+      evaluations,
+      dataLoading,
+      dataError,
+      refreshProducts,
+      refreshProductData,
+      connectRepository,
+      runScan,
+      toggleMonitoring,
+      importTraceFile,
+      archiveProduct,
+      readRepositoryFile,
+      ensureRepository,
+      pickedRepository,
+      zevState,
+      setZevState,
+      model,
+      setModel,
+    }),
+    [
+      engine,
+      runtime,
+      canEdit,
+      inspect,
+      health,
+      engineError,
+      platformStatus,
+      refreshHealth,
+      products,
+      productsLoading,
+      selected,
+      selectProduct,
+      scan,
+      aiCalls,
+      findings,
+      economics,
+      experiments,
+      implementations,
+      plans,
+      executions,
+      evaluations,
+      dataLoading,
+      dataError,
+      refreshProducts,
+      refreshProductData,
+      connectRepository,
+      runScan,
+      toggleMonitoring,
+      importTraceFile,
+      archiveProduct,
+      readRepositoryFile,
+      ensureRepository,
+      pickedRepository,
+      zevState,
+      model,
+      setModel,
+    ],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

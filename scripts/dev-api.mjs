@@ -9,6 +9,8 @@
 import http from 'node:http';
 import { Readable } from 'node:stream';
 
+try { process.loadEnvFile('.env.local'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+
 const port = Number(process.env.PORT || 3000);
 const mod = await import('../api/index.js');
 

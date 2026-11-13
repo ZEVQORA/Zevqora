@@ -25,6 +25,7 @@ import { planExactReuse, planModelSubstitution } from '../product/strategies.js'
 import { runEvaluation, enforceRequirements, sanitizeRequirements } from '../product/evaluator.js';
 import { unifiedDiff } from '../product/diff.js';
 import { runZev } from '../product/zev.js';
+import { readGitHubSource, scanGitHubRepository } from '../product/github.js';
 import { mergeTrial } from '../product/trial.js';
 import { projectEngineProduct, zevirEnabled } from '../zevir/store.js';
 import { runPlanExecution } from '../product/run-plan.js';
@@ -241,7 +242,7 @@ on('POST', '/api/engine/products/:id/monitoring', async ({ request, params }) =>
 });
 
 /** The browser scanned the folder locally; store call sites + findings (source never uploaded). */
-on('POST', '/api/engine/products/:id/scan', async ({ request, params }) => {
+async function persistRepositoryScan({ request, params }) {
   const { user, admin } = await requireUser(request);
   const { product } = await loadProduct(admin, user, params.id, 'member');
   rateLimit(`engine-scan:${user.id}`, { limit: 30, windowMs: 60_000 });
@@ -285,6 +286,33 @@ on('POST', '/api/engine/products/:id/scan', async ({ request, params }) => {
   const storedCalls = await rows(admin, 'engine_ai_calls', product.id, null);
   const storedFindings = await rows(admin, 'engine_findings', product.id);
   return { product: productOut(updated), files_scanned: filesScanned, ai_calls: storedCalls.map(callOut), findings: storedFindings.map(findingOut), detected_stack: stack, skipped_sensitive_paths: skipped };
+}
+on('POST', '/api/engine/products/:id/scan', persistRepositoryScan);
+
+on('POST', '/api/engine/repositories/scan', async ({ request }) => {
+  const { user, admin } = await requireUser(request);
+  rateLimit(`github-scan:${user.id}`, { limit: 5, windowMs: 60_000 });
+  const body = await readJson(request, { maxBytes: 12_000 });
+  await requireWorkspaceRole(admin, uuid(body?.workspace_id, 'workspace'), user.id, 'member');
+  return scanGitHubRepository(str(body?.url, { name: 'url', required: true, max: 500 }), { token: str(body?.github_token, { name: 'GitHub token', max: 500 }) || '' });
+});
+
+on('POST', '/api/engine/products/:id/remote-scan', async ({ request, params }) => {
+  const { user, admin } = await requireUser(request);
+  rateLimit(`github-scan:${user.id}`, { limit: 5, windowMs: 60_000 });
+  const { product } = await loadProduct(admin, user, params.id, 'member');
+  const body = await readJson(request, { maxBytes: 12_000 });
+  const upload = await scanGitHubRepository(product.root_path, { token: str(body?.github_token, { name: 'GitHub token', max: 500 }) || '' });
+  return persistRepositoryScan({ request: new Request(request.url, { method: 'POST', headers: { Authorization: request.headers.get('Authorization') || '', 'Content-Type': 'application/json' }, body: JSON.stringify(upload) }), params });
+});
+
+on('POST', '/api/engine/products/:id/source', async ({ request, params }) => {
+  const { user, admin } = await requireUser(request);
+  const { product } = await loadProduct(admin, user, params.id, 'member');
+  rateLimit(`github-source:${user.id}`, { limit: 30, windowMs: 60_000 });
+  const body = await readJson(request, { maxBytes: 12_000 });
+  const text = await readGitHubSource(product.root_path, str(body?.path, { name: 'path', required: true, max: 600 }), { token: str(body?.github_token, { name: 'GitHub token', max: 500 }) || '' });
+  return { text };
 });
 
 on('GET', '/api/engine/products/:id/ai-calls', async ({ request, params }) => {

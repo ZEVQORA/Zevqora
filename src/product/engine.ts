@@ -8,9 +8,9 @@
  * The product UI only ever talks to `Engine`; which one is chosen is a runtime
  * decision, so the app is identical on the web and in the desktop shell.
  */
-import { api, ApiClientError, errorMessage } from '@/lib/api';
-import { accessToken } from '@/lib/supabase';
-import { desktopBridge, LOCAL_ENGINE_BASE } from './bridge';
+import { api, ApiClientError, errorMessage } from "@/lib/api";
+import { accessToken, getSupabase } from "@/lib/supabase";
+import { desktopBridge, LOCAL_ENGINE_BASE } from "./bridge";
 import type {
   AgentResponse,
   AICall,
@@ -34,10 +34,18 @@ import type {
   ZevirNodeDetail,
   ZevirProductView,
   ZevirRun,
-} from './types';
-import { WORKLOAD_PREFIX } from './types';
+} from "./types";
+import { WORKLOAD_PREFIX } from "./types";
 
-export type EngineKind = 'cloud' | 'local';
+export type EngineKind = "cloud" | "local";
+
+async function githubToken() {
+  const sb = await getSupabase();
+  const session = sb ? (await sb.auth.getSession()).data.session : null;
+  return session?.user.app_metadata.provider === "github"
+    ? session.provider_token || undefined
+    : undefined;
+}
 
 export interface Engine {
   kind: EngineKind;
@@ -45,13 +53,29 @@ export interface Engine {
   platformStatus(): Promise<EnginePlatformStatus>;
   products(): Promise<Product[]>;
   /** Cloud: register a repository whose scan the browser performed locally. Local: the engine scans the folder itself. */
-  connect(input: { rootPath: string; name?: string; upload?: ScanUpload; requirements?: EvaluationRequirements }): Promise<ScanResult>;
+  connect(input: {
+    rootPath: string;
+    name?: string;
+    upload?: ScanUpload;
+    requirements?: EvaluationRequirements;
+  }): Promise<ScanResult>;
   /** A project with no repository; its evidence is imported traces. */
-  createWorkload(input: { name: string; requirements?: EvaluationRequirements }): Promise<Product>;
-  setRequirements(productId: string, requirements: EvaluationRequirements): Promise<Product>;
+  createWorkload(input: {
+    name: string;
+    requirements?: EvaluationRequirements;
+  }): Promise<Product>;
+  setRequirements(
+    productId: string,
+    requirements: EvaluationRequirements,
+  ): Promise<Product>;
   /** Update the design-partner evaluation record; confirmBoundary stamps who confirmed the data boundary. */
-  setTrial(productId: string, trial: EvaluationTrial, options?: { confirmBoundary?: boolean }): Promise<Product>;
+  setTrial(
+    productId: string,
+    trial: EvaluationTrial,
+    options?: { confirmBoundary?: boolean },
+  ): Promise<Product>;
   scan(productId: string, upload?: ScanUpload): Promise<ScanResult>;
+  readSource(productId: string, path: string): Promise<string>;
   archiveProduct(productId: string): Promise<void>;
   monitoring(productId: string, enabled: boolean): Promise<Product>;
   aiCalls(productId: string): Promise<AICall[]>;
@@ -59,20 +83,81 @@ export interface Engine {
   economics(productId: string): Promise<Economics>;
   experiments(productId: string): Promise<Experiment[]>;
   implementations(productId: string): Promise<Implementation[]>;
-  importTraces(productId: string, jsonl: string): Promise<{ imported: number; rejected: number; errors: string[] }>;
+  importTraces(
+    productId: string,
+    jsonl: string,
+  ): Promise<{ imported: number; rejected: number; errors: string[] }>;
   plans(productId: string): Promise<OptimizationPlan[]>;
-  createPlans(productId: string, body: { finding_id?: string | null; strategy?: string | null; candidate_model?: string | null; max_budget_usd?: number | null }): Promise<OptimizationPlan[]>;
-  executePlan(productId: string, planId: string, body?: { force_rerun?: boolean }): Promise<OptimizationExecution>;
+  createPlans(
+    productId: string,
+    body: {
+      finding_id?: string | null;
+      strategy?: string | null;
+      candidate_model?: string | null;
+      max_budget_usd?: number | null;
+    },
+  ): Promise<OptimizationPlan[]>;
+  executePlan(
+    productId: string,
+    planId: string,
+    body?: { force_rerun?: boolean },
+  ): Promise<OptimizationExecution>;
   executions(productId: string): Promise<OptimizationExecution[]>;
   evaluations(productId: string): Promise<Evaluation[]>;
-  evaluate(productId: string, body: { candidate_execution_id: string; finding_id?: string | null; gate_config?: Record<string, unknown>; project_experiment?: boolean }): Promise<Evaluation>;
-  prepareImplementation(productId: string, body: { experiment_id: string; instructions?: string; model?: string; run_tests: boolean; test_command?: string; target_file?: string; source_text?: string }): Promise<Implementation>;
-  implementationGit(productId: string, implementationId: string): Promise<GitContext>;
-  decideImplementation(productId: string, implementationId: string, decision: 'approve' | 'reject', note?: string): Promise<Implementation>;
-  pushImplementation(productId: string, implementationId: string): Promise<PushResult>;
-  recordPrLink(productId: string, implementationId: string, prUrl: string): Promise<Implementation>;
-  patch(productId: string, implementationId: string): Promise<{ diff: string; replacement: string | null; target_file: string; branch_name: string }>;
-  chat(productId: string | null, messages: { role: 'user' | 'assistant'; content: string }[], model?: string): Promise<AgentResponse>;
+  evaluate(
+    productId: string,
+    body: {
+      candidate_execution_id: string;
+      finding_id?: string | null;
+      gate_config?: Record<string, unknown>;
+      project_experiment?: boolean;
+    },
+  ): Promise<Evaluation>;
+  prepareImplementation(
+    productId: string,
+    body: {
+      experiment_id: string;
+      instructions?: string;
+      model?: string;
+      run_tests: boolean;
+      test_command?: string;
+      target_file?: string;
+      source_text?: string;
+    },
+  ): Promise<Implementation>;
+  implementationGit(
+    productId: string,
+    implementationId: string,
+  ): Promise<GitContext>;
+  decideImplementation(
+    productId: string,
+    implementationId: string,
+    decision: "approve" | "reject",
+    note?: string,
+  ): Promise<Implementation>;
+  pushImplementation(
+    productId: string,
+    implementationId: string,
+  ): Promise<PushResult>;
+  recordPrLink(
+    productId: string,
+    implementationId: string,
+    prUrl: string,
+  ): Promise<Implementation>;
+  patch(
+    productId: string,
+    implementationId: string,
+  ): Promise<{
+    diff: string;
+    replacement: string | null;
+    target_file: string;
+    branch_name: string;
+  }>;
+  chat(
+    productId: string | null,
+    messages: { role: "user" | "assistant"; content: string }[],
+    model?: string,
+  ): Promise<AgentResponse>;
   /** ZevIR (shadow mode): the canonical execution graphs projected from this product's evidence. Platform engine only. */
   zevir(productId: string): Promise<ZevirProductView>;
   zevirBuild(productId: string): Promise<{ run: ZevirRun; reused: boolean }>;
@@ -90,71 +175,225 @@ export class EngineError extends Error {
 
 // ---- cloud ---------------------------------------------------------------------
 export function cloudEngine(workspaceId: string): Engine {
-  const base = '/api/engine';
+  const base = "/api/engine";
   const p = (productId: string) => `${base}/products/${productId}`;
   return {
-    kind: 'cloud',
+    kind: "cloud",
     health: () => api<EngineHealth>(`${base}/health`),
-    platformStatus: () => api<EnginePlatformStatus>(`${base}/platform/status?workspace_id=${workspaceId}`),
-    products: () => api<Product[]>(`${base}/products?workspace_id=${workspaceId}`),
+    platformStatus: () =>
+      api<EnginePlatformStatus>(
+        `${base}/platform/status?workspace_id=${workspaceId}`,
+      ),
+    products: () =>
+      api<Product[]>(`${base}/products?workspace_id=${workspaceId}`),
     connect: async ({ rootPath, name, upload, requirements }) => {
-      const product = await api<Product>(`${base}/products`, { method: 'POST', body: { workspace_id: workspaceId, root_path: rootPath, name: name || null, source: 'browser', evaluation_requirements: requirements || null } });
-      if (!upload) return { product, files_scanned: product.files_scanned || 0, ai_calls: [], findings: [], detected_stack: product.detected_stack || [], skipped_sensitive_paths: product.skipped_sensitive_paths || 0 };
-      return api<ScanResult>(`${p(product.id)}/scan`, { method: 'POST', body: upload });
+      if (/^https:\/\/github\.com\//.test(rootPath) && !upload) {
+        const remote = await api<
+          ScanUpload & { root_path: string; name: string }
+        >(`${base}/repositories/scan`, {
+          method: "POST",
+          body: {
+            workspace_id: workspaceId,
+            url: rootPath,
+            github_token: await githubToken(),
+          },
+        });
+        rootPath = remote.root_path;
+        name = name || remote.name;
+        upload = remote;
+      }
+      const product = await api<Product>(`${base}/products`, {
+        method: "POST",
+        body: {
+          workspace_id: workspaceId,
+          root_path: rootPath,
+          name: name || null,
+          source: "browser",
+          evaluation_requirements: requirements || null,
+        },
+      });
+      if (!upload)
+        return {
+          product,
+          files_scanned: product.files_scanned || 0,
+          ai_calls: [],
+          findings: [],
+          detected_stack: product.detected_stack || [],
+          skipped_sensitive_paths: product.skipped_sensitive_paths || 0,
+        };
+      return api<ScanResult>(`${p(product.id)}/scan`, {
+        method: "POST",
+        body: upload,
+      });
     },
     scan: (productId, upload) => {
-      if (!upload) throw new EngineError(400, 'Pick the repository folder again so the browser can rescan it.');
-      return api<ScanResult>(`${p(productId)}/scan`, { method: 'POST', body: upload });
+      if (!upload)
+        return githubToken().then((token) =>
+          api<ScanResult>(`${p(productId)}/remote-scan`, {
+            method: "POST",
+            body: { github_token: token },
+          }),
+        );
+      return api<ScanResult>(`${p(productId)}/scan`, {
+        method: "POST",
+        body: upload,
+      });
     },
+    readSource: async (productId, path) =>
+      (
+        await api<{ text: string }>(`${p(productId)}/source`, {
+          method: "POST",
+          body: { path, github_token: await githubToken() },
+        })
+      ).text,
     createWorkload: ({ name, requirements }) => {
-      const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'workload';
-      return api<Product>(`${base}/products`, { method: 'POST', body: { workspace_id: workspaceId, root_path: `${WORKLOAD_PREFIX}${slug}`, name: name.trim(), source: 'browser', evaluation_requirements: requirements || null } });
+      const slug =
+        name
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "")
+          .slice(0, 60) || "workload";
+      return api<Product>(`${base}/products`, {
+        method: "POST",
+        body: {
+          workspace_id: workspaceId,
+          root_path: `${WORKLOAD_PREFIX}${slug}`,
+          name: name.trim(),
+          source: "browser",
+          evaluation_requirements: requirements || null,
+        },
+      });
     },
-    setRequirements: (productId, requirements) => api<Product>(`${p(productId)}/requirements`, { method: 'POST', body: { evaluation_requirements: requirements } }),
-    setTrial: (productId, trial, options = {}) => api<Product>(`${p(productId)}/trial`, { method: 'POST', body: { trial, confirm_data_boundary: Boolean(options.confirmBoundary) } }),
+    setRequirements: (productId, requirements) =>
+      api<Product>(`${p(productId)}/requirements`, {
+        method: "POST",
+        body: { evaluation_requirements: requirements },
+      }),
+    setTrial: (productId, trial, options = {}) =>
+      api<Product>(`${p(productId)}/trial`, {
+        method: "POST",
+        body: {
+          trial,
+          confirm_data_boundary: Boolean(options.confirmBoundary),
+        },
+      }),
     archiveProduct: async (productId) => {
-      await api(`${p(productId)}`, { method: 'DELETE' });
+      await api(`${p(productId)}`, { method: "DELETE" });
     },
-    monitoring: (productId, enabled) => api<Product>(`${p(productId)}/monitoring`, { method: 'POST', body: { enabled } }),
+    monitoring: (productId, enabled) =>
+      api<Product>(`${p(productId)}/monitoring`, {
+        method: "POST",
+        body: { enabled },
+      }),
     aiCalls: (productId) => api<AICall[]>(`${p(productId)}/ai-calls`),
     findings: (productId) => api<Finding[]>(`${p(productId)}/findings`),
     economics: (productId) => api<Economics>(`${p(productId)}/economics`),
-    experiments: (productId) => api<Experiment[]>(`${p(productId)}/experiments`),
-    implementations: (productId) => api<Implementation[]>(`${p(productId)}/implementations`),
-    importTraces: (productId, jsonl) => api(`${p(productId)}/traces/import`, { method: 'POST', body: { traces: [], jsonl } }),
-    plans: (productId) => api<OptimizationPlan[]>(`${p(productId)}/optimization/plans`),
-    createPlans: (productId, body) => api<OptimizationPlan[]>(`${p(productId)}/optimization/plans`, { method: 'POST', body }),
-    executePlan: (productId, planId, body = {}) => api<OptimizationExecution>(`${p(productId)}/optimization/plans/${planId}/execute`, { method: 'POST', body: { force_rerun: false, ...body } }),
-    executions: (productId) => api<OptimizationExecution[]>(`${p(productId)}/optimization/executions`),
-    evaluations: (productId) => api<Evaluation[]>(`${p(productId)}/evaluations`),
-    evaluate: (productId, body) => api<Evaluation>(`${p(productId)}/evaluations`, { method: 'POST', body: { project_experiment: true, ...body } }),
-    prepareImplementation: (productId, body) => api<Implementation>(`${p(productId)}/implementations/prepare`, { method: 'POST', body }),
-    implementationGit: (productId, implementationId) => api<GitContext>(`${p(productId)}/implementations/${implementationId}/git-context`),
-    decideImplementation: (productId, implementationId, decision, note) => api<Implementation>(`${p(productId)}/implementations/${implementationId}/decision`, { method: 'POST', body: { decision, note: note || null } }),
-    pushImplementation: (productId, implementationId) => api<PushResult>(`${p(productId)}/implementations/${implementationId}/push`, { method: 'POST', body: {} }),
-    recordPrLink: (productId, implementationId, prUrl) => api<Implementation>(`${p(productId)}/implementations/${implementationId}/pr-link`, { method: 'POST', body: { pr_url: prUrl } }),
-    patch: (productId, implementationId) => api(`${p(productId)}/implementations/${implementationId}/patch`),
-    chat: (productId, messages, model) => api<AgentResponse>(`${base}/agent/chat`, { method: 'POST', body: { product_id: productId, workspace_id: workspaceId, messages, model: model || null } }),
+    experiments: (productId) =>
+      api<Experiment[]>(`${p(productId)}/experiments`),
+    implementations: (productId) =>
+      api<Implementation[]>(`${p(productId)}/implementations`),
+    importTraces: (productId, jsonl) =>
+      api(`${p(productId)}/traces/import`, {
+        method: "POST",
+        body: { traces: [], jsonl },
+      }),
+    plans: (productId) =>
+      api<OptimizationPlan[]>(`${p(productId)}/optimization/plans`),
+    createPlans: (productId, body) =>
+      api<OptimizationPlan[]>(`${p(productId)}/optimization/plans`, {
+        method: "POST",
+        body,
+      }),
+    executePlan: (productId, planId, body = {}) =>
+      api<OptimizationExecution>(
+        `${p(productId)}/optimization/plans/${planId}/execute`,
+        { method: "POST", body: { force_rerun: false, ...body } },
+      ),
+    executions: (productId) =>
+      api<OptimizationExecution[]>(`${p(productId)}/optimization/executions`),
+    evaluations: (productId) =>
+      api<Evaluation[]>(`${p(productId)}/evaluations`),
+    evaluate: (productId, body) =>
+      api<Evaluation>(`${p(productId)}/evaluations`, {
+        method: "POST",
+        body: { project_experiment: true, ...body },
+      }),
+    prepareImplementation: (productId, body) =>
+      api<Implementation>(`${p(productId)}/implementations/prepare`, {
+        method: "POST",
+        body,
+      }),
+    implementationGit: (productId, implementationId) =>
+      api<GitContext>(
+        `${p(productId)}/implementations/${implementationId}/git-context`,
+      ),
+    decideImplementation: (productId, implementationId, decision, note) =>
+      api<Implementation>(
+        `${p(productId)}/implementations/${implementationId}/decision`,
+        { method: "POST", body: { decision, note: note || null } },
+      ),
+    pushImplementation: (productId, implementationId) =>
+      api<PushResult>(
+        `${p(productId)}/implementations/${implementationId}/push`,
+        { method: "POST", body: {} },
+      ),
+    recordPrLink: (productId, implementationId, prUrl) =>
+      api<Implementation>(
+        `${p(productId)}/implementations/${implementationId}/pr-link`,
+        { method: "POST", body: { pr_url: prUrl } },
+      ),
+    patch: (productId, implementationId) =>
+      api(`${p(productId)}/implementations/${implementationId}/patch`),
+    chat: (productId, messages, model) =>
+      api<AgentResponse>(`${base}/agent/chat`, {
+        method: "POST",
+        body: {
+          product_id: productId,
+          workspace_id: workspaceId,
+          messages,
+          model: model || null,
+        },
+      }),
     zevir: (productId) => api<ZevirProductView>(`${p(productId)}/zevir`),
-    zevirBuild: (productId) => api<{ run: ZevirRun; reused: boolean }>(`${p(productId)}/zevir/build`, { method: 'POST', body: {} }),
-    zevirNodes: (graphId) => api<ZevirNode[]>(`/api/zevir/graphs/${graphId}/nodes?limit=500`),
-    zevirNode: (graphId, nodeId) => api<ZevirNodeDetail>(`/api/zevir/graphs/${graphId}/nodes/${nodeId}`),
+    zevirBuild: (productId) =>
+      api<{ run: ZevirRun; reused: boolean }>(`${p(productId)}/zevir/build`, {
+        method: "POST",
+        body: {},
+      }),
+    zevirNodes: (graphId) =>
+      api<ZevirNode[]>(`/api/zevir/graphs/${graphId}/nodes?limit=500`),
+    zevirNode: (graphId, nodeId) =>
+      api<ZevirNodeDetail>(`/api/zevir/graphs/${graphId}/nodes/${nodeId}`),
   };
 }
 
 // ---- local (Electron) -----------------------------------------------------------
 let localTokenPromise: Promise<string> | null = null;
 function localToken() {
-  if (!localTokenPromise) localTokenPromise = Promise.resolve(desktopBridge()?.getApiToken() ?? '').catch(() => '');
+  if (!localTokenPromise)
+    localTokenPromise = Promise.resolve(
+      desktopBridge()?.getApiToken() ?? "",
+    ).catch(() => "");
   return localTokenPromise;
 }
 
 async function localRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const send = async (token: string) => {
     try {
-      return await fetch(`${LOCAL_ENGINE_BASE}/api/v1${path}`, { ...init, headers: { 'Content-Type': 'application/json', ...(token ? { 'X-Zevqora-Token': token } : {}), ...(init?.headers || {}) } });
+      return await fetch(`${LOCAL_ENGINE_BASE}/api/v1${path}`, {
+        ...init,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "X-Zevqora-Token": token } : {}),
+          ...(init?.headers || {}),
+        },
+      });
     } catch {
-      throw new EngineError(0, 'The local engine is not reachable on 127.0.0.1:8000.');
+      throw new EngineError(
+        0,
+        "The local engine is not reachable on 127.0.0.1:8000.",
+      );
     }
   };
   let response = await send(await localToken());
@@ -166,8 +405,13 @@ async function localRequest<T>(path: string, init?: RequestInit): Promise<T> {
     let detail = `${response.status} ${response.statusText}`;
     try {
       const body = await response.json();
-      if (typeof body?.detail === 'string') detail = body.detail;
-      else if (Array.isArray(body?.detail)) detail = body.detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join('; ') || detail;
+      if (typeof body?.detail === "string") detail = body.detail;
+      else if (Array.isArray(body?.detail))
+        detail =
+          body.detail
+            .map((d: { msg?: string }) => d.msg)
+            .filter(Boolean)
+            .join("; ") || detail;
     } catch {
       /* keep status text */
     }
@@ -178,76 +422,196 @@ async function localRequest<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 /** Hands the account session to the local engine so it can use platform compute. */
-export async function syncLocalEngineSession(workspaceId: string | null, user: { id: string; email: string | null } | null, plan: string | null) {
+export async function syncLocalEngineSession(
+  workspaceId: string | null,
+  user: { id: string; email: string | null } | null,
+  plan: string | null,
+) {
   if (!desktopBridge()) return false;
   const token = await accessToken();
   if (!token) {
-    await localRequest('/platform/session', { method: 'DELETE' }).catch(() => undefined);
+    await localRequest("/platform/session", { method: "DELETE" }).catch(
+      () => undefined,
+    );
     return false;
   }
-  await localRequest('/platform/session', { method: 'POST', body: JSON.stringify({ base_url: window.location.origin, access_token: token, user_id: user?.id || null, email: user?.email || null, workspace_id: workspaceId, project_id: null, plan }) });
+  await localRequest("/platform/session", {
+    method: "POST",
+    body: JSON.stringify({
+      base_url: window.location.origin,
+      access_token: token,
+      user_id: user?.id || null,
+      email: user?.email || null,
+      workspace_id: workspaceId,
+      project_id: null,
+      plan,
+    }),
+  });
   return true;
 }
 
 async function zevirPlatformOnly(): Promise<never> {
-  throw new EngineError(501, 'ZevIR graphs are built by the platform engine. Open this project in the web app.');
+  throw new EngineError(
+    501,
+    "ZevIR graphs are built by the platform engine. Open this project in the web app.",
+  );
 }
 
 export function localEngine(): Engine {
   const p = (productId: string) => `/products/${productId}`;
   return {
-    kind: 'local',
+    kind: "local",
     health: async () => {
       let res: Response;
       try {
         res = await fetch(`${LOCAL_ENGINE_BASE}/api/health`);
       } catch {
-        throw new EngineError(0, 'Local engine offline');
+        throw new EngineError(0, "Local engine offline");
       }
-      if (!res.ok) throw new EngineError(res.status, 'Local engine offline');
+      if (!res.ok) throw new EngineError(res.status, "Local engine offline");
       return res.json();
     },
-    platformStatus: () => localRequest<EnginePlatformStatus>('/platform/status'),
-    products: () => localRequest<Product[]>('/products'),
-    connect: ({ rootPath, name }) => localRequest<ScanResult>('/products/connect-local', { method: 'POST', body: JSON.stringify({ path: rootPath, name: name || null }) }),
+    platformStatus: () =>
+      localRequest<EnginePlatformStatus>("/platform/status"),
+    products: () => localRequest<Product[]>("/products"),
+    connect: ({ rootPath, name }) =>
+      localRequest<ScanResult>("/products/connect-local", {
+        method: "POST",
+        body: JSON.stringify({ path: rootPath, name: name || null }),
+      }),
     createWorkload: async () => {
-      throw new EngineError(501, 'Workload-only projects run on the platform engine. Use the web app, or connect a repository here.');
+      throw new EngineError(
+        501,
+        "Workload-only projects run on the platform engine. Use the web app, or connect a repository here.",
+      );
     },
     setRequirements: async () => {
-      throw new EngineError(501, 'Evaluation requirements are enforced by the platform engine; the local engine applies the gates you set per experiment.');
+      throw new EngineError(
+        501,
+        "Evaluation requirements are enforced by the platform engine; the local engine applies the gates you set per experiment.",
+      );
     },
     setTrial: async () => {
-      throw new EngineError(501, 'Design-partner evaluation records are kept by the platform engine. Use the web app.');
+      throw new EngineError(
+        501,
+        "Design-partner evaluation records are kept by the platform engine. Use the web app.",
+      );
     },
-    scan: (productId) => localRequest<ScanResult>(`${p(productId)}/scan`, { method: 'POST' }),
+    scan: (productId) =>
+      localRequest<ScanResult>(`${p(productId)}/scan`, { method: "POST" }),
+    readSource: async () => {
+      throw new EngineError(
+        400,
+        "Source reads are handled by the local desktop engine.",
+      );
+    },
     archiveProduct: async (productId) => {
-      await localRequest(`${p(productId)}`, { method: 'DELETE' });
+      await localRequest(`${p(productId)}`, { method: "DELETE" });
     },
-    monitoring: (productId, enabled) => localRequest<Product>(`${p(productId)}/monitoring`, { method: 'POST', body: JSON.stringify({ enabled }) }),
+    monitoring: (productId, enabled) =>
+      localRequest<Product>(`${p(productId)}/monitoring`, {
+        method: "POST",
+        body: JSON.stringify({ enabled }),
+      }),
     aiCalls: (productId) => localRequest<AICall[]>(`${p(productId)}/ai-calls`),
-    findings: (productId) => localRequest<Finding[]>(`${p(productId)}/findings`),
-    economics: (productId) => localRequest<Economics>(`${p(productId)}/economics`),
-    experiments: (productId) => localRequest<Experiment[]>(`${p(productId)}/experiments`),
-    implementations: (productId) => localRequest<Implementation[]>(`${p(productId)}/implementations`),
-    importTraces: (productId, jsonl) => localRequest(`${p(productId)}/traces/import`, { method: 'POST', body: JSON.stringify({ traces: [], jsonl }) }),
-    plans: (productId) => localRequest<OptimizationPlan[]>(`${p(productId)}/optimization/plans`),
-    createPlans: (productId, body) => localRequest<OptimizationPlan[]>(`${p(productId)}/optimization/plans`, { method: 'POST', body: JSON.stringify(body) }),
-    executePlan: (productId, planId, body = {}) => localRequest<OptimizationExecution>(`${p(productId)}/optimization/plans/${planId}/execute`, { method: 'POST', body: JSON.stringify({ force_rerun: false, project_to_legacy_traces: false, ...body }) }),
-    executions: (productId) => localRequest<OptimizationExecution[]>(`${p(productId)}/optimization/executions`),
-    evaluations: (productId) => localRequest<Evaluation[]>(`${p(productId)}/evaluations`),
-    evaluate: (productId, body) => localRequest<Evaluation>(`${p(productId)}/evaluations`, { method: 'POST', body: JSON.stringify({ project_experiment: true, ...body }) }),
-    prepareImplementation: (productId, body) => localRequest<Implementation>(`${p(productId)}/implementations/prepare`, { method: 'POST', body: JSON.stringify({ experiment_id: body.experiment_id, instructions: body.instructions, model: body.model, run_tests: body.run_tests, test_command: body.test_command }) }),
-    implementationGit: (productId, implementationId) => localRequest<GitContext>(`${p(productId)}/implementations/${implementationId}/git-context`),
-    decideImplementation: (productId, implementationId, decision, note) => localRequest<Implementation>(`${p(productId)}/implementations/${implementationId}/decision`, { method: 'POST', body: JSON.stringify({ decision, note: note || null }) }),
-    pushImplementation: (productId, implementationId) => localRequest<PushResult>(`${p(productId)}/implementations/${implementationId}/push`, { method: 'POST', body: JSON.stringify({}) }),
-    recordPrLink: (productId, implementationId, prUrl) => localRequest<Implementation>(`${p(productId)}/implementations/${implementationId}/pr-link`, { method: 'POST', body: JSON.stringify({ pr_url: prUrl }) }),
+    findings: (productId) =>
+      localRequest<Finding[]>(`${p(productId)}/findings`),
+    economics: (productId) =>
+      localRequest<Economics>(`${p(productId)}/economics`),
+    experiments: (productId) =>
+      localRequest<Experiment[]>(`${p(productId)}/experiments`),
+    implementations: (productId) =>
+      localRequest<Implementation[]>(`${p(productId)}/implementations`),
+    importTraces: (productId, jsonl) =>
+      localRequest(`${p(productId)}/traces/import`, {
+        method: "POST",
+        body: JSON.stringify({ traces: [], jsonl }),
+      }),
+    plans: (productId) =>
+      localRequest<OptimizationPlan[]>(`${p(productId)}/optimization/plans`),
+    createPlans: (productId, body) =>
+      localRequest<OptimizationPlan[]>(`${p(productId)}/optimization/plans`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    executePlan: (productId, planId, body = {}) =>
+      localRequest<OptimizationExecution>(
+        `${p(productId)}/optimization/plans/${planId}/execute`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            force_rerun: false,
+            project_to_legacy_traces: false,
+            ...body,
+          }),
+        },
+      ),
+    executions: (productId) =>
+      localRequest<OptimizationExecution[]>(
+        `${p(productId)}/optimization/executions`,
+      ),
+    evaluations: (productId) =>
+      localRequest<Evaluation[]>(`${p(productId)}/evaluations`),
+    evaluate: (productId, body) =>
+      localRequest<Evaluation>(`${p(productId)}/evaluations`, {
+        method: "POST",
+        body: JSON.stringify({ project_experiment: true, ...body }),
+      }),
+    prepareImplementation: (productId, body) =>
+      localRequest<Implementation>(`${p(productId)}/implementations/prepare`, {
+        method: "POST",
+        body: JSON.stringify({
+          experiment_id: body.experiment_id,
+          instructions: body.instructions,
+          model: body.model,
+          run_tests: body.run_tests,
+          test_command: body.test_command,
+        }),
+      }),
+    implementationGit: (productId, implementationId) =>
+      localRequest<GitContext>(
+        `${p(productId)}/implementations/${implementationId}/git-context`,
+      ),
+    decideImplementation: (productId, implementationId, decision, note) =>
+      localRequest<Implementation>(
+        `${p(productId)}/implementations/${implementationId}/decision`,
+        {
+          method: "POST",
+          body: JSON.stringify({ decision, note: note || null }),
+        },
+      ),
+    pushImplementation: (productId, implementationId) =>
+      localRequest<PushResult>(
+        `${p(productId)}/implementations/${implementationId}/push`,
+        { method: "POST", body: JSON.stringify({}) },
+      ),
+    recordPrLink: (productId, implementationId, prUrl) =>
+      localRequest<Implementation>(
+        `${p(productId)}/implementations/${implementationId}/pr-link`,
+        { method: "POST", body: JSON.stringify({ pr_url: prUrl }) },
+      ),
     patch: async (productId, implementationId) => {
-      const rows = await localRequest<Implementation[]>(`${p(productId)}/implementations`);
+      const rows = await localRequest<Implementation[]>(
+        `${p(productId)}/implementations`,
+      );
       const impl = rows.find((r) => r.id === implementationId);
-      if (!impl) throw new EngineError(404, 'Implementation not found.');
-      return { diff: impl.diff_text, replacement: null, target_file: impl.target_file, branch_name: impl.branch_name };
+      if (!impl) throw new EngineError(404, "Implementation not found.");
+      return {
+        diff: impl.diff_text,
+        replacement: null,
+        target_file: impl.target_file,
+        branch_name: impl.branch_name,
+      };
     },
-    chat: (productId, messages, model) => localRequest<AgentResponse>('/agent/chat', { method: 'POST', body: JSON.stringify({ product_id: productId, messages, model: model || null }) }),
+    chat: (productId, messages, model) =>
+      localRequest<AgentResponse>("/agent/chat", {
+        method: "POST",
+        body: JSON.stringify({
+          product_id: productId,
+          messages,
+          model: model || null,
+        }),
+      }),
     zevir: zevirPlatformOnly,
     zevirBuild: zevirPlatformOnly,
     zevirNodes: zevirPlatformOnly,
@@ -256,6 +620,7 @@ export function localEngine(): Engine {
 }
 
 export function engineErrorMessage(error: unknown) {
-  if (error instanceof EngineError || error instanceof ApiClientError) return error.message;
+  if (error instanceof EngineError || error instanceof ApiClientError)
+    return error.message;
   return errorMessage(error);
 }

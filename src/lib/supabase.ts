@@ -15,7 +15,7 @@ function build(url: string, key: string) {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
-      storageKey: 'zevqora.auth',
+      storageKey: `zevqora.auth.${new URL(url).hostname.split('.')[0]}`,
     },
   });
 }

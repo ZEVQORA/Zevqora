@@ -9,6 +9,7 @@
  */
 import { dispatch } from './_lib/router.js';
 import './_lib/handlers/public.js';
+import './_lib/handlers/support.js';
 import './_lib/handlers/desktop.js';
 import './_lib/handlers/platform.js';
 import './_lib/handlers/engine.js';

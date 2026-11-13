@@ -7,7 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, configure, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, configure, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import axe from 'axe-core';
 import { ApiClientError } from '@/lib/api';
@@ -178,21 +178,22 @@ describe('public Zev support', () => {
     Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 });
   });
 
-  it('is FAQ-only: no network, no private agent route, focus returns on Escape', async () => {
+  it('opens without network requests or private data, labels FAQ mode, and returns focus on Escape', async () => {
     const src = read('src/marketing/SupportZevLauncher.tsx');
-    expect(src).not.toMatch(/\/api\/|fetch\(|engine\/agent|useProduct|experienceApi/);
+    expect(src).not.toMatch(/engine\/agent|useProduct|experienceApi/);
+    expect(src).toContain('/api/support/message');
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     const { SupportZevLauncher } = await import('@/marketing/SupportZevLauncher');
     const { container } = render(<MemoryRouter><main><SupportZevLauncher /></main></MemoryRouter>);
     const trigger = screen.getByRole('button', { name: 'Open Ask Zev public support' });
     act(() => trigger.click());
-    const dialog = screen.getByRole('dialog', { name: /Ask Zev — ZEVQORA Support/ });
-    expect(dialog.textContent).toContain('Not a live agent');
+    const dialog = screen.getByRole('dialog', { name: /Hey, I’m Zev/ });
+    expect(dialog.textContent).toContain('FAQ answers');
     expect(document.activeElement?.getAttribute('aria-label')).toBe('Close support');
     expect(await violations(container)).toEqual([]);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(document.activeElement?.getAttribute('aria-label')).toBe('Open Ask Zev public support');
+    await waitFor(() => expect(document.activeElement?.getAttribute('aria-label')).toBe('Open Ask Zev public support'));
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
   });

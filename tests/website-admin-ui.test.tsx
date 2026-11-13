@@ -28,16 +28,17 @@ vi.mock('@/lib/analytics', () => ({ track: vi.fn(), trackProductView: vi.fn(), i
 const wrap = (ui: React.ReactNode, path = '/') => render(<ToastProvider><MemoryRouter initialEntries={[path]}>{ui}</MemoryRouter></ToastProvider>);
 
 describe('website', () => {
-  it('homepage leads with the design headline and the internal REJECTED example, labelled as internal', async () => {
+  it('homepage leads with the design headline and a labelled interactive product preview', async () => {
     const { default: HomePage } = await import('@/marketing/HomePage');
     wrap(<HomePage />);
     // The design (207cab5) hero sets its two-line headline as one accessible name.
     expect(screen.getByRole('heading', { level: 1, name: 'Make AI lighter.' })).toBeTruthy();
-    expect(document.body.textContent).toMatch(/42\.01\s*%/);
-    expect(screen.getByText(/Internal 50-case dogfooding benchmark\. Not customer evidence\./)).toBeTruthy();
+    expect(screen.getByText('Product preview')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Ask Zev', exact: true }));
+    expect(screen.getByRole('heading', { name: /A second pair of eyes/ })).toBeTruthy();
     const text = document.body.textContent || '';
     expect(text).not.toMatch(/our customers|trusted by|paying customers|saved \$|realized savings of/i);
-    expect(screen.getAllByText(/Illustrative values|SAMPLE DATA/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: 'Explore ZEVQORA' }).getAttribute('href')).toBe('/signup');
     expect(document.title).toMatch(/Make AI lighter/);
     expect(document.querySelector('link[rel=canonical]')?.getAttribute('href')).toBe('https://zevqora.vercel.app');
   });
