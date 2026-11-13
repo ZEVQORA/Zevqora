@@ -63,7 +63,9 @@ Preview: no Supabase credentials in Preview targets. Branch-scoped Preview secre
 
 **VERIFIED on production (2026-11-13 ~12:55 UTC):** deployment READY at `59576b6`; homepage renders three scenes (hero without chat, `#ask-zev` stage with the only composer, `#workbench`, `#proof`); `/api/health` ok with both refs `dhqag…` and no isolation violation; public config points at `dhqag…`; public Ask Zev answered in `mode: "ai"` (OpenRouter live; service-role key and migration 021 working on `dhqag…`); unauthenticated `/api/engine/health` and `/api/admin/*` return 401; mobile 390: no horizontal overflow, full-height menu; no error/warning runtime logs for the deployment in the first 20 minutes.
 
-**SHIPPED, verified only by tests (not on production):** sign-in → `/app` for a valid session, Welcome back, navigation, Engineering Zev IDE, admin UI for the superadmin, Claude adapter (provider selection, workspace authorization, USD budgets, fallback accounting).
+**Founder-confirmed on production (2026-11-13, reported by the founder, not independently logged):** sign-in with the superadmin account → `/app` with the Welcome back area; `/admin` opens for the superadmin.
+
+**SHIPPED, verified only by tests (not on production):** returning-session restore after browser restart, navigation, Engineering Zev IDE and its provider label, non-admin denial in the admin UI (unauthenticated 401 is verified live), Claude adapter (provider selection, workspace authorization, USD budgets, fallback accounting).
 
 **DEFERRED:** ZevIR/vNext rollout (flags off); additional integrations (GitHub OAuth, provider OAuth); durable checkpoint/resume for long optimizer runs; broader provider/model verification; observability (alerts, error tracking); UI/mobile refinements in the app; Stripe.
 
