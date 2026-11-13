@@ -13,7 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const PROD = 'czhufhufvwvgyhjuaauo';
+const PRODS = ['dhqagbcaqspdrxcsxgfb', 'czhufhufvwvgyhjuaauo']; // current production, legacy production
 const STAGING = 'lxbcynzgeuqzmynkuzqg';
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
 const fakeAnon = (ref) => [b64({ alg: 'HS256', typ: 'JWT' }), b64({ iss: 'supabase', ref, role: 'anon' }), 'synthetic-signature'].join('.');
@@ -31,8 +31,9 @@ function build(ref) {
   return { exit: r.status, built, refused: /refusing to build: PREVIEW_USES_PRODUCTION_SUPABASE/.test(out) };
 }
 
-const unsafe = build(PROD);
-console.log(`unsafe preview (production ref): exit=${unsafe.exit} built=${unsafe.built} refused=${unsafe.refused}`);
+const unsafeRuns = PRODS.map((ref) => ({ ref, ...build(ref) }));
+for (const u of unsafeRuns) console.log(`unsafe preview (production ref ${u.ref}): exit=${u.exit} built=${u.built} refused=${u.refused}`);
+const unsafe = { exit: unsafeRuns.every((u) => u.exit !== 0) ? 1 : 0, built: unsafeRuns.some((u) => u.built), refused: unsafeRuns.every((u) => u.refused) };
 const safe = build(STAGING);
 console.log(`isolated preview (staging ref):  exit=${safe.exit} built=${safe.built}`);
 const ok = unsafe.exit !== 0 && !unsafe.built && unsafe.refused && safe.exit === 0 && safe.built;

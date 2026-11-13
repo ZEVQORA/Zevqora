@@ -12,7 +12,13 @@
  */
 import { ApiError } from './http.js';
 
-export const PRODUCTION_SUPABASE_REF = 'czhufhufvwvgyhjuaauo';
+/**
+ * Every Supabase project that holds (or held) production data. The current
+ * production project comes first; the legacy one keeps real accounts until it
+ * is retired, so a preview must not reach either.
+ */
+export const PRODUCTION_SUPABASE_REFS = ['dhqagbcaqspdrxcsxgfb', 'czhufhufvwvgyhjuaauo'];
+export const PRODUCTION_SUPABASE_REF = PRODUCTION_SUPABASE_REFS[0];
 
 const REF_HOST = /^([a-z0-9]{20})\.supabase\.co$/;
 
@@ -50,7 +56,7 @@ export function isolationStatus(env = process.env) {
   const key = keyClaims(env.SUPABASE_SERVICE_ROLE_KEY);
   const anon = keyClaims(env.PUBLIC_SUPABASE_ANON_KEY);
   const serviceKeyProject = !env.SUPABASE_SERVICE_ROLE_KEY ? 'missing' : !key.ref ? 'unverifiable' : key.ref === serverRef ? 'matches_url' : 'mismatch';
-  const usesProduction = [serverRef, publicRef, key.ref, anon.ref].includes(PRODUCTION_SUPABASE_REF);
+  const usesProduction = [serverRef, publicRef, key.ref, anon.ref].some((ref) => ref && PRODUCTION_SUPABASE_REFS.includes(ref));
   let violation = null;
   if (environment === 'preview' && usesProduction) violation = 'PREVIEW_USES_PRODUCTION_SUPABASE';
   else if (environment === 'preview' && serviceKeyProject === 'mismatch') violation = 'SERVICE_KEY_PROJECT_MISMATCH';

@@ -23,7 +23,9 @@
  *
  * Never put real secret values in this file or in the repository.
  */
-export const PRODUCTION_PROJECT_REF = 'czhufhufvwvgyhjuaauo';
+/** Current production project first, then the legacy production project (still holds real accounts). */
+export const PRODUCTION_PROJECT_REFS = ['dhqagbcaqspdrxcsxgfb', 'czhufhufvwvgyhjuaauo'];
+export const PRODUCTION_PROJECT_REF = PRODUCTION_PROJECT_REFS[0];
 export const STAGING_PROJECT_REF = 'lxbcynzgeuqzmynkuzqg';
 export const PRODUCTION_HOSTS = ['zevqora.vercel.app', 'zevqora-nero404.vercel.app', 'zevqora.com', 'www.zevqora.com'];
 /** Vercel branch aliases of the branches that deploy to production. */
@@ -69,7 +71,7 @@ export function checkStaging(env = process.env, { requireWriteApproval = true, n
 
   const expectedRef = env.STAGING_SUPABASE_REF || STAGING_PROJECT_REF;
   if (!REF.test(expectedRef)) return { ok: false, reason: 'STAGING_SUPABASE_REF is not a Supabase project ref' };
-  if (expectedRef === PRODUCTION_PROJECT_REF) return { ok: false, reason: 'STAGING_SUPABASE_REF is the PRODUCTION project' };
+  if (PRODUCTION_PROJECT_REFS.includes(expectedRef)) return { ok: false, reason: 'STAGING_SUPABASE_REF is the PRODUCTION project' };
 
   let supa;
   let app;
@@ -79,7 +81,7 @@ export function checkStaging(env = process.env, { requireWriteApproval = true, n
   } catch {
     return { ok: false, reason: 'STAGING_SUPABASE_URL and STAGING_APP_URL must be absolute URLs' };
   }
-  if (supa.hostname.includes(PRODUCTION_PROJECT_REF)) return { ok: false, reason: 'STAGING_SUPABASE_URL points at the PRODUCTION project' };
+  if (PRODUCTION_PROJECT_REFS.some((ref) => supa.hostname.includes(ref))) return { ok: false, reason: 'STAGING_SUPABASE_URL points at the PRODUCTION project' };
   const local = LOOPBACK.has(app.hostname);
   if (supa.protocol !== 'https:' || (app.protocol !== 'https:' && !(local && app.protocol === 'http:'))) return { ok: false, reason: 'STAGING_SUPABASE_URL and STAGING_APP_URL must use https (plain http only for a loopback app URL)' };
   if (supa.hostname !== `${expectedRef}.supabase.co`) return { ok: false, reason: `STAGING_SUPABASE_URL must be https://${expectedRef}.supabase.co (allowlisted staging project)` };
@@ -89,7 +91,7 @@ export function checkStaging(env = process.env, { requireWriteApproval = true, n
   for (const [name, role] of [['STAGING_SUPABASE_ANON_KEY', 'anon'], ['STAGING_SUPABASE_SERVICE_ROLE_KEY', 'service_role']]) {
     const claims = jwtClaims(env[name]);
     if (!claims) continue; // opaque sb_* keys carry no ref; the runtime preflight still applies
-    if (claims.ref === PRODUCTION_PROJECT_REF) return { ok: false, reason: `${name} is a PRODUCTION project key` };
+    if (PRODUCTION_PROJECT_REFS.includes(claims.ref)) return { ok: false, reason: `${name} is a PRODUCTION project key` };
     if (claims.ref !== expectedRef) return { ok: false, reason: `${name} belongs to another project` };
     if (claims.role !== role) return { ok: false, reason: `${name} has role ${claims.role}, expected ${role}` };
   }
@@ -98,7 +100,7 @@ export function checkStaging(env = process.env, { requireWriteApproval = true, n
   for (const prodName of ['SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_URL']) {
     if (env[prodName] && env[prodName] === env[`STAGING_${prodName}`]) return { ok: false, reason: `STAGING_${prodName} equals the production-named ${prodName}; use separate values` };
   }
-  if (env.SUPABASE_URL && env.SUPABASE_URL.includes(PRODUCTION_PROJECT_REF) && env.STAGING_SUPABASE_SERVICE_ROLE_KEY === env.SUPABASE_SERVICE_ROLE_KEY) return { ok: false, reason: 'the production service-role key is loaded for staging' };
+  if (env.SUPABASE_URL && PRODUCTION_PROJECT_REFS.some((ref) => env.SUPABASE_URL.includes(ref)) && env.STAGING_SUPABASE_SERVICE_ROLE_KEY === env.SUPABASE_SERVICE_ROLE_KEY) return { ok: false, reason: 'the production service-role key is loaded for staging' };
   return { ok: true, env: { supabaseUrl: supa.origin, supabaseRef: expectedRef, appUrl: app.origin, mode: local ? 'local' : 'preview', anonKey: env.STAGING_SUPABASE_ANON_KEY, serviceKey: env.STAGING_SUPABASE_SERVICE_ROLE_KEY, bypass: env.STAGING_VERCEL_BYPASS || null } };
 }
 

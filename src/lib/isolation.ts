@@ -6,8 +6,14 @@
  */
 declare const __ZEVQORA_DEPLOY_ENV__: string | undefined;
 
-/** Same value as api/_lib/env-isolation.js (asserted by tests/browser-isolation.test.ts). */
-export const PRODUCTION_SUPABASE_REF = 'czhufhufvwvgyhjuaauo';
+/** Same values as api/_lib/env-isolation.js (asserted by tests/browser-isolation.test.ts). */
+/**
+ * Every Supabase project that holds (or held) production data. The current
+ * production project comes first; the legacy one keeps real accounts until it
+ * is retired, so a preview must not reach either.
+ */
+export const PRODUCTION_SUPABASE_REFS: readonly string[] = ['dhqagbcaqspdrxcsxgfb', 'czhufhufvwvgyhjuaauo'];
+export const PRODUCTION_SUPABASE_REF = PRODUCTION_SUPABASE_REFS[0];
 
 /** Vercel environment the bundle was built for: production, preview, development or local. */
 export const DEPLOY_ENV: string = typeof __ZEVQORA_DEPLOY_ENV__ === 'string' ? __ZEVQORA_DEPLOY_ENV__ : 'local';
@@ -38,5 +44,6 @@ export function keyRef(key: string): string | null {
 /** True when a preview build would hand the production project's URL or key to the browser. */
 export function browserIsolationViolation(deployEnv: string, supabaseUrl: string, anonKey: string): boolean {
   if (deployEnv !== 'preview') return false;
-  return supabaseRef(supabaseUrl) === PRODUCTION_SUPABASE_REF || keyRef(anonKey) === PRODUCTION_SUPABASE_REF;
+  const refs = [supabaseRef(supabaseUrl), keyRef(anonKey)];
+  return refs.some((ref) => ref !== null && PRODUCTION_SUPABASE_REFS.includes(ref));
 }
