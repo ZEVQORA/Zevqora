@@ -1,5 +1,48 @@
 import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion, type MotionValue } from 'motion/react';
+import { ZevqoraMark } from './ZevqoraMark';
+import { MARK_PATH } from './marks';
+
+/** Bake the approved vector into a distance field; the logo geometry stays canonical. */
+function brandDistanceField() {
+  const size = 1024;
+  const source = document.createElement('canvas');
+  source.width = source.height = size;
+  const context = source.getContext('2d');
+  if (!context) throw new Error('Canvas unavailable');
+  context.translate((size - 87.05 * 8.4) / 2, 92);
+  context.scale(8.4, 8.4);
+  context.fill(new Path2D(MARK_PATH));
+  const pixels = context.getImageData(0, 0, size, size).data;
+  const inside = new Uint8Array(size * size);
+  const distance = new Float32Array(size * size).fill(1e8);
+  for (let i = 0; i < inside.length; i++) inside[i] = pixels[i * 4 + 3] > 127 ? 1 : 0;
+  for (let y = 1; y < size - 1; y++) for (let x = 1; x < size - 1; x++) {
+    const i = y * size + x;
+    if (inside[i] !== inside[i - 1] || inside[i] !== inside[i + 1] || inside[i] !== inside[i - size] || inside[i] !== inside[i + size]) distance[i] = 0;
+  }
+  // Exact separable Euclidean distance avoids facets along the curved vector edges.
+  const input = new Float64Array(size), output = new Float64Array(size);
+  const sites = new Int32Array(size), bounds = new Float64Array(size + 1);
+  const transform = () => {
+    let k = 0; sites[0] = 0; bounds[0] = -Infinity; bounds[1] = Infinity;
+    for (let q = 1; q < size; q++) {
+      let crossing = ((input[q] + q * q) - (input[sites[k]] + sites[k] * sites[k])) / (2 * (q - sites[k]));
+      while (crossing <= bounds[k]) { k--; crossing = ((input[q] + q * q) - (input[sites[k]] + sites[k] * sites[k])) / (2 * (q - sites[k])); }
+      sites[++k] = q; bounds[k] = crossing; bounds[k + 1] = Infinity;
+    }
+    k = 0;
+    for (let q = 0; q < size; q++) { while (bounds[k + 1] < q) k++; output[q] = (q - sites[k]) ** 2 + input[sites[k]]; }
+  };
+  for (let x = 0; x < size; x++) { for (let y = 0; y < size; y++) input[y] = distance[y * size + x]; transform(); for (let y = 0; y < size; y++) distance[y * size + x] = output[y]; }
+  for (let y = 0; y < size; y++) { for (let x = 0; x < size; x++) input[x] = distance[y * size + x]; transform(); for (let x = 0; x < size; x++) distance[y * size + x] = Math.sqrt(output[x]); }
+  const data = new Uint8Array(size * size * 4);
+  for (let i = 0; i < distance.length; i++) {
+    const encoded = Math.round(Math.max(0, Math.min(1, .5 + distance[i] * (inside[i] ? -1 : 1) / (size * 2))) * 65535);
+    data[i * 4] = encoded >> 8; data[i * 4 + 1] = encoded & 255; data[i * 4 + 3] = 255;
+  }
+  return { data, size };
+}
 
 const VERTEX = `attribute vec2 a_position;
 varying vec2 v_uv;
@@ -11,30 +54,28 @@ uniform vec2 u_size;
 uniform float u_time;
 uniform float u_progress;
 uniform float u_centered;
+uniform sampler2D u_mark;
 mat3 rx(float a){float c=cos(a),s=sin(a);return mat3(1.,0.,0.,0.,c,-s,0.,s,c);}
 mat3 ry(float a){float c=cos(a),s=sin(a);return mat3(c,0.,s,0.,1.,0.,-s,0.,c);}
 mat3 rz(float a){float c=cos(a),s=sin(a);return mat3(c,-s,0.,s,c,0.,0.,0.,1.);}
-float band(vec3 p,float r){vec2 q=vec2(length(p.xz)-r,p.y);vec2 b=abs(q)-vec2(.145,.285);return length(max(b,0.))+min(max(b.x,b.y),0.)-.085;}
+float mark(vec2 p){
+ vec2 uv=clamp(p/3.6+.5,0.,1.);uv.y=1.-uv.y;
+ vec4 field=texture2D(u_mark,uv);
+ float d=((field.r*65280.+field.g*255.)/65535.-.5)*7.2;
+ return d+length(max(abs(p)-1.79,0.));
+}
 vec2 scene(vec3 p){
  float phase=u_progress;
- float x=mix(1.65,-1.80,smoothstep(.18,.35,phase));
- x=mix(x,1.65,smoothstep(.58,.82,phase));
+ float x=mix(1.45,-1.55,smoothstep(.18,.35,phase));
+ x=mix(x,1.45,smoothstep(.58,.82,phase));
  p.x-=mix(x,0.,u_centered);
- p.y+=mix(.04,.4,smoothstep(.68,1.,phase));
- p.y-=sin(u_time*.35)*.045;
- float turn=.30+phase*2.1+sin(u_time*.12)*.08;
- p=rz(-.38+phase*.46)*ry(turn)*rx(.95+phase*.28)*p;
- float spread=sin(phase*3.14159265)*.52;
- vec2 result=vec2(band(p,1.24),0.);
- vec3 a=ry(spread*.95)*rz(spread)*p-vec3(spread,0.,0.);
- vec3 b=ry(-spread*.95)*rz(-spread)*p+vec3(spread,0.,0.);
- float d1=band(a,1.24)-.008;
- float d2=band(b,1.24)-.012;
- if(d1<result.x)result=vec2(d1,1.);
- if(d2<result.x)result=vec2(d2,2.);
- return result;
+ p.y-=sin(u_time*.3)*.025;
+ p=ry(.16+sin(phase*3.14159265)*.12+sin(u_time*.16)*.015)*rx(-.025)*p;
+ p/=.82;
+ vec2 d=vec2(mark(p.xy)+.035,abs(p.z)-.13);
+ return vec2((min(max(d.x,d.y),0.)+length(max(d,0.))-.035)*.82,0.);
 }
-vec3 normalAt(vec3 p){vec2 e=vec2(.0016,0.);return normalize(vec3(scene(p+e.xyy).x-scene(p-e.xyy).x,scene(p+e.yxy).x-scene(p-e.yxy).x,scene(p+e.yyx).x-scene(p-e.yyx).x));}
+vec3 normalAt(vec3 p){vec2 e=vec2(.006,0.);return normalize(vec3(scene(p+e.xyy).x-scene(p-e.xyy).x,scene(p+e.yxy).x-scene(p-e.yxy).x,scene(p+e.yyx).x-scene(p-e.yyx).x));}
 vec3 environment(vec3 r){
  vec3 c=vec3(.025,.032,.045);
  float key=pow(max(0.,dot(r,normalize(vec3(-.65,.8,1.)))),9.);
@@ -58,14 +99,12 @@ void main(){
    vec3 refl=reflect(rd,n);
    float facing=max(0.,dot(n,-rd));
    float fresnel=.52+.48*pow(1.-facing,4.);
-   vec3 silver=vec3(.78,.83,.89);
-   vec3 tint=mix(silver,vec3(.40,.59,.86),smoothstep(.62,.96,u_progress)*.38);
-   if(hit.y>1.5)tint=mix(tint,vec3(.40,.57,.80),.26);
-   col=environment(refl)*tint*fresnel;
-   col+=max(0.,dot(n,normalize(vec3(-.5,1.,1.))))*vec3(.12,.14,.17);
-   col+=pow(1.-facing,3.)*vec3(.035,.065,.12);
-   float brushing=sin((p.x+p.z)*1150.)*.5+.5;
-   col*=.975+brushing*.025;
+   vec3 blue=vec3(.08,.35,1.25);
+   col=blue*(.72+max(0.,dot(n,normalize(vec3(-.5,1.,1.))))*.65);
+   col*=.82+.18*smoothstep(-1.2,1.2,p.y);
+   col+=environment(refl)*vec3(.11,.21,.42)*fresnel*.52;
+   col+=pow(max(0.,dot(refl,normalize(vec3(-.7,.9,1.)))),65.)*vec3(.6,.72,1.);
+   col+=pow(1.-facing,3.)*vec3(.08,.17,.32);
    col=col/(1.+col*.62);
  }
  col=pow(col,vec3(.83));
@@ -73,7 +112,7 @@ void main(){
  gl_FragColor=vec4(col*vignette,1.);
 }`;
 
-/** A real-time metal sculpture. No image textures, downloaded renders or video. */
+/** The official ZEVQORA mark, given depth and restrained studio lighting. */
 export function WeightlessEngine({ progress, paused = false, centered = false, className = '' }: {
   progress?: MotionValue<number>; paused?: boolean; centered?: boolean; className?: string;
 }) {
@@ -98,6 +137,7 @@ export function WeightlessEngine({ progress, paused = false, centered = false, c
     }
     let program: WebGLProgram | null = null;
     let buffer: WebGLBuffer | null = null;
+    let texture: WebGLTexture | null = null;
     try {
       program = gl.createProgram();
       if (!program) throw new Error('WebGL program unavailable');
@@ -106,11 +146,22 @@ export function WeightlessEngine({ progress, paused = false, centered = false, c
       gl.linkProgram(program);
       if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error('WebGL linking failed');
       gl.useProgram(program);
+      const field = brandDistanceField();
+      texture = gl.createTexture();
+      if (!texture) throw new Error('Texture unavailable');
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, field.size, field.size, 0, gl.RGBA, gl.UNSIGNED_BYTE, field.data);
+      gl.uniform1i(gl.getUniformLocation(program, 'u_mark'), 0);
       buffer = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]), gl.STATIC_DRAW);
       const position = gl.getAttribLocation(program, 'a_position');
       gl.enableVertexAttribArray(position); gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
     } catch {
+      if (texture) gl.deleteTexture(texture);
       if (buffer) gl.deleteBuffer(buffer);
       if (program) gl.deleteProgram(program);
       shaders.forEach((shader) => gl.deleteShader(shader));
@@ -138,7 +189,8 @@ export function WeightlessEngine({ progress, paused = false, centered = false, c
     const schedule = () => { if (!frame && !lost && visible && !document.hidden) frame = requestAnimationFrame(draw); };
     const resize = () => {
       const box = element.getBoundingClientRect();
-      const ratio = Math.min(window.devicePixelRatio || 1, 1.5, Math.sqrt(900_000 / Math.max(1, box.width * box.height)));
+      const budget = box.width < 700 ? 900_000 : 1_600_000;
+      const ratio = Math.min(window.devicePixelRatio || 1, 1.5, Math.sqrt(budget / Math.max(1, box.width * box.height)));
       element.width = Math.max(1, Math.round(box.width * ratio));
       element.height = Math.max(1, Math.round(box.height * ratio));
       gl.viewport(0, 0, element.width, element.height); previous = 0; schedule();
@@ -161,6 +213,7 @@ export function WeightlessEngine({ progress, paused = false, centered = false, c
       element.removeEventListener('engine-playback', schedule);
       document.removeEventListener('visibilitychange', schedule);
       if (buffer) gl.deleteBuffer(buffer);
+      if (texture) gl.deleteTexture(texture);
       if (program) gl.deleteProgram(program);
       shaders.forEach((shader) => gl.deleteShader(shader));
     };
@@ -168,7 +221,7 @@ export function WeightlessEngine({ progress, paused = false, centered = false, c
   useEffect(() => { canvas.current?.dispatchEvent(new Event('engine-playback')); }, [paused, reduced]);
 
   return <div className={`weightless-engine ${className}`} data-ready={ready} aria-hidden="true">
-    <div className="weightless-fallback"><div /><div /><div /></div>
+    <div className="weightless-fallback"><ZevqoraMark height={400} /></div>
     <canvas ref={canvas} />
   </div>;
 }

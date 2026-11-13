@@ -39,8 +39,26 @@ describe('website', () => {
     const text = document.body.textContent || '';
     expect(text).not.toMatch(/our customers|trusted by|paying customers|saved \$|realized savings of/i);
     expect(screen.getByRole('link', { name: 'Start optimizing' }).getAttribute('href')).toBe('/signup');
+    expect(screen.getByRole('heading', { name: /Start small.*Stay in control/ })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Get started' }).getAttribute('href')).toBe('/signup');
     expect(document.title).toMatch(/Make AI lighter/);
     expect(document.querySelector('link[rel=canonical]')?.getAttribute('href')).toBe('https://zevqora.vercel.app');
+  });
+
+  it('the product walkthrough moves from observation to replay and fixed evaluation gates', async () => {
+    const { WorkflowShowcase } = await import('@/marketing/HomeExperience');
+    wrap(<WorkflowShowcase />);
+    expect(screen.getByRole('button', { name: 'Observe' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Replay' }));
+    expect(screen.getByRole('button', { name: 'Replay' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Observe' }).getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByText('Candidate')).toBeTruthy();
+    expect(screen.getByText('Illustrative workflow')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Verify' }));
+    expect(screen.getByText('Against a fixed floor')).toBeTruthy();
+    expect(screen.queryByText('Candidate')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Observe' }));
+    expect(screen.getByText('See where it repeats.')).toBeTruthy();
   });
 
   it('the security page says imported trace files keep prompt content, instead of claiming nothing is stored', async () => {

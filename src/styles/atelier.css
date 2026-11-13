@@ -34,9 +34,8 @@
 .weightless-engine[data-ready="true"] canvas { opacity: 1; }
 .weightless-fallback { position: absolute; inset: 0; display: grid; place-items: center; perspective: 800px; }
 .weightless-engine[data-ready="true"] .weightless-fallback { display: none; }
-.weightless-fallback > div { position: absolute; width: min(46vw,650px); aspect-ratio: 1; border-radius: 50%; border: clamp(28px,5vw,70px) solid #9ba5b7; transform: translateX(25%) rotateX(38deg) rotateZ(-28deg); box-shadow: inset 12px 8px 20px #f1f4ff88, inset -18px -14px 25px #11192e, 16px 30px 60px #0008; background: transparent; }
-.weightless-fallback > div:nth-child(2) { transform: translateX(29%) rotateX(50deg) rotateZ(-36deg); opacity: .5; }
-.weightless-fallback > div:nth-child(3) { transform: translateX(33%) rotateX(57deg) rotateZ(-41deg); opacity: .2; }
+.weightless-fallback > svg { position: absolute; width: min(34vw,470px); height: auto; right: 8%; filter: drop-shadow(0 20px 35px #0008); }
+.atelier-auth .weightless-fallback > svg { right: auto; width: min(35vw,430px); }
 .atelier-screen-shade { position: absolute; inset: 0; background: linear-gradient(90deg,#090c1199,#090c1130 45%,transparent 67%); pointer-events: none; }
 .atelier-hero-copy { position: absolute; top: 24%; left: 8vw; width: 58%; z-index: 2; }
 .atelier-intro { font-size: 15px; color: #999fae; margin-bottom: 32px; letter-spacing: -.01em; }
@@ -67,7 +66,7 @@
 .atelier-film-controls > a { display: grid; place-items: center; width: 44px; height: 44px; margin-left: auto; margin-right: 125px; }
 
 /* Decisions are editorial comparisons, not dashboard widgets. */
-.atelier-evidence { padding: 110px 8vw 85px; background: #f3f2ee; color: #1b1c20; scroll-margin-top: 76px; }
+.atelier-evidence { padding: 110px 8vw 85px; background: #fff; color: #1b1c20; scroll-margin-top: 76px; }
 .atelier-evidence-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 60px; }
 .atelier-section-label { font-size: 14px; line-height: 1.5; color: #818187; margin-bottom: 23px; }
 .atelier-evidence h2 { font-size: clamp(42px,4.3vw,66px); font-weight: 500; letter-spacing: -.055em; line-height: 1.13; }
@@ -102,7 +101,7 @@
 .atelier-zev-intro h3 { font-size: 32px; line-height: 1.18; font-weight: 500; letter-spacing: -.045em; }
 .atelier-zev-intro > p { font-size: 15px; line-height: 1.7; max-width: 270px; margin-top: 15px; color: #7c7d82; }
 .atelier-text-button { display: inline-flex; gap: 16px; align-items: center; min-height: 44px; margin-top: 18px; font-size: 15px; color: #303846; }
-.atelier-footer { background: #f3f2ee; padding: 50px 5.2vw 24px; color: #575b63; }
+.atelier-footer { background: #f7f8fa; padding: 50px 5.2vw 24px; color: #575b63; }
 .atelier-footer-main { display: flex; align-items: center; justify-content: space-between; gap: 40px; }
 .atelier-footer-main > a { display: flex; }
 .atelier-footer-main nav { display: flex; flex-wrap: wrap; gap: 28px; }
@@ -290,7 +289,7 @@
   .atelier-footer-bottom { margin-top: 28px; }
   .atelier-auth-layout { grid-template-columns: 1fr; }
   .atelier-auth-art { inset: 0; height: 360px; }
-  .atelier-auth-art .weightless-engine { inset: -60% -20% -35%; opacity: .7; }
+  .atelier-auth-art .weightless-engine { inset: 0; opacity: .65; }
   .atelier-auth-header { height: 80px; padding-inline: 24px; }
   .atelier-auth-back { color: #b8c0ce; }
   .atelier-auth-story { display: none; }
@@ -425,6 +424,127 @@
 .atelier-world.page-pricing .plan-card h3 { font-family: Satoshi,sans-serif; letter-spacing: -.03em; }
 .atelier-world.page-pricing .billing-toggle button { min-height: 44px; font-size: 14px; }
 .atelier-world.page-pricing .plan-card .plan-billing-note { font-size: 13px; }
+
+/* A product story with enough detail to make the next step concrete. */
+.atelier-workflow { padding: 115px 6vw 80px; background: #f7f8fa; scroll-margin-top: 70px; text-align: center; }
+.atelier-workflow-heading h2,.atelier-control h2,.atelier-zev-feature h2 { font-size: clamp(46px,5.1vw,76px); font-weight: 500; letter-spacing: -.06em; line-height: 1.08; }
+.atelier-workflow-heading h2 > span,.atelier-control h2 > span,.atelier-zev-feature h2 > span { color: #81858e; }
+.atelier-workflow-heading > p:last-child { margin: 25px auto 0; color: #6e737e; font-size: 19px; line-height: 1.6; }
+.atelier-workflow-selector { display: inline-flex; background: #e9ebef; padding: 5px; border-radius: 99px; gap: 4px; margin: 40px 0 35px; }
+.atelier-workflow-selector button { min-width: 110px; min-height: 44px; padding: 8px 24px; border-radius: 99px; font-size: 15px; color: #6b717d; transition: background .25s,color .25s,box-shadow .25s; }
+.atelier-workflow-selector button[aria-pressed="true"] { background: #fff; color: #171b24; box-shadow: 0 3px 9px #202e4810; }
+.atelier-workflow-demo { max-width: 1260px; margin: auto; text-align: left; background: #fff; border: 1px solid #e4e7ec; border-radius: 24px; overflow: hidden; box-shadow: 0 32px 65px -35px #15234126; }
+.atelier-demo-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 22px 30px; gap: 20px; border-bottom: 1px solid #eef0f3; font-size: 14px; color: #414854; }
+.atelier-demo-toolbar > span:first-child { display: flex; align-items: center; gap: 15px; }
+.atelier-demo-toolbar > span:last-child { font-size: 12px; color: #737a87; }
+.atelier-demo-content { display: grid; grid-template-columns: 1.2fr 1fr; min-height: 480px; }
+.atelier-demo-visual { padding: 30px 35px 40px; background: linear-gradient(150deg,#f4f7fc,#eaf0f9); display: flex; flex-direction: column; justify-content: center; }
+.atelier-demo-project { display: flex; align-items: center; gap: 10px; color: #65728a; font-size: 14px; margin-bottom: 32px; }
+.atelier-route-lane > p { margin-bottom: 14px; font-size: 12px; color: #718098; }
+.atelier-route-nodes { display: flex; align-items: center; }
+.atelier-route-nodes > div { min-width: 0; flex: 1; padding: 23px 12px; background: #ffffffc9; border: 1px solid #dce4f0; border-radius: 13px; box-shadow: 0 6px 12px -8px #23426a22; }
+.atelier-route-nodes > div span { font-size: 11px; color: #7b8799; display: block; margin-bottom: 8px; }
+.atelier-route-nodes > div strong { font-size: 17px; font-weight: 500; letter-spacing: -.03em; color: #26354d; }
+.atelier-route-nodes > i { flex: 0 0 25px; height: 1px; background: #bccce2; position: relative; }
+.atelier-route-nodes > i::after { content: ''; position: absolute; right: 0; top: -2px; width: 5px; height: 5px; border-top: 1px solid #bccce2; border-right: 1px solid #bccce2; transform: rotate(45deg); }
+.atelier-route-nodes > div.is-focus { border-color: #468bff88; background: #fff; box-shadow: 0 0 0 5px #468bff09, 0 12px 25px -15px #468bff55; }
+.atelier-route-lane.is-candidate { margin-top: 26px; }
+.atelier-route-lane.is-candidate > p { color: #3578e7; }
+.atelier-context-note { display: flex; gap: 16px; align-items: center; margin-top: 35px; padding: 22px 25px; border-radius: 14px; background: #dbe6f6a0; color: #6e7f98; font-size: 14px; line-height: 1.7; }
+.atelier-context-note strong { color: #314f7e; font-weight: 500; }
+.atelier-context-note > span { width: 6px; height: 32px; border-radius: 3px; background: #468bff; }
+.atelier-demo-inspector { padding: 55px 40px; display: flex; flex-direction: column; justify-content: center; }
+.atelier-demo-inspector > span { font-size: 13px; color: #397bdd; }
+.atelier-demo-inspector h3 { font-size: clamp(29px,2.7vw,42px); font-weight: 500; line-height: 1.12; letter-spacing: -.05em; margin-top: 20px; }
+.atelier-demo-inspector > p { color: #6f7581; font-size: 16px; line-height: 1.7; margin-top: 24px; }
+.atelier-demo-inspector .atelier-demo-note { font-size: 13px; color: #7a808c; margin-top: 24px; }
+.atelier-gate-sheet { background: #fff; padding: 30px; border-radius: 15px; box-shadow: 0 16px 40px -20px #14336529; max-width: 420px; width: 100%; margin: 0 auto; }
+.atelier-gate-sheet > p { font-size: 12px; color: #65758e; }
+.atelier-gate-sheet h3 { font-size: 32px; font-weight: 500; line-height: 1.1; letter-spacing: -.05em; color: #1c2d48; margin-top: 14px; }
+.atelier-gate-sheet dl { display: grid; gap: 15px; margin-top: 26px; }
+.atelier-gate-sheet dl > div { display: flex; justify-content: space-between; gap: 20px; font-size: 13px; }
+.atelier-gate-sheet dt { color: #344866; }.atelier-gate-sheet dd { color: #78869b; text-align: right; }
+.atelier-gate-sheet > span { display: block; font-size: 11px; color: #6684af; margin-top: 25px; }
+.atelier-workflow-link { display: inline-flex; gap: 14px; align-items: center; min-height: 44px; margin-top: 35px; color: #3878d6; font-size: 15px; }
+.atelier-control { padding: 100px 6vw 110px; background: #f7f8fa; }
+.atelier-control > header { max-width: 1260px; margin: 0 auto 50px; position: relative; }
+.atelier-control > header > p:last-child { position: absolute; right: 0; bottom: 5px; color: #6e737e; font-size: 18px; line-height: 1.7; }
+.atelier-control-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; max-width: 1260px; margin: auto; }
+.atelier-control-panels > article { overflow: hidden; border-radius: 23px; display: flex; flex-direction: column; }
+.atelier-scope-panel { background: #e9eef6; color: #1d2c43; }.atelier-review-panel { background: #121923; color: #f1f4f9; }
+.atelier-control-panels article > div:last-child { padding: 15px 45px 45px; }
+.atelier-control-panels h3 { font-size: clamp(25px,2.8vw,38px); font-weight: 500; line-height: 1.15; letter-spacing: -.045em; }
+.atelier-control-panels article > div:last-child > p { font-size: 16px; line-height: 1.7; color: #68768a; margin-top: 20px; max-width: 430px; }
+.atelier-control-panels article a { display: inline-flex; align-items: center; gap: 13px; min-height: 44px; font-size: 14px; margin-top: 18px; color: #3878d6; }
+.atelier-control-panels .atelier-review-panel > div:last-child > p { color: #a0acbf; }
+.atelier-control-panels .atelier-review-panel a { color: #91b5f1; }
+.atelier-scope-art { min-height: 320px; padding: 50px 45px 35px; display: grid; place-content: center; gap: 12px; }
+.atelier-scope-art > div { display: flex; align-items: center; gap: 30px; width: 300px; background: #ffffffb8; padding: 18px 25px; border-radius: 13px; color: #468bff; box-shadow: 0 8px 20px -15px #284b7a44; }
+.atelier-scope-art > div span { color: #526580; font-size: 16px; }
+.atelier-scope-art > div:nth-child(2) { transform: translateX(28px); }.atelier-scope-art > div:nth-child(3) { transform: translateX(56px); }
+.atelier-review-art { min-height: 320px; padding: 45px 30px 35px; position: relative; display: grid; place-content: center; }
+.atelier-review-document { width: 250px; background: linear-gradient(145deg,#263348,#1d2839); border: 1px solid #798da52b; border-radius: 13px; padding: 25px; box-shadow: 0 25px 30px -15px #0008; }
+.atelier-review-document > span { color: #b2bfd1; font-size: 13px; display: block; margin-top: 17px; }
+.atelier-review-document p { color: #647a99; font-size: 15px; line-height: 1.9; margin-top: 14px; }.atelier-review-document b { color: #c1d5f7; font-weight: 500; }
+.atelier-review-stamp { display: flex; gap: 10px; align-items: center; position: absolute; bottom: 43px; left: 50%; padding: 15px 21px; white-space: nowrap; border-radius: 12px; background: #dde9ff; color: #345c99; box-shadow: 0 12px 25px #0004; font-size: 13px; }
+.atelier-zev-feature { padding: 105px 8vw 115px; display: grid; grid-template-columns: 1fr 1fr; gap: 8vw; align-items: center; background: #fff; }
+.atelier-zev-feature-copy > svg { margin-bottom: 24px; }.atelier-zev-feature-copy .atelier-section-label { margin-bottom: 20px; }
+.atelier-zev-feature h2 { font-size: clamp(38px,4.1vw,62px); }
+.atelier-zev-feature-copy > p:not(.atelier-section-label) { margin-top: 25px; color: #747b87; font-size: 17px; line-height: 1.75; max-width: 440px; }
+.atelier-zev-feature-copy .atelier-text-button { color: #3878d6; }
+.atelier-zev-example { background: #f2f5fa; border-radius: 24px; padding: 45px 35px; box-shadow: 0 25px 70px -45px #293f6c40; }
+.atelier-zev-question { padding: 18px 22px; width: fit-content; margin-left: auto; background: #e1e9f6; color: #506481; font-size: 16px; border-radius: 20px 20px 5px 20px; }
+.atelier-zev-answer { display: flex; align-items: flex-start; gap: 16px; margin-top: 40px; }.atelier-zev-answer > svg { flex: 0 0 auto; margin-top: 3px; }
+.atelier-zev-answer > div > span { color: #74829a; font-size: 12px; }.atelier-zev-answer p { margin-top: 18px; font-size: 16px; line-height: 1.7; color: #758299; }
+.atelier-zev-answer p:first-of-type { font-size: clamp(25px,2.5vw,38px); letter-spacing: -.045em; line-height: 1.2; color: #263a5b; font-weight: 500; }
+.atelier-zev-topics { margin: 35px 0 0 36px; display: flex; flex-wrap: wrap; gap: 10px 20px; color: #6983aa; font-size: 12px; }
+.atelier-start { position: relative; text-align: center; overflow: hidden; background: radial-gradient(ellipse at 50% 120%,#18325c 0%,#0f1723 40%,#0f1115 74%); padding: 95px 8vw 70px; color: #f4f6fa; }
+.atelier-start .atelier-section-label { color: #8e9eb8; }
+.atelier-start h2 { font-size: clamp(60px,7.5vw,110px); font-weight: 500; line-height: 1.04; letter-spacing: -.065em; }.atelier-start h2 > span { color: #8ca8d4; }
+.atelier-start > p:not(.atelier-section-label) { font-size: 19px; color: #96a3b8; line-height: 1.6; margin-top: 28px; }
+.atelier-start > .atelier-button { margin-top: 30px; }
+.atelier-start-details { display: grid; grid-template-columns: repeat(3,1fr); gap: 40px; max-width: 1000px; margin: 85px auto 0; text-align: left; }
+.atelier-start-details h3 { font-size: 17px; font-weight: 500; color: #c8d3e6; letter-spacing: -.025em; }.atelier-start-details p { font-size: 13px; line-height: 1.6; margin-top: 10px; color: #8c9db8; }
+@media(max-width:1100px) {
+  .atelier-demo-visual { padding-inline: 25px; }.atelier-demo-inspector { padding-inline: 30px; }
+  .atelier-route-nodes > i { flex-basis: 15px; }.atelier-route-nodes > div { padding-inline: 9px; }.atelier-route-nodes > div strong { font-size: 15px; }
+  .atelier-control > header > p:last-child { font-size: 16px; }.atelier-control-panels article > div:last-child { padding-inline: 30px; }
+  .atelier-scope-art > div { width: 250px; }.atelier-scope-art > div:nth-child(2) { transform: translateX(15px); }.atelier-scope-art > div:nth-child(3) { transform: translateX(30px); }
+  .atelier-review-stamp { left: 42%; }.atelier-zev-feature { padding-inline: 6vw; gap: 5vw; }.atelier-zev-example { padding-inline: 25px; }
+}
+@media(max-width:800px) {
+  .weightless-fallback > svg { width: 58vw; right: 21%; }
+  .atelier-workflow { padding: 75px 5vw 60px; }.atelier-workflow-heading h2,.atelier-control h2 { font-size: clamp(42px,7vw,58px); }
+  .atelier-workflow-heading > p:last-child { font-size: 16px; }.atelier-workflow-selector { margin: 30px 0; }.atelier-workflow-selector button { min-width: 90px; padding-inline: 17px; font-size: 14px; }
+  .atelier-demo-content { grid-template-columns: 1fr; }.atelier-demo-visual { min-height: 340px; padding: 30px 7vw; }.atelier-demo-toolbar { padding: 20px 24px; }
+  .atelier-demo-inspector { padding: 35px 7vw; min-height: 355px; }.atelier-demo-inspector h3 { font-size: 36px; }.atelier-demo-inspector > p { font-size: 16px; }
+  .atelier-route-nodes > div { padding: 23px 15px; }.atelier-route-nodes > div strong { font-size: 18px; }.atelier-route-nodes > i { flex-basis: 25px; }
+  .atelier-control { padding: 65px 5vw 70px; }.atelier-control > header { padding-inline: 2vw; margin-bottom: 35px; }.atelier-control > header > p:last-child { position: static; margin-top: 24px; }
+  .atelier-control-panels { gap: 18px; }.atelier-control-panels h3 { font-size: 29px; }.atelier-control-panels article > div:last-child { padding: 10px 26px 30px; }.atelier-control-panels article > div:last-child > p { font-size: 15px; }
+  .atelier-scope-art > div { width: 210px; gap: 16px; padding: 17px; }.atelier-scope-art > div span { font-size: 14px; }.atelier-scope-art > div:nth-child(2) { transform: translateX(8px); }.atelier-scope-art > div:nth-child(3) { transform: translateX(16px); }
+  .atelier-scope-art { padding-inline: 20px; min-height: 290px; }.atelier-review-art { min-height: 290px; }.atelier-review-document { width: 205px; padding: 20px; }.atelier-review-stamp { left: 31%; font-size: 11px; padding: 13px 15px; }
+  .atelier-zev-feature { padding: 75px 7vw; grid-template-columns: 1fr; gap: 40px; }.atelier-zev-feature-copy { max-width: 560px; }.atelier-zev-feature h2 { font-size: 46px; }.atelier-zev-feature-copy > p:not(.atelier-section-label) { font-size: 16px; max-width: 520px; }
+  .atelier-zev-example { padding: 35px; }.atelier-zev-answer p:first-of-type { font-size: 35px; }.atelier-zev-example { max-width: 580px; width: 100%; margin: auto; }
+  .atelier-start { padding: 75px 7vw 60px; }.atelier-start h2 { font-size: clamp(52px,8.8vw,76px); }.atelier-start > p:not(.atelier-section-label) { font-size: 17px; }.atelier-start-details { gap: 25px; margin-top: 65px; }
+}
+@media(max-width:500px) {
+  .atelier-workflow-heading h2,.atelier-control h2 { font-size: 42px; }.atelier-workflow-heading .atelier-section-label { margin-bottom: 18px; }
+  .atelier-workflow-heading > p:last-child { font-size: 15px; }.atelier-workflow-selector button { min-width: 86px; padding-inline: 15px; }
+  .atelier-workflow-demo { border-radius: 18px; }.atelier-demo-toolbar { padding: 18px; gap: 10px; font-size: 12px; }.atelier-demo-toolbar > span:first-child { gap: 10px; }.atelier-demo-toolbar > span:last-child { font-size: 10px; max-width: 65px; text-align: right; }
+  .atelier-demo-visual { padding-inline: 19px; min-height: 330px; }.atelier-route-nodes > div { padding: 20px 9px; border-radius: 10px; }.atelier-route-nodes > div span { font-size: 10px; }.atelier-route-nodes > div strong { font-size: 15px; }.atelier-route-nodes > i { flex-basis: 15px; }
+  .atelier-demo-project { font-size: 13px; margin-bottom: 25px; }.atelier-context-note { padding: 17px; font-size: 12px; margin-top: 26px; }.atelier-route-lane > p { font-size: 11px; }
+  .atelier-demo-inspector { padding: 30px 25px; min-height: 380px; }.atelier-demo-inspector h3 { font-size: 32px; }.atelier-demo-inspector > p { font-size: 15px; }.atelier-demo-inspector .atelier-demo-note { font-size: 13px; }
+  .atelier-gate-sheet { padding: 24px; }.atelier-gate-sheet h3 { font-size: 28px; }.atelier-gate-sheet dl > div { font-size: 12px; }
+  .atelier-control-panels { grid-template-columns: 1fr; gap: 22px; }.atelier-control-panels article { border-radius: 18px; }.atelier-control-panels h3 { font-size: 30px; }
+  .atelier-scope-art { min-height: 285px; }.atelier-scope-art > div { width: 240px; }.atelier-scope-art > div:nth-child(3) { transform: translateX(24px); }.atelier-scope-art > div:nth-child(2) { transform: translateX(12px); }
+  .atelier-review-art { min-height: 295px; }.atelier-review-document { width: 235px; }.atelier-review-stamp { left: 44%; bottom: 35px; }
+  .atelier-control-panels article > div:last-child { padding: 10px 28px 35px; }.atelier-control > header > p:last-child { font-size: 16px; }
+  .atelier-zev-feature h2 { font-size: 39px; }.atelier-zev-example { padding: 28px 22px; border-radius: 18px; }.atelier-zev-question { font-size: 14px; padding: 16px 18px; }.atelier-zev-answer { gap: 13px; margin-top: 32px; }.atelier-zev-answer p:first-of-type { font-size: 28px; }.atelier-zev-answer p { font-size: 14px; }.atelier-zev-topics { gap: 15px; font-size: 11px; }
+  .atelier-start h2 { font-size: 55px; }.atelier-start > p:not(.atelier-section-label) { font-size: 16px; }.atelier-start-details { grid-template-columns: 1fr; gap: 25px; max-width: 290px; margin-top: 60px; text-align: center; }.atelier-start-details h3 { font-size: 17px; }.atelier-start-details p { margin-top: 6px; font-size: 13px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .atelier-workflow-selector button { transition: none; }
+}
 @media(max-width:700px) {
   .atelier-product-window { margin: 40px 5vw 55px; border-radius: 10px; }
   .atelier-product-details { padding: 15px 7vw 55px; grid-template-columns: 1fr; gap: 24px; }

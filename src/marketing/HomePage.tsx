@@ -7,7 +7,7 @@ import { useSession } from '@/lib/session';
 import { SITE_URL } from '@/lib/seo';
 import { PageTitle } from './Editorial';
 import { DecisionEvidence } from './DecisionEvidence';
-import { openZevSupport } from './SupportZevLauncher';
+import { ControlSection, HomeClosing, WorkflowShowcase } from './HomeExperience';
 
 const DESCRIPTION = 'Find wasted AI spend, replay a better approach and verify quality before you ship.';
 const JSON_LD = { '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: 'ZEVQORA', applicationCategory: 'DeveloperApplication', operatingSystem: 'Web, Windows', url: SITE_URL, description: DESCRIPTION };
@@ -50,23 +50,13 @@ export default function HomePage() {
         </motion.div>
         <div className="atelier-film-controls">
           {!reduced && <button type="button" onClick={() => setPaused(value => !value)} aria-label={paused ? 'Play visual motion' : 'Pause visual motion'} aria-pressed={paused}>{paused ? <Play size={14} /> : <Pause size={14} />}<span>{paused ? 'Play' : 'Pause'}</span></button>}
-          <a href="#evidence" aria-label="Explore the evidence"><ArrowDown size={20} /></a>
+          <a href="#workflow" aria-label="Explore the workflow"><ArrowDown size={20} /></a>
         </div>
       </div>
     </section>
+    <WorkflowShowcase />
     <DecisionEvidence />
-    <section className="atelier-next" aria-labelledby="atelier-next-title">
-      <div className="atelier-next-main">
-        <h2 id="atelier-next-title">Make room<br />for more.</h2>
-        <p>Start with one workload. See what it could do better.</p>
-        <Link to={target} className="atelier-button atelier-button-dark">{status === 'signed_in' ? 'Open workspace' : 'Get started'}<ArrowRight size={18} /></Link>
-      </div>
-      <div className="atelier-zev-intro">
-        <button type="button" className="atelier-zev-portrait" onClick={openZevSupport} aria-label="Meet Zev"><span className="zev-lens"><i /></span></button>
-        <h3>A clearer next step.<br />Meet Zev.</h3>
-        <p>Help with setup, your stack, and the evidence.</p>
-        <button type="button" className="atelier-text-button" onClick={openZevSupport}>Ask Zev<ArrowRight size={17} /></button>
-      </div>
-    </section>
+    <ControlSection />
+    <HomeClosing target={target} signedIn={status === 'signed_in'} />
   </>;
 }
