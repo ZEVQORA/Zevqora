@@ -21,7 +21,7 @@ Updated 2026-10-31 after the integration was actually applied and built.
 |---|---|---|
 | Public hero | `HomePage` hero: dark immersive section, canonical `HeroMark3D` (locked `MARK_PATH`), display size `clamp(2.5rem,5.8vw,5.75rem)` (≈14% under the patch's 6.7rem), Space Grotesk display face, AA-contrast CTAs | Mark is decorative (`aria-hidden`); copy still comes from CMS `site_content` / `DEFAULT_CONTENT` |
 | Public nav | Product · How it works · Evidence · Pricing · Security · Team; `/how-it-works`→`/technology`, `/proof`→`/evaluation`, `/demo/*`→`/product` | `POST /api/optimize/demo` (internal, admin-only) untouched |
-| Public Zev support | `SupportZevLauncher` on `/` only: FAQ-only dialog, focus trap, Esc closes and focus returns to the sticker | No network request, no `/api/engine/agent/chat`, labelled "Public FAQ · Not a live agent" |
+| Public Zev support | Ask Zev composer on `/` (hero slot, docks bottom-right); `POST /api/support/message` | Public knowledge only; FAQ by default, AI only behind `PUBLIC_SUPPORT_AI_ENABLED` + key + migration 021; no `/api/engine/agent/chat` |
 | Pricing fallback | `PricingReferenceFallback` renders $49 / $99 / from $299 **only** when live plans fail to load | Labelled reference/unconfirmed; mailto CTAs, never checkout |
 | Team | Unchanged release page: Bayarbayasgalan Enkhtulga (Nero), Khuslen Ganbat, Bat-Ochir | No invented bios or social profiles |
 | Connections catalogue | `IntegrationCatalog` under the existing evidence cards on `/app/connections` | Static capability cards; the only live state is **EVIDENCE RECEIVED**, from server-returned ZevIR graphs. Never CONNECTED / HEALTHY |

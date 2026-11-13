@@ -11,7 +11,7 @@ import {
   EngineZev,
 } from "./EngineSections";
 import { PricingGrid } from "./Pricing";
-import { SupportZevLauncher } from "./SupportZevLauncher";
+import { AskZev } from "./askzev/AskZev";
 import { SITE_URL } from "@/lib/seo";
 
 const DESCRIPTION =
@@ -29,7 +29,8 @@ export default function HomePage() {
   return (
     <>
       <PageTitle title="Make AI lighter." description={DESCRIPTION} jsonLd={JSON_LD} />
-      <Hero />
+      {/* One composer for the whole page: in the hero slot, docked bottom-right past it. */}
+      <Hero composer={<AskZev />} />
       <EngineTicker />
       <EngineManifesto />
       <EngineChapters />
@@ -41,7 +42,6 @@ export default function HomePage() {
         <PricingGrid />
       </section>
       <EngineEnd />
-      <SupportZevLauncher afterHero />
     </>
   );
 }

@@ -1,16 +1,20 @@
 # Enterprise and Support Backend Handoff
 
-## Shipped public FAQ boundary (applied and tested 2026-10-31)
-`SupportZevLauncher` is a finite source-linked public FAQ. It has no `fetch` and does not invoke `/api/engine/agent/chat`, `/api/support/messages` or workspace state. UI labels **Public FAQ · Not a live agent**. Supports open, close, Esc, focus cycling/return, responsive bottom-sheet sizing, links to existing public pages and verified `contact.email` mailto fallback.
+## Public Ask Zev on the homepage (branch nero/homepage-ask-zev, 2026-11-13)
+Replaces the FAQ-only `SupportZevLauncher`. One composer (`src/marketing/askzev/AskZev.tsx`) sits under the hero headline and docks bottom-right past the hero; the same DOM node moves, so draft, thread and focus carry over. It calls `POST /api/support/message` (`api/_lib/handlers/support.js`) without auth.
 
-Verified: jsdom test (no `fetch`, Esc closes, focus returns, axe clean) and a local browser at 375px (panel 343×567px inside the viewport, Tab/Shift+Tab wrap inside the dialog, no request from the panel). Fixed during integration: focus did not return to the sticker after Esc, because the trigger is unmounted while the panel is open.
+- Knowledge: `api/_lib/support/knowledge.js`, public website facts only. No tenant data, no database reads, no tools.
+- Modes: `faq` (default, labelled **Guide / FAQ**) and `ai` (labelled **AI answer · public info only**). `ai` runs only when `PUBLIC_SUPPORT_AI_ENABLED=true`, `OPENROUTER_API_KEY` is set, the durable limiter answered and the daily budget (`PUBLIC_SUPPORT_AI_DAILY_CAP`, default 300) has room. Provider errors fall back to the FAQ answer.
+- Bounds: message ≤ 800 chars, ≤ 6 history turns / 3,000 chars, body ≤ 16 KB, `max_tokens` 320, answer ≤ 1,400 chars, 15 s timeout.
+- Limits: in-memory 10/min per instance, plus durable 8/min and 80/day per visitor and the global AI budget via `public_rate_limit_hit` (migration 021, rollback in `supabase/rollback/`). Bucket keys hold an HMAC of the address, never the address. Without 021 the route still serves FAQ answers and keeps AI off.
+- Privacy: visitor messages are not stored or logged by the route; the browser keeps the thread in memory only.
+- Suggestions: at most 2 per browser session, section-aware, dismissible, shown next to the launcher and never as a message.
+
+Tests: `tests/support-message.test.ts`, `tests/support-rate-limit-db.test.ts`, `tests/ask-zev.test.tsx`.
 The signed-in product `ZevView.tsx` and `/api/engine/agent/chat` remain unchanged and independently server-authorized.
 
-### Future generative public API — NOT_CONNECTED
-- Proposed `POST /api/support/messages`: `PublicSupportMessageRequest { idempotency_key, thread_id, message, public_context: {page} }`, `PublicSupportMessageResponse {thread_id,answer,answer_mode,source_refs,created_at}`.
-- Proposed `POST /api/support/tickets`: `PublicSupportTicketRequest {idempotency_key,email,message,consent_to_contact}`, returns opaque ID/status and truthful expectations.
-- Must have curated public-only knowledge, no workspace data joins, token-bucket/IP abuse limits, retention and deletion policy, safe text redaction, prompt injection defenses, audit/request ids and no fake live human/24h claims.
-- Frontend mode stays `public_faq` until verified capability and approved backend UI adaptation. Never silently set mode to generative.
+### Still not built
+- `POST /api/support/tickets` (`email`, `message`, `consent_to_contact`): no human ticket path yet; the assistant points to the team email and the evaluation form.
 
 ## Enterprise UI, not activated enterprise infrastructure
 `/app/enterprise` is new role-aware overview under existing AppShell. Shows workspace and real `activeWorkspace.role` from session. It presents SSO/SCIM/private deployment/advanced audit/region/procurement as **request setup / planned / not connected**. It does not save settings or certify SOC2/HIPAA/SAML. Owner/admin can open an explicit prefilled mail draft; other roles are told to request permission. No ticket is reported as submitted.

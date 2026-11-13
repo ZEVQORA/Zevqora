@@ -27,6 +27,7 @@ import './_lib/handlers/admin.js';
 import './_lib/handlers/admin-v3.js';
 import './_lib/handlers/analytics.js';
 import './_lib/handlers/experience.js';
+import './_lib/handlers/support.js';
 
 export const GET = dispatch;
 export const POST = dispatch;

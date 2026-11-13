@@ -1,0 +1,656 @@
+/*
+  Homepage hero, dimensional Z mark and the Ask Zev composer.
+  Brand: Ink #0F1115 · Cloud #F7F8FA · Soft Blue #468BFF · Stone #E6E9EE · Satoshi Variable.
+*/
+
+/* ── Hero ─────────────────────────────────────────────────────────────── */
+/* No isolation/transform here: the docked composer is a fixed descendant and
+   must stack against the whole page, not inside the hero. */
+.zev-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100svh - 84px);
+  padding: clamp(28px, 5.5vh, 72px) 4.4vw 22px;
+  background: #0f1115;
+  color: #f7f8fa;
+}
+.zev-hero-field {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 42% 56% at 76% 44%, rgba(70, 139, 255, 0.24), transparent 70%),
+    radial-gradient(ellipse 90% 40% at 50% 115%, rgba(70, 139, 255, 0.1), transparent 70%);
+}
+.zev-hero-field::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(247, 248, 250, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(247, 248, 250, 0.05) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(ellipse 60% 70% at 74% 46%, #000 20%, transparent 72%);
+  mask-image: radial-gradient(ellipse 60% 70% at 74% 46%, #000 20%, transparent 72%);
+}
+.zev-hero-grid,
+.zev-hero-foot {
+  position: relative;
+}
+.zev-hero-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  align-items: center;
+  gap: clamp(24px, 4vw, 72px);
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+}
+.zev-hero-copy {
+  min-width: 0;
+}
+.zev-hero-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #aeb9ca;
+  font: 11px/1.5 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.zev-hero-eyebrow i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #468bff;
+}
+.zev-hero .zev-hero-copy h1 {
+  margin-top: 18px;
+  font-family: var(--font-sans);
+  font-size: clamp(54px, 8vw, 132px);
+  font-weight: 700;
+  letter-spacing: -0.055em;
+  line-height: 0.92;
+}
+.zev-hero .zev-hero-copy h1 > span {
+  display: block;
+}
+.zev-hero-period {
+  color: #468bff;
+}
+.zev-hero-lede {
+  max-width: 36ch;
+  margin-top: 22px;
+  color: #b9c2d0;
+  font-size: clamp(16px, 1.2vw, 19px);
+  line-height: 1.55;
+}
+.zev-hero-slot {
+  max-width: 640px;
+  margin-top: 28px;
+}
+.zev-hero-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 28px;
+  margin-top: 22px;
+}
+.zev-hero-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 26px;
+  min-height: 50px;
+  padding: 0 20px;
+  background: #f7f8fa;
+  color: #0f1115;
+  font: 600 14px/1 var(--font-sans);
+  transition: background 0.2s, color 0.2s;
+}
+.zev-hero-primary:hover {
+  background: #468bff;
+  color: #0f1115;
+}
+.zev-hero-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid rgba(247, 248, 250, 0.3);
+  color: #e3e8f1;
+  font-size: 13px;
+}
+.zev-hero-primary:focus-visible,
+.zev-hero-secondary:focus-visible,
+.zev-hero-foot a:focus-visible {
+  outline: 2px solid #468bff;
+  outline-offset: 4px;
+}
+.zev-hero-art {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+.zev-hero-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+  max-width: 1480px;
+  margin: 32px auto 0;
+  padding-top: 16px;
+  border-top: 1px solid rgba(247, 248, 250, 0.16);
+  color: #9aa9c1;
+  font: 10px/1.4 var(--font-mono);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.zev-hero-foot a {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #c4cedd;
+}
+
+/* ── Dimensional Z ────────────────────────────────────────────────────── */
+.zev-dimensional {
+  position: relative;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.zev-dimensional-shadow {
+  position: absolute;
+  inset: 6% 4% -6%;
+  z-index: -1;
+  opacity: 0.55;
+  filter: blur(26px);
+}
+.zev-dimensional-body {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.zev-dimensional-layer {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+}
+.zev-dimensional-face {
+  transform: translateZ(0.5px);
+}
+
+/* ── Ask Zev (one composer: hero slot or docked) ──────────────────────── */
+.zev-ask {
+  position: relative;
+  color: #f7f8fa;
+  font-family: var(--font-sans);
+  --zev-line: rgba(247, 248, 250, 0.16);
+}
+.zev-ask-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  border: 1px solid var(--zev-line);
+  border-radius: 18px;
+  background: rgba(20, 23, 30, 0.72);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+.zev-ask-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 2px 12px;
+}
+.zev-ask-head > div {
+  flex: 1;
+  min-width: 0;
+}
+.zev-ask .zev-ask-head h2 {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.zev-ask-head p {
+  color: #9aa5b5;
+  font-size: 12px;
+}
+.zev-ask-head-avatar,
+.zev-ask-pill-avatar {
+  display: grid;
+  flex: none;
+  place-items: end center;
+  overflow: hidden;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #f7f8fa;
+}
+.zev-ask-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  color: #c4cedd;
+}
+.zev-ask-icon:hover {
+  background: rgba(247, 248, 250, 0.08);
+}
+
+.zev-ask-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 260px;
+  margin-bottom: 12px;
+  padding-right: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+}
+.zev-ask-msg {
+  max-width: 88%;
+  padding: 10px 12px;
+  border: 1px solid rgba(247, 248, 250, 0.1);
+  border-radius: 14px;
+  background: rgba(247, 248, 250, 0.05);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.zev-ask-msg p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.zev-ask-msg.is-user {
+  align-self: flex-end;
+  border-color: rgba(70, 139, 255, 0.5);
+  background: rgba(70, 139, 255, 0.18);
+}
+.zev-ask-msg.is-zev {
+  align-self: flex-start;
+}
+.zev-ask-mode {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 2px 7px;
+  border: 1px solid rgba(247, 248, 250, 0.22);
+  border-radius: 999px;
+  color: #c4cedd;
+  font: 10px/1.5 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.zev-ask-mode.is-ai {
+  border-color: rgba(70, 139, 255, 0.55);
+  color: #a9c8ff;
+}
+.zev-ask-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 8px;
+}
+.zev-ask-links a {
+  color: #a9c8ff;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.zev-ask-status,
+.zev-ask-error,
+.zev-ask-offline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.zev-ask-status {
+  color: #b9c2d0;
+}
+.zev-ask-status button,
+.zev-ask-error button:not(.zev-ask-icon) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 5px 10px;
+  border: 1px solid rgba(247, 248, 250, 0.22);
+  border-radius: 999px;
+  color: #f7f8fa;
+  font-size: 12px;
+}
+.zev-ask-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.zev-ask-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #468bff;
+  animation: zev-dot 1.1s ease-in-out infinite;
+}
+.zev-ask-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.zev-ask-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes zev-dot {
+  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+.zev-ask-error {
+  justify-content: space-between;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid rgba(255, 128, 128, 0.4);
+  border-radius: 12px;
+  background: rgba(255, 128, 128, 0.1);
+  color: #ffdede;
+}
+.zev-ask-error-actions {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+.zev-ask-offline {
+  color: #ffd58a;
+}
+
+.zev-ask-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 5px 5px 5px 14px;
+  border: 1px solid rgba(247, 248, 250, 0.22);
+  border-radius: 14px;
+  background: rgba(10, 12, 16, 0.65);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.zev-ask-form:focus-within {
+  border-color: #468bff;
+  box-shadow: 0 0 0 3px rgba(70, 139, 255, 0.28);
+}
+.zev-ask-form textarea {
+  flex: 1;
+  min-width: 0;
+  max-height: 168px;
+  padding: 9px 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: #f7f8fa;
+  font: 16px/1.45 var(--font-sans); /* 16px keeps iOS from zooming on focus */
+}
+.zev-ask-form textarea::placeholder {
+  color: #8592a4;
+}
+.zev-ask-send {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #468bff;
+  color: #0f1115;
+  transition: background 0.15s, opacity 0.15s;
+}
+.zev-ask-send:disabled {
+  background: rgba(247, 248, 250, 0.12);
+  color: #8592a4;
+  cursor: not-allowed;
+}
+.zev-ask-send:focus-visible,
+.zev-ask-icon:focus-visible,
+.zev-ask-chips button:focus-visible,
+.zev-ask-pill:focus-visible,
+.zev-ask-status button:focus-visible,
+.zev-ask-error button:focus-visible,
+.zev-ask-links a:focus-visible,
+.zev-ask-suggestion button:focus-visible {
+  outline: 2px solid #468bff;
+  outline-offset: 2px;
+}
+.zev-ask-hint {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 16px;
+  margin: 8px 4px 0;
+  color: #8d98a8;
+  font-size: 11.5px;
+}
+.zev-ask-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.zev-ask-chips button {
+  min-height: 36px;
+  padding: 7px 13px;
+  border: 1px solid rgba(247, 248, 250, 0.2);
+  border-radius: 999px;
+  color: #dce2ea;
+  font-size: 13px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.zev-ask-chips button:hover:not(:disabled) {
+  border-color: #468bff;
+  background: rgba(70, 139, 255, 0.16);
+}
+
+/* Hero: the composer is part of the headline block; a compact label row. */
+.zev-ask.is-hero .zev-ask-head {
+  padding-bottom: 10px;
+}
+.zev-ask.is-hero .zev-ask-head-avatar {
+  width: 28px;
+  height: 28px;
+}
+
+/* Docked: bottom-right, above the virtual keyboard and the safe area. */
+.zev-ask.is-docked {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: calc(max(16px, env(safe-area-inset-bottom)) + var(--zev-kb, 0px));
+  z-index: 65;
+  width: min(400px, calc(100vw - 32px));
+}
+.zev-ask.is-docked.is-collapsed {
+  width: auto;
+}
+.zev-ask.is-docked .zev-ask-panel {
+  max-height: min(620px, calc(var(--zev-vvh, 100dvh) - 32px));
+  background: #0f1115;
+  box-shadow: 0 24px 70px rgba(15, 17, 21, 0.42), 0 0 0 1px rgba(70, 139, 255, 0.12);
+  animation: zev-dock-in 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.zev-ask.is-docked .zev-ask-thread {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+.zev-ask.is-docked .zev-ask-chips button {
+  min-height: 32px;
+  font-size: 12.5px;
+}
+.zev-ask-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 18px 0 8px;
+  border: 1px solid rgba(70, 139, 255, 0.5);
+  border-radius: 999px;
+  background: #0f1115;
+  box-shadow: 0 14px 40px rgba(15, 17, 21, 0.35);
+  color: #f7f8fa;
+  font-size: 14px;
+  font-weight: 600;
+  animation: zev-dock-in 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.zev-ask-pill:hover {
+  border-color: #468bff;
+}
+.zev-ask-unread {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #468bff;
+  box-shadow: 0 0 0 3px rgba(70, 139, 255, 0.25);
+}
+@keyframes zev-dock-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.zev-ask-suggestion {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  width: min(300px, calc(100vw - 32px));
+  padding: 12px 10px 10px 14px;
+  border: 1px solid #e6e9ee;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 16px 44px rgba(15, 17, 21, 0.18);
+  color: #0f1115;
+  animation: zev-dock-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.zev-ask-suggestion-tag {
+  color: #5b6472;
+  font: 10px/1.4 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.zev-ask-suggestion p {
+  margin: 4px 0 8px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.zev-ask-suggestion > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.zev-ask-suggestion > div > button:first-child {
+  padding: 6px 0;
+  color: #1f5fd1;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.zev-ask-suggestion .zev-ask-icon {
+  color: #5b6472;
+}
+.zev-ask-suggestion .zev-ask-icon:hover {
+  background: #f7f8fa;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────── */
+@media (max-width: 940px) {
+  .zev-hero {
+    min-height: auto;
+    padding-top: 22px;
+  }
+  .zev-hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 6px;
+  }
+  .zev-hero-art {
+    order: -1;
+    place-items: start;
+    margin: 10px 0 0 -4px;
+  }
+  .zev-hero .zev-hero-copy h1 {
+    margin-top: 14px;
+    font-size: clamp(52px, 14.5vw, 96px);
+  }
+  .zev-hero-lede {
+    margin-top: 16px;
+  }
+  .zev-hero-slot {
+    margin-top: 22px;
+  }
+  .zev-hero-foot > span {
+    display: none;
+  }
+}
+@media (max-width: 680px) {
+  .zev-hero {
+    padding-inline: 20px;
+  }
+  .zev-ask-panel {
+    padding: 12px;
+  }
+  .zev-ask-hint > span:last-child {
+    display: none;
+  }
+  /* One swipeable row of quick questions instead of a tall stack. */
+  .zev-ask-chips {
+    flex-wrap: nowrap;
+    margin-inline: -12px;
+    padding: 0 12px 2px;
+    overflow-x: auto;
+    scroll-padding-inline: 12px;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+  .zev-ask-chips::-webkit-scrollbar {
+    display: none;
+  }
+  .zev-ask-chips button {
+    flex: none;
+    scroll-snap-align: start;
+  }
+  .zev-ask.is-hero .zev-ask-head {
+    padding-bottom: 8px;
+  }
+  .zev-ask.is-docked {
+    right: max(8px, env(safe-area-inset-right));
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + var(--zev-kb, 0px));
+    width: calc(100vw - 16px);
+  }
+  .zev-ask.is-docked.is-collapsed {
+    width: auto;
+  }
+  .zev-ask.is-docked .zev-ask-panel {
+    max-height: min(560px, calc(var(--zev-vvh, 100dvh) - 16px));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zev-ask-dots i,
+  .zev-ask.is-docked .zev-ask-panel,
+  .zev-ask-pill,
+  .zev-ask-suggestion {
+    animation: none;
+  }
+  .zev-hero-primary,
+  .zev-ask-form,
+  .zev-ask-chips button,
+  .zev-ask-send {
+    transition: none;
+  }
+}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { metricLabel, isVerifiableVerdict, type EvidenceMetric } from '../src/lib/contracts/claims';
 import { SETUP_CATALOG, disconnectedGateway } from '../src/lib/clients/integrations';
-import { PUBLIC_SUPPORT_MODE } from '../src/lib/contracts/support';
+import { ANSWER_MODE_LABEL } from '../src/lib/contracts/support';
 import { ENTERPRISE_REQUEST_API_AVAILABLE } from '../src/lib/contracts/enterprise';
 
 const metric: EvidenceMetric = { value: null, unit: 'USD', claim: 'OBSERVED', sourceId: null,
@@ -27,8 +27,8 @@ describe('unified frontend trust boundaries', () => {
     await expect(disconnectedGateway.listWorkspaceConnections('workspace-A')).rejects.toMatchObject({ code: 'INTEGRATION_NOT_CONNECTED' });
     await expect(disconnectedGateway.testConnection('workspace-A', 'secret-connection')).rejects.toMatchObject({ code: 'INTEGRATION_NOT_CONNECTED' });
   });
-  it('public support and enterprise request APIs remain offline without backend', () => {
-    expect(PUBLIC_SUPPORT_MODE).toBe('public_faq');
+  it('labels every public support answer by its source, and the enterprise request API stays offline', () => {
+    expect(ANSWER_MODE_LABEL).toEqual({ faq: 'Guide / FAQ', ai: 'AI answer · public info only' });
     expect(ENTERPRISE_REQUEST_API_AVAILABLE).toBe(false);
   });
 });
