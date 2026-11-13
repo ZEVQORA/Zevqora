@@ -21,6 +21,70 @@ export const DEFAULT_CLAUDE_MODEL = 'claude-opus-5-5';
 const MODEL_RE = /^claude-[a-z0-9.-]{1,60}$/;
 export const CLAUDE_LIMITS = { maxSteps: 4, maxTokens: 8000, timeoutMs: 45_000 };
 
+/**
+ * Anthropic list prices, USD per million tokens [input, output] (first-party
+ * API, checked 2026-11-13). Used for budget reservation and measured-cost
+ * reconciliation. Conservative choices: cache reads are charged at the full
+ * input price, cache writes at 1.25x, Haiku 5.5 at its >100K-token rate, and
+ * any model not listed (e.g. one a server-side fallback chose) at CEILING.
+ */
+export const CLAUDE_PRICES = {
+  'claude-fable-5-2': [8, 40],
+  'claude-mythos-5-2': [8, 40],
+  'claude-fable-5-1': [10, 50],
+  'claude-mythos-5-1': [10, 50],
+  'claude-fable-5': [10, 50],
+  'claude-opus-5-5': [4, 20],
+  'claude-opus-5': [5, 25],
+  'claude-opus-4-8': [5, 25],
+  'claude-opus-4-7': [5, 25],
+  'claude-opus-4-6': [5, 25],
+  'claude-sonnet-5-5': [2, 10],
+  'claude-sonnet-5': [2, 10],
+  'claude-sonnet-4-6': [3, 15],
+  'claude-haiku-5-5': [0.5, 2.5],
+  'claude-haiku-4-5': [1, 5],
+};
+export const CEILING_PRICE = [10, 50];
+const priceOf = (model) => CLAUDE_PRICES[model] || CEILING_PRICE;
+
+/** Cost of one usage entry (top-level usage or one `usage.iterations` entry). */
+function entryCost(u, model) {
+  const [pin, pout] = priceOf(model);
+  const input = Number(u.input_tokens || 0) + Number(u.cache_read_input_tokens || 0) + 1.25 * Number(u.cache_creation_input_tokens || 0);
+  return (input * pin + Number(u.output_tokens || 0) * pout) / 1e6;
+}
+
+/**
+ * Every billable attempt of one response. With server-side fallback the
+ * top-level usage covers only the final attempt; `usage.iterations` lists each
+ * sampling attempt (declined hops as `message`, the serving fallback as
+ * `fallback_message`), each with its own model and tokens.
+ */
+export function attemptsOf(res, requestedModel) {
+  const usage = res?.usage || {};
+  const its = Array.isArray(usage.iterations) ? usage.iterations.filter((i) => i && (i.type === 'message' || i.type === 'fallback_message')) : [];
+  if (!its.length) {
+    const model = res?.model || requestedModel;
+    return [{ type: 'message', model, input_tokens: Number(usage.input_tokens || 0), output_tokens: Number(usage.output_tokens || 0), cost_usd: entryCost(usage, model) }];
+  }
+  return its.map((i) => {
+    const model = i.model || requestedModel;
+    return { type: i.type, model, input_tokens: Number(i.input_tokens || 0), output_tokens: Number(i.output_tokens || 0), cost_usd: entryCost(i, model) };
+  });
+}
+
+/**
+ * Worst case for one call before it is sent: the request model's attempt plus
+ * one fallback attempt at CEILING, each producing max_tokens. Input tokens are
+ * over-estimated at one token per three characters of the request.
+ */
+export function reserveFor(params) {
+  const inTok = Math.ceil(JSON.stringify({ s: params.system, t: params.tools, m: params.messages }).length / 3);
+  const [pin, pout] = priceOf(params.model);
+  return (inTok * (pin + CEILING_PRICE[0]) + params.max_tokens * (pout + CEILING_PRICE[1])) / 1e6;
+}
+
 export function anthropicConfigured() {
   return Boolean(process.env.ANTHROPIC_API_KEY);
 }
@@ -78,6 +142,9 @@ export function mapAnthropicError(error) {
   return new ApiError(502, 'The Claude provider returned an unexpected error.', 'PROVIDER_ERROR');
 }
 
+const UNAVAILABLE = 'Engineering Zev spending controls are unavailable, so no request was sent to the provider.';
+const roundUsage = (u) => ({ ...u, cost_usd: Number(u.cost_usd.toFixed(6)), served_by: [...new Set(u.attempts.map((a) => a.model))] });
+
 const textOf = (content) =>
   content
     .filter((b) => b.type === 'text')
@@ -89,42 +156,60 @@ const textOf = (content) =>
  * Tool loop on Claude. `ctx` holds loaders bound to the authorized product.
  * Returns { message, model, provider, tool_events, usage, stop_reason }.
  */
-export async function runZevClaude({ ctx, history, productId, signal }) {
+/**
+ * `budget` reserves before every call and reconciles after it:
+ *   reserve(usd) -> true (reserved) | false (would exceed) | null (unavailable)
+ *   settle(deltaUsd) -> applies measured cost minus the reservation.
+ * Unavailable accounting stops before any paid call (fail closed).
+ */
+export async function runZevClaude({ ctx, history, productId, signal, budget }) {
   const model = claudeModel();
   const system = productId ? `${SYSTEM_PROMPT}\n\nThe selected ZEVQORA product_id is ${productId}. Tools always read that product.` : SYSTEM_PROMPT;
   /** @type {import('@anthropic-ai/sdk').default.MessageParam[]} */
   const messages = history.map((m) => ({ role: m.role, content: m.content }));
   const events = [];
-  const usage = { input_tokens: 0, output_tokens: 0, model_calls: 0 };
+  const usage = { input_tokens: 0, output_tokens: 0, model_calls: 0, attempts: [], cost_usd: 0 };
+  if (!budget) throw new ApiError(503, UNAVAILABLE, 'BUDGET_UNAVAILABLE');
   const api = client();
 
   for (let step = 0; step < CLAUDE_LIMITS.maxSteps; step += 1) {
+    const params = {
+      model,
+      max_tokens: CLAUDE_LIMITS.maxTokens,
+      system,
+      tools: CLAUDE_TOOLS,
+      tool_choice: { type: 'auto' },
+      output_config: { effort: 'medium' },
+      messages,
+      // Safety declines are re-run on a fallback model chosen by the API; every attempt is accounted below.
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
+    };
+    const reserved = reserveFor(params);
+    const ok = await budget.reserve(reserved);
+    if (ok === null) throw new ApiError(503, UNAVAILABLE, 'BUDGET_UNAVAILABLE');
+    if (ok === false) {
+      if (step === 0) throw new ApiError(429, 'The Engineering Zev spending budget for today is used up. It resets within 24 hours.', 'BUDGET_EXHAUSTED');
+      return { message: 'I stopped before another paid model call because the spending budget is used up. The evidence gathered so far is above.', model, provider: 'anthropic', tool_events: events, usage: roundUsage(usage), stop_reason: 'budget_exhausted' };
+    }
     let res;
     try {
-      res = await api.beta.messages.create(
-        {
-          model,
-          max_tokens: CLAUDE_LIMITS.maxTokens,
-          system,
-          tools: CLAUDE_TOOLS,
-          tool_choice: { type: 'auto' },
-          output_config: { effort: 'medium' },
-          messages,
-          // Safety declines are re-run on a fallback model chosen by the API.
-          betas: ['server-side-fallback-2026-07-01'],
-          fallbacks: 'default',
-        },
-        { signal },
-      );
+      res = await api.beta.messages.create(params, { signal });
     } catch (error) {
+      // Whether the provider billed a failed call is unknown: the reservation is kept, not refunded.
       throw mapAnthropicError(error);
     }
+    const attempts = attemptsOf(res, model);
+    const measured = attempts.reduce((n, a) => n + a.cost_usd, 0);
+    await budget.settle(measured - reserved);
     usage.model_calls += 1;
-    usage.input_tokens += Number(res.usage?.input_tokens || 0);
-    usage.output_tokens += Number(res.usage?.output_tokens || 0);
+    usage.attempts.push(...attempts);
+    usage.cost_usd += measured;
+    usage.input_tokens += attempts.reduce((n, a) => n + a.input_tokens, 0);
+    usage.output_tokens += attempts.reduce((n, a) => n + a.output_tokens, 0);
 
     if (res.stop_reason === 'refusal') {
-      return { message: 'Zev declined this request. Rephrase it as a question about this workspace’s evidence.', model: res.model || model, provider: 'anthropic', tool_events: events, usage, stop_reason: 'refusal' };
+      return { message: 'Zev declined this request. Rephrase it as a question about this workspace’s evidence.', model: res.model || model, provider: 'anthropic', tool_events: events, usage: roundUsage(usage), stop_reason: 'refusal' };
     }
     const toolUses = res.content.filter((b) => b.type === 'tool_use');
     if (res.stop_reason !== 'tool_use' || !toolUses.length) {
@@ -135,7 +220,7 @@ export async function runZevClaude({ ctx, history, productId, signal }) {
         model: res.model || model,
         provider: 'anthropic',
         tool_events: events,
-        usage,
+        usage: roundUsage(usage),
         stop_reason: res.stop_reason,
       };
     }
@@ -156,5 +241,5 @@ export async function runZevClaude({ ctx, history, productId, signal }) {
     // All results for one assistant turn go back in a single user message.
     messages.push({ role: 'user', content: results });
   }
-  return { message: 'I reached the tool-step limit. Ask me to continue from the evidence already collected.', model, provider: 'anthropic', tool_events: events, usage, stop_reason: 'step_limit' };
+  return { message: 'I reached the tool-step limit. Ask me to continue from the evidence already collected.', model, provider: 'anthropic', tool_events: events, usage: roundUsage(usage), stop_reason: 'step_limit' };
 }
