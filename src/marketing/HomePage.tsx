@@ -1,6 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router";
-import { motion, useReducedMotion } from "motion/react";
+import {
+  motion,
+  useReducedMotion,
+  useScroll,
+  useTransform,
+} from "motion/react";
 import {
   ArrowDown,
   ArrowRight,
@@ -22,6 +27,11 @@ import { ZevqoraMark } from "@/brand/ZevqoraMark";
 import { useSession } from "@/lib/session";
 import { PageTitle } from "./Editorial";
 import { SupportZevLauncher } from "./SupportZevLauncher";
+import {
+  CinemaFrame,
+  ClarityStatement,
+  ScrollCinema,
+} from "./CinemaExperience";
 
 const steps = [
   {
@@ -144,6 +154,13 @@ function WorkspacePreview() {
 export default function HomePage() {
   const { status } = useSession();
   const reduced = useReducedMotion();
+  const hero = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: hero,
+    offset: ["start start", "end start"],
+  });
+  const heroScale = useTransform(scrollYProgress, [0, 0.9], [1, 0.88]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
   const target = status === "signed_in" ? "/app" : "/signup";
   return (
     <>
@@ -151,10 +168,14 @@ export default function HomePage() {
         title="Make AI lighter."
         description="Understand your AI, verify better decisions, and build with less friction. Meet the new ZEVQORA workspace."
       />
-      <section className="nova-hero">
+      <section className="nova-hero" ref={hero}>
         <Aurora />
+        <CinemaFrame />
         <motion.div
           className="nova-hero-content"
+          style={
+            reduced ? undefined : { scale: heroScale, opacity: heroOpacity }
+          }
           initial={reduced ? false : { opacity: 0, y: 26 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
@@ -181,11 +202,11 @@ export default function HomePage() {
             >
               Explore ZEVQORA <ArrowUpRight size={20} />
             </Link>
-            <a href="#workspace" className="nova-secondary">
+            <a href="#cinema" className="nova-secondary">
               <span>
                 <Play size={12} fill="currentColor" />
               </span>{" "}
-              See how it works
+              Enter the experience
             </a>
           </div>
           <div className="nova-hero-note">
@@ -200,7 +221,7 @@ export default function HomePage() {
         </motion.div>
         <div className="nova-hero-bottom">
           <span>LESS COMPLEXITY. MORE POSSIBILITY.</span>
-          <a href="#workspace" aria-label="Explore the workspace">
+          <a href="#cinema" aria-label="Explore the cinematic story">
             <ArrowDown size={16} />
           </a>
           <span>
@@ -208,6 +229,8 @@ export default function HomePage() {
           </span>
         </div>
       </section>
+      <ScrollCinema />
+      <ClarityStatement />
       <section className="nova-ecosystem">
         <span>DESIGNED TO FIT YOUR AI STACK</span>
         <div>

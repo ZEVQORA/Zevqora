@@ -2,6 +2,12 @@
 
 The public home, account screens, and authenticated workspace share a dark Aurora visual system. CSS/SVG ribbons animate without image downloads and respect reduced motion. The product preview is explicitly labelled; it contains no invented customer or savings metrics.
 
+## Cinematic home
+
+The home now includes a native-scroll, three-chapter pinned scene: noise, signal, and possibility. A bounded canvas particle field, converging context chips, orbital geometry, and a glass brand core respond to scroll progress. The hero recedes as it leaves the viewport, followed by a word-by-word statement reveal. No scroll interception or video downloads are required. The canvas caps pixel density, renders at about 30 fps, and stops offscreen or when the tab is hidden; mobile uses fewer particles. Reduced motion replaces the long pinned timeline with a static composition.
+
+Browser QA covered desktop at 1280 × 720 and mobile at 390 × 844, including all three chapter transitions and horizontal overflow. The home passes the automated axe WCAG checks (contrast excluded by the existing jsdom suite).
+
 ## Account flow
 
 Sign-up asks for name, email, and password. The existing database trigger assigns a username, including collision handling. Email confirmation remains enabled according to Supabase settings. After confirmation, a user names their workspace and enters Zev chat. Existing users enter chat directly. Supabase persists and refreshes sessions; the storage key includes the project ref so a session from the old database cannot be reused on the new one.
