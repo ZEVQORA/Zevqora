@@ -609,7 +609,13 @@ on('POST', '/api/engine/agent/chat', async ({ request }) => {
   // Authorization first: the product is loaded through the caller's membership (viewer or above).
   let product = null;
   if (body?.product_id) product = (await loadProduct(admin, user, body.product_id, 'viewer')).product;
-  const workspaceId = product?.workspace_id || (body?.workspace_id ? uuid(body.workspace_id, 'workspace') : null);
+  let workspaceId = product?.workspace_id || null;
+  if (!workspaceId && body?.workspace_id) {
+    // A bare workspace id is used only after the caller's membership is confirmed (404 otherwise),
+    // so nobody can spend another workspace's quota or budget.
+    workspaceId = uuid(body.workspace_id, 'workspace');
+    await requireWorkspaceRole(admin, workspaceId, user.id, 'viewer');
+  }
   const provider = engineeringZevProvider({ openRouterConfigured: openRouterConfigured() });
   if (provider === 'none') {
     return { message: 'Engineering Zev is not configured for this environment. Evidence, runs and verdicts are still available in the workspace.', model: 'none', provider: 'none', tool_events: [], openrouter_configured: false, provider_configured: false };
@@ -622,8 +628,9 @@ on('POST', '/api/engine/agent/chat', async ({ request }) => {
     evaluations: async () => (product ? rows(admin, 'engine_evaluations', product.id) : []),
   };
   if (provider === 'anthropic') {
-    await takeEngineeringZevBudget(admin, workspaceId || `user:${user.id}`);
-    const out = await runZevClaude({ ctx, history, productId: product?.id || null, signal: request.signal });
+    const scope = workspaceId ? `ws:${workspaceId}` : `user:${user.id}`;
+    await takeEngineeringZevBudget(admin, scope);
+    const out = await runZevClaude({ ctx, history, productId: product?.id || null, signal: request.signal, budget: engineeringZevSpend(admin, scope) });
     return { ...out, openrouter_configured: openRouterConfigured(), provider_configured: true };
   }
   const billing = await resolveBilling({ admin, user, workspaceId, projectId: product?.project_id || null });
@@ -639,6 +646,53 @@ on('POST', '/api/engine/agent/chat', async ({ request }) => {
  * (migration 021) so it holds across serverless instances. Fails closed: if the
  * limiter cannot answer, no paid call is made.
  */
+function usd(name, fallback) {
+  const raw = Number(process.env[name]);
+  return Number.isFinite(raw) && raw >= 0 && raw <= 100_000 ? raw : fallback;
+}
+
+/**
+ * Money budget for Claude calls (migration 022): each call reserves its worst
+ * case in the scope's and the platform's daily micro-USD counters, then is
+ * reconciled to the measured cost of every billed attempt. Any counter that
+ * cannot answer means no call (null); a refused reservation is undone in the
+ * other counter.
+ */
+function engineeringZevSpend(admin, scope) {
+  const day = new Date().toISOString().slice(0, 10);
+  const buckets = [
+    { bucket: `engzev:usd:${scope}:${day}`.slice(0, 128), limit: usd('ENGINEERING_ZEV_DAILY_USD_WORKSPACE', 5) },
+    { bucket: `engzev:usd:platform:${day}`, limit: usd('ENGINEERING_ZEV_DAILY_USD_PLATFORM', 50) },
+  ];
+  const hit = async (b, amountUsd) => {
+    try {
+      const { data, error } = await admin.rpc('usage_budget_reserve', { p_bucket: b.bucket, p_amount_micro_usd: Math.round(amountUsd * 1e6), p_limit_micro_usd: Math.round(b.limit * 1e6), p_window_seconds: 86_400 });
+      return error || typeof data !== 'boolean' ? null : data;
+    } catch {
+      return null;
+    }
+  };
+  return {
+    async reserve(amountUsd) {
+      const done = [];
+      for (const b of buckets) {
+        const ok = await hit(b, amountUsd);
+        if (ok !== true) {
+          for (const d of done) await hit(d, -amountUsd);
+          return ok;
+        }
+        done.push(b);
+      }
+      return true;
+    },
+    async settle(deltaUsd) {
+      if (Math.abs(deltaUsd) < 1e-9) return;
+      // A failed refund keeps the larger reservation: conservative, never under-counted.
+      for (const b of buckets) await hit(b, deltaUsd);
+    },
+  };
+}
+
 async function takeEngineeringZevBudget(admin, scope) {
   const raw = Number(process.env.ENGINEERING_ZEV_DAILY_CAP);
   const cap = Number.isInteger(raw) && raw >= 0 && raw <= 100_000 ? raw : 200;
@@ -646,7 +700,7 @@ async function takeEngineeringZevBudget(admin, scope) {
   const day = new Date().toISOString().slice(0, 10);
   let ok = null;
   try {
-    const { data, error } = await admin.rpc('public_rate_limit_hit', { p_bucket: `engzev:${scope}:${day}`.slice(0, 128), p_limit: cap, p_window_seconds: 86_400 });
+    const { data, error } = await admin.rpc('public_rate_limit_hit', { p_bucket: `engzev:req:${scope}:${day}`.slice(0, 128), p_limit: cap, p_window_seconds: 86_400 });
     ok = error || typeof data !== 'boolean' ? null : data;
   } catch {
     ok = null;
