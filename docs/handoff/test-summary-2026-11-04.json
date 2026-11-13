@@ -1,0 +1,573 @@
+{
+  "schema": "zevqora.cto-release-gates-summary.v1",
+  "generated_for": "docs/handoff/11..15 (2026-11-04)",
+  "sanitized": "no secret values, keys, tokens or customer data; local user paths removed",
+  "host": {
+    "platform": "win32",
+    "node": "v24.18.0",
+    "python": "Python 3.13.14"
+  },
+  "baseline_run": {
+    "purpose": "unmodified main@4d5de6f before any change (plus the new runner file, whose own lint error is the only lint finding)",
+    "git": {
+      "sha": "4d5de6fe254cb4dd37e54d2d93d758087d8c0a46",
+      "note": "runner script present but uncommitted"
+    },
+    "generated_at": "2026-11-04T08:23:47.044Z",
+    "steps": [
+      {
+        "id": "web.typecheck",
+        "command": "npm run typecheck",
+        "cwd": ".",
+        "started_at": "2026-11-04T08:23:47.554Z",
+        "duration_ms": 18957,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "web.lint",
+        "command": "npm run lint",
+        "cwd": ".",
+        "started_at": "2026-11-04T08:24:06.515Z",
+        "duration_ms": 20160,
+        "exit_code": 1,
+        "status": "FAIL",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "web.test",
+        "command": "npm run test",
+        "cwd": ".",
+        "started_at": "2026-11-04T08:24:26.682Z",
+        "duration_ms": 86732,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": {
+          "passed": 530,
+          "failed": 0,
+          "skipped": 0,
+          "todo": 0,
+          "files_passed": 45,
+          "files_failed": 0,
+          "files_skipped": 0
+        },
+        "counts_line": "Tests  530 passed (530)",
+        "note": null
+      },
+      {
+        "id": "web.verify_release",
+        "command": "npm run verify:release",
+        "cwd": ".",
+        "started_at": "2026-11-04T08:25:53.419Z",
+        "duration_ms": 1126,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "web.build",
+        "command": "npm run build",
+        "cwd": ".",
+        "started_at": "2026-11-04T08:25:54.548Z",
+        "duration_ms": 20039,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "web.api_load",
+        "command": "node --input-type=module -e \"await import('./api/index.js'); console.log('api ok')\"",
+        "cwd": ".",
+        "started_at": "2026-11-04T08:26:14.594Z",
+        "duration_ms": 2360,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "web.secret_scan",
+        "command": "git grep -nIE \"sk-or-[A-Za-z0-9]{10,}|sk-[A-Za-z0-9]{24,}|-----BEGIN [A-Z ]*PRIVATE KEY|ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}\" -- . \":!docs\" \":!tests\" \":!api/_lib/sanitize.js\" \":!desktop-app/backend/artifacts\"",
+        "cwd": ".",
+        "started_at": "2026-11-04T08:26:16.958Z",
+        "duration_ms": 216,
+        "exit_code": 1,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": "no secret-shaped strings found"
+      },
+      {
+        "id": "backend.ruff_check",
+        "command": "\"C:\\Users\\<user>\\OneDrive\\ドキュメント\\Zevqora_prot\\cto-venv\\Scripts\\python.exe\" -m ruff check .",
+        "cwd": "desktop-app/backend",
+        "started_at": "2026-11-04T08:26:17.178Z",
+        "duration_ms": 2196,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "backend.ruff_format",
+        "command": "\"C:\\Users\\<user>\\OneDrive\\ドキュメント\\Zevqora_prot\\cto-venv\\Scripts\\python.exe\" -m ruff format --check .",
+        "cwd": "desktop-app/backend",
+        "started_at": "2026-11-04T08:26:19.380Z",
+        "duration_ms": 561,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "backend.pytest",
+        "command": "\"C:\\Users\\<user>\\OneDrive\\ドキュメント\\Zevqora_prot\\cto-venv\\Scripts\\python.exe\" -m pytest -q",
+        "cwd": "desktop-app/backend",
+        "started_at": "2026-11-04T08:26:19.945Z",
+        "duration_ms": 98885,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": {
+          "passed": 189,
+          "failed": 0,
+          "skipped": 12,
+          "errors": 0
+        },
+        "counts_line": "189 passed, 12 skipped, 1 warning in 91.35s (0:01:31)",
+        "note": null
+      },
+      {
+        "id": "desktop.typecheck",
+        "command": "npm run typecheck",
+        "cwd": "desktop-app/desktop",
+        "started_at": "2026-11-04T08:27:58.833Z",
+        "duration_ms": 5860,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "desktop.build",
+        "command": "npx vite build",
+        "cwd": "desktop-app/desktop",
+        "started_at": "2026-11-04T08:28:04.696Z",
+        "duration_ms": 11585,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "desktop.electron_parse",
+        "command": "node --check electron/main.cjs && node --check electron/preload.cjs",
+        "cwd": "desktop-app/desktop",
+        "started_at": "2026-11-04T08:28:16.284Z",
+        "duration_ms": 183,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "evidence.verify",
+        "command": "\"C:\\Users\\<user>\\OneDrive\\ドキュメント\\Zevqora_prot\\cto-venv\\Scripts\\python.exe\" scripts/verify_evidence.py",
+        "cwd": ".",
+        "started_at": "2026-11-04T08:28:16.470Z",
+        "duration_ms": 592,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "staging.guard_refusal",
+        "command": "npm run test:staging",
+        "cwd": ".",
+        "started_at": "2026-11-04T08:28:17.067Z",
+        "duration_ms": 694,
+        "exit_code": 1,
+        "status": "BLOCKED",
+        "counts": null,
+        "counts_line": null,
+        "note": "guard refused (no verified isolated staging configured); 0 staging tests executed"
+      }
+    ]
+  },
+  "final_run": {
+    "purpose": "audit branch head with all fixes",
+    "git": {
+      "sha": "2e0f8789685a9bc91620eff2894d54042c771c20",
+      "branch": "cto/release-gates-audit-2026-11-04",
+      "dirty": false
+    },
+    "generated_at": "2026-11-04T09:27:25.564Z",
+    "summary_sha256": "f5e87b95dcb7db7a052e4f08600f3c7cb832299f142be91d1194ce17e35ed70d",
+    "steps": [
+      {
+        "id": "web.typecheck",
+        "command": "npm run typecheck",
+        "cwd": ".",
+        "started_at": "2026-11-04T09:27:26.295Z",
+        "duration_ms": 22036,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "web.lint",
+        "command": "npm run lint",
+        "cwd": ".",
+        "started_at": "2026-11-04T09:27:48.335Z",
+        "duration_ms": 12977,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "web.test",
+        "command": "npm run test",
+        "cwd": ".",
+        "started_at": "2026-11-04T09:28:01.315Z",
+        "duration_ms": 93815,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": {
+          "passed": 565,
+          "failed": 0,
+          "skipped": 0,
+          "todo": 0,
+          "files_passed": 49,
+          "files_failed": 0,
+          "files_skipped": 0
+        },
+        "counts_line": "Tests  565 passed (565)",
+        "note": null
+      },
+      {
+        "id": "web.proof_loop",
+        "command": "npm run test:proof-loop",
+        "cwd": ".",
+        "started_at": "2026-11-04T09:29:35.139Z",
+        "duration_ms": 17442,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": {
+          "passed": 1,
+          "failed": 0,
+          "skipped": 0,
+          "todo": 0,
+          "files_passed": 1,
+          "files_failed": 0,
+          "files_skipped": 0
+        },
+        "counts_line": "Tests  1 passed (1)",
+        "note": null
+      },
+      {
+        "id": "web.verify_release",
+        "command": "npm run verify:release",
+        "cwd": ".",
+        "started_at": "2026-11-04T09:29:52.586Z",
+        "duration_ms": 649,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "web.build",
+        "command": "npm run build",
+        "cwd": ".",
+        "started_at": "2026-11-04T09:29:53.240Z",
+        "duration_ms": 10159,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "web.bundle_scan",
+        "command": "node scripts/cto/scan-bundle.mjs dist",
+        "cwd": ".",
+        "started_at": "2026-11-04T09:30:03.402Z",
+        "duration_ms": 210,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "web.api_load",
+        "command": "node --input-type=module -e \"await import('./api/index.js'); console.log('api ok')\"",
+        "cwd": ".",
+        "started_at": "2026-11-04T09:30:03.615Z",
+        "duration_ms": 680,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "web.secret_scan",
+        "command": "git grep -nIE \"sk-or-[A-Za-z0-9]{10,}|sk-[A-Za-z0-9]{24,}|-----BEGIN [A-Z ]*PRIVATE KEY|ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}\" -- . \":!docs\" \":!tests\" \":!api/_lib/sanitize.js\" \":!desktop-app/backend/artifacts\"",
+        "cwd": ".",
+        "started_at": "2026-11-04T09:30:04.298Z",
+        "duration_ms": 112,
+        "exit_code": 1,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": "no secret-shaped strings found"
+      },
+      {
+        "id": "backend.ruff_check",
+        "command": "\"C:\\Users\\<user>\\OneDrive\\ドキュメント\\Zevqora_prot\\cto-venv\\Scripts\\python.exe\" -m ruff check .",
+        "cwd": "desktop-app/backend",
+        "started_at": "2026-11-04T09:30:04.412Z",
+        "duration_ms": 819,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "backend.ruff_format",
+        "command": "\"C:\\Users\\<user>\\OneDrive\\ドキュメント\\Zevqora_prot\\cto-venv\\Scripts\\python.exe\" -m ruff format --check .",
+        "cwd": "desktop-app/backend",
+        "started_at": "2026-11-04T09:30:05.234Z",
+        "duration_ms": 326,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "backend.pytest",
+        "command": "\"C:\\Users\\<user>\\OneDrive\\ドキュメント\\Zevqora_prot\\cto-venv\\Scripts\\python.exe\" -m pytest -q",
+        "cwd": "desktop-app/backend",
+        "started_at": "2026-11-04T09:30:05.562Z",
+        "duration_ms": 60759,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": {
+          "passed": 189,
+          "failed": 0,
+          "skipped": 12,
+          "errors": 0
+        },
+        "counts_line": "189 passed, 12 skipped, 1 warning in 59.16s",
+        "note": null
+      },
+      {
+        "id": "desktop.typecheck",
+        "command": "npm run typecheck",
+        "cwd": "desktop-app/desktop",
+        "started_at": "2026-11-04T09:31:06.324Z",
+        "duration_ms": 3767,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "desktop.build",
+        "command": "npx vite build",
+        "cwd": "desktop-app/desktop",
+        "started_at": "2026-11-04T09:31:10.093Z",
+        "duration_ms": 7286,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "desktop.electron_parse",
+        "command": "node --check electron/main.cjs && node --check electron/preload.cjs",
+        "cwd": "desktop-app/desktop",
+        "started_at": "2026-11-04T09:31:17.381Z",
+        "duration_ms": 132,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "evidence.verify",
+        "command": "\"C:\\Users\\<user>\\OneDrive\\ドキュメント\\Zevqora_prot\\cto-venv\\Scripts\\python.exe\" scripts/verify_evidence.py",
+        "cwd": ".",
+        "started_at": "2026-11-04T09:31:17.516Z",
+        "duration_ms": 312,
+        "exit_code": 0,
+        "status": "PASS",
+        "counts": null,
+        "counts_line": null,
+        "note": null
+      },
+      {
+        "id": "staging.guard_refusal",
+        "command": "npm run test:staging",
+        "cwd": ".",
+        "started_at": "2026-11-04T09:31:17.831Z",
+        "duration_ms": 592,
+        "exit_code": 1,
+        "status": "BLOCKED",
+        "counts": null,
+        "counts_line": null,
+        "note": "guard refused (no verified isolated staging configured); 0 staging tests executed"
+      }
+    ]
+  },
+  "additional_local_runs": [
+    {
+      "command": "npx vitest run --config vitest.staging.config.ts (no staging variables)",
+      "git_sha": "2e0f878 (pre-commit tree)",
+      "result": "1 failed | 17 skipped, exit 1",
+      "meaning": "suite fails closed instead of skipping silently"
+    },
+    {
+      "command": "npx vitest run (baseline worktree 4d5de6f), 3 runs",
+      "result": [
+        "530 passed",
+        "530 passed",
+        "2 failed | 528 passed (oauth-providers 5 s timeout)"
+      ],
+      "meaning": "pre-existing local timing flake on this Windows machine; not caused by the audit changes"
+    },
+    {
+      "command": "npm run test (audit branch), 2 runs before the title-race fix",
+      "result": [
+        "564 passed",
+        "1 failed | 563 passed (oauth-providers 5 s timeout)"
+      ],
+      "meaning": "same pre-existing flake"
+    },
+    {
+      "command": "npx vitest run tests/unlabelled-evidence-verdict.test.ts BEFORE the verdict fix",
+      "result": "2 failed | 1 passed — evaluation status REJECTED, expected INCOMPLETE",
+      "meaning": "defect reproduced before fixing"
+    }
+  ],
+  "remote_read_only_checks": [
+    {
+      "at": "2026-11-04T08:15Z",
+      "target": "supabase production czhufhufvwvgyhjuaauo",
+      "check": "get_advisors security",
+      "result": "WARN auth_leaked_password_protection; WARN 0029 x3 (has_workspace_role, is_workspace_member, shares_workspace_with); INFO rls_enabled_no_policy x10"
+    },
+    {
+      "at": "2026-11-04T08:15Z",
+      "target": "supabase staging lxbcynzgeuqzmynkuzqg",
+      "check": "get_advisors security",
+      "result": "same as production + WARN function_search_path_mutable ops.apply_pinned"
+    },
+    {
+      "target": "both",
+      "check": "catalog definition hashes (columns, constraints, indexes, policies, RLS flags, browser grants, triggers, public functions)",
+      "result": "identical except 9 public functions whose whitespace/comment-normalized hashes are identical (formatting only)"
+    },
+    {
+      "target": "both",
+      "check": "list_migrations",
+      "result": "production 18 entries (003–020; 001/002 predate tracking; 008–012/014/015 named without numeric prefix); staging 21 entries (001–020 + 020_user_deletion_guards_r2)"
+    },
+    {
+      "target": "staging",
+      "check": "supabase/tests/rls_privilege_check.sql (always rolled back)",
+      "result": "RLS_CHECK PASS (51 checks)"
+    },
+    {
+      "target": "staging",
+      "check": "supabase/tests/security_definer_check.sql (always rolled back)",
+      "result": "SD_CHECK PASS (11 checks)"
+    },
+    {
+      "target": "production",
+      "check": "aggregate row counts",
+      "result": "NOT RUN — blocked by the safety reviewer; not required for any gate"
+    },
+    {
+      "target": "vercel project zevqora",
+      "check": "environment variable records (not decrypted)",
+      "result": "SUPABASE_SERVICE_ROLE_KEY, PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, DESKTOP_HANDOFF_SECRET, CRON_SECRET are single records targeting production+preview; SUPABASE_URL production only"
+    },
+    {
+      "target": "vercel project zevqora",
+      "check": "deployments",
+      "result": "production dpl_5GKGgvc7jwZVofhzWCBzbp9df5ih READY main@4d5de6f; latest dpl_D8yCisRHAzPUzRH26VLU2VCfUvGW preview READY (CLI, no git metadata, 2026-11-02T13:44:46Z); SSO protection all_except_custom_domains"
+    },
+    {
+      "target": "github actions",
+      "check": "runs 41295107804 (main) and 41298570513 (release)",
+      "result": "Success, 4/4 jobs each"
+    }
+  ],
+  "not_run": [
+    {
+      "command": "npm run test:staging (against a deployment or local API with staging credentials)",
+      "status": "NOT RUN",
+      "reason": "no isolated deployment exists (Vercel previews use production credentials); staging service-role key not available here; staging write approval not given"
+    },
+    {
+      "command": "any production write, migration, Auth/RLS/env change, deploy",
+      "status": "NOT RUN",
+      "reason": "forbidden by the safety rules"
+    },
+    {
+      "command": "DUREM-dependent backend tests (12)",
+      "status": "SKIPPED by the suite",
+      "reason": "tests/test_durem_eval.py: \"DUREM repository not available\" (external private repository)"
+    }
+  ],
+  "proof_loop": {
+    "label": "FIXTURE PROOF — SYNTHETIC DEMO WORKLOAD — NOT CUSTOMER DATA — NOT REAL-CUSTOMER VALIDATION",
+    "git_sha": "2e0f8789685a9bc91620eff2894d54042c771c20",
+    "artifact": "docs/handoff/artifacts/proof-loop-2026-11-04.json",
+    "artifact_sha256": "7ea053fd7024ea1ed4155c12169835a4ca73fbaff290f2f017cc5a65269a8605",
+    "invariant_sha256": "ac50f86d6516a482bf0ba3a9ffba63bb722a771d56773b42375f392800ca0343",
+    "verdicts_run_1": {
+      "calibration_rejected": 1,
+      "verified": 3,
+      "rejected": 3,
+      "incomplete": 0,
+      "frontier": 3
+    },
+    "verdicts_run_2": {
+      "calibration_rejected": 1,
+      "verified": 3,
+      "rejected": 3,
+      "incomplete": 0,
+      "frontier": 3
+    },
+    "incomplete_candidate_replay": "INCOMPLETE"
+  }
+}

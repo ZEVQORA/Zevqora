@@ -78,7 +78,7 @@ export function evaluatePlan({ execution, enginePlan, traces, contract, projectR
     const protectedServed = rows.filter((c) => c.protected).length;
     const b = mean(rows.map((c) => c.baseline_score).filter((v) => v !== null));
     const c = mean(rows.map((c2) => c2.candidate_score).filter((v) => v !== null));
-    const regressions = rows.filter((x) => passed(x.baseline_grader) && !passed(x.candidate_grader)).length;
+    const regressions = rows.filter((x) => passed(x.baseline_grader) && !passed(x.candidate_grader) && !x.candidate_grader?.some((r) => r.unknown)).length;
     if (protectedServed) gate(name, true, 'failed', { served: rows.length, protected_served: protectedServed }, 0, `${tx.label} answered ${protectedServed} protected case(s); protected cases must keep the baseline path.`);
     else if (b === null || c === null) gate(name, true, 'missing', { served: rows.length, baseline_quality: b, candidate_quality: c }, req.quality_tolerance, `Quality unknown on the ${rows.length} case(s) ${tx.label} served.`);
     else gate(name, true, c >= b - req.quality_tolerance ? 'passed' : 'failed', { served: rows.length, baseline_quality: b, candidate_quality: c, regressions }, b - req.quality_tolerance, `On the ${rows.length} case(s) ${tx.label} served: quality ${c.toFixed(3)} vs baseline ${b.toFixed(3)} (tolerance ${req.quality_tolerance}); ${regressions} regression(s).`);

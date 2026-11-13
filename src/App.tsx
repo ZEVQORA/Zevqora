@@ -56,6 +56,37 @@ function WebsiteAnalytics() {
   return null;
 }
 
+/** True when this browser holds a persisted Supabase session (any project-scoped zevqora.auth key). */
+export function hasStoredSession(storage: Pick<Storage, 'length' | 'key' | 'getItem'> | null = typeof localStorage === 'undefined' ? null : localStorage): boolean {
+  if (!storage) return false;
+  try {
+    for (let i = 0; i < storage.length; i += 1) {
+      const key = storage.key(i);
+      if (key && key.startsWith('zevqora.auth') && (storage.getItem(key) || '').includes('access_token')) return true;
+    }
+  } catch {
+    /* storage blocked: treat as signed out */
+  }
+  return false;
+}
+
+/**
+ * "/" for a returning signed-in user opens the workspace, not the marketing
+ * page. Anonymous visitors get the homepage at once; a browser holding a stored
+ * session waits for the session check instead of flashing signed-out marketing.
+ * "/?site=1" (or navigation state { site: true }) deliberately shows the site.
+ */
+export function HomeRoute() {
+  const { status } = useSession();
+  const location = useLocation();
+  const wantsSite = new URLSearchParams(location.search).get('site') === '1' || (location.state as { site?: boolean } | null)?.site === true;
+  if (!wantsSite) {
+    if (status === 'signed_in') return <Navigate to="/app" replace />;
+    if (status === 'loading' && hasStoredSession()) return <FullPageLoader label="Opening your workspace" />;
+  }
+  return <HomePage />;
+}
+
 export function RequireAuth({ children }: { children: React.ReactElement }) {
   const { status, me, meError, meErrorCode } = useSession();
   const location = useLocation();
@@ -76,7 +107,7 @@ export function App() {
       <Suspense fallback={<FullPageLoader />}>
         <Routes>
           <Route element={<MarketingLayout />}>
-            <Route index element={<HomePage />} />
+            <Route index element={<HomeRoute />} />
             <Route path="product" element={<ProductPage />} />
             <Route path="how-it-works" element={<HowItWorksPage />} />
             <Route path="technology" element={<Navigate to="/how-it-works" replace />} />

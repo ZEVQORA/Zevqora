@@ -1,0 +1,8 @@
+
+> zevqora@2.0.0 test:staging
+> node scripts/staging/guard.mjs && vitest run --config vitest.staging.config.ts
+
+STAGING_GUARD REFUSED — missing: STAGING_SUPABASE_URL, STAGING_SUPABASE_ANON_KEY, STAGING_SUPABASE_SERVICE_ROLE_KEY, STAGING_APP_URL, STAGING_CONFIRM
+
+--- stderr ---
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.

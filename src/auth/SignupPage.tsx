@@ -83,6 +83,12 @@ export default function SignupPage() {
           emailRedirectTo: `${location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
         },
       });
+      // SEC-03: an existing address gets the same "check your email" screen as a new one.
+      // (With confirmations off GoTrue says "User already registered"; never echo that.)
+      if (err && /already (been )?registered|user_already_exists|email_exists/i.test(`${err.message} ${(err as { code?: string }).code ?? ''}`)) {
+        setDone(email);
+        return;
+      }
       if (err) throw err;
       if (!data.session) setDone(email);
     } catch (err) {

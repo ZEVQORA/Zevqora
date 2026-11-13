@@ -1,0 +1,7 @@
+
+> zevqora-desktop@1.1.0 typecheck
+> tsc -b --pretty false
+
+
+--- stderr ---
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.

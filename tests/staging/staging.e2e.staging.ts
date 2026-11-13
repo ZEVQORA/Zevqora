@@ -11,17 +11,48 @@
  *
  *   npm run test:staging
  *
- * Every identity and row it creates is tagged with a run id and deleted in afterAll.
+ * Every identity and row it creates is tagged with a run id and deleted in afterAll;
+ * cleanup is verified (deletion statuses and no remaining rows) and fails the run
+ * when anything is left behind.
+ *
+ * Shared staging state (see scripts/staging/shared-state.mjs): the CMS test publishes to the
+ * global `hero` and the product tests add the test workspace to three flags'
+ * overrides. Each restore is registered BEFORE its mutation, checks statuses,
+ * re-reads what it restored, and runs even when an assertion failed midway;
+ * teardown of users/workspaces runs even if a restore fails. Flag targeting is
+ * exercised on a disposable flag row, never on a real flag. Append-only history
+ * (CMS revisions, admin audit log, security/product events) is not removable.
+ * Each mutation is journaled first (.staging-journal/<run>.json); if the run is
+ * aborted before afterAll, recover with scripts/staging/recover-shared-state.mjs.
  * Negative tests assert the server's actual refusal (status codes and PostgREST
  * errors), never a hidden UI element.
+ *
+ * Fails closed: without a passing guard the suite FAILS (it is never silently
+ * skipped), and before any write the deployed app must report, through
+ * /api/health and /api/public-config, that it is a preview using the staging
+ * project.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { checkStaging } from '../../scripts/staging/guard.mjs';
+import { appHeaders, checkStaging, preflightDeployment } from '../../scripts/staging/guard.mjs';
+import { addWorkspaceOverride, CleanupRegistry, createDisposableFlag, deleteDisposableFlag, Journal, removeWorkspaceOverrides, restoreHero, snapshotHero } from '../../scripts/staging/shared-state.mjs';
 
 const guard = checkStaging();
 const enabled = guard.ok;
-if (!enabled) console.warn(`[staging] skipped: ${(guard as { reason: string }).reason}`);
-const env = (guard as { env: { supabaseUrl: string; appUrl: string; anonKey: string; serviceKey: string } }).env;
+const env = (guard as { env: { supabaseUrl: string; supabaseRef: string; appUrl: string; mode: 'local' | 'preview'; anonKey: string; serviceKey: string; bypass: string | null } }).env;
+
+describe('staging: guard', () => {
+  it('is configured for the isolated staging project (otherwise this run fails, it is not skipped)', () => {
+    if (!enabled) throw new Error(`STAGING_GUARD REFUSED — ${(guard as { reason: string }).reason}`);
+  });
+});
+
+beforeAll(async () => {
+  if (!enabled) return;
+  const p = await preflightDeployment(env);
+  if (!p.ok) throw new Error(`STAGING_GUARD REFUSED (deployment preflight) — ${(p as { reason: string }).reason}`);
+}, 60_000);
 
 const RUN = `zqstg${Date.now().toString(36)}`;
 const DOMAIN = process.env.STAGING_EMAIL_DOMAIN || 'example.com';
@@ -44,7 +75,7 @@ const svc = () => ({ apikey: env.serviceKey, authorization: `Bearer ${env.servic
 const anonH = () => ({ apikey: env.anonKey, authorization: `Bearer ${env.anonKey}` });
 const userH = (t: string) => ({ apikey: env.anonKey, authorization: `Bearer ${t}` });
 const rest = (path: string, headers: Record<string, string>, init: { method?: string; body?: unknown; prefer?: string } = {}) => http(`${env.supabaseUrl}/rest/v1/${path}`, { method: init.method, headers: { ...headers, ...(init.prefer ? { prefer: init.prefer } : {}) }, body: init.body });
-const app = (path: string, token?: string, init: { method?: string; body?: unknown } = {}) => http(`${env.appUrl}${path}`, { method: init.method, headers: token ? { authorization: `Bearer ${token}` } : {}, body: init.body });
+const app = (path: string, token?: string, init: { method?: string; body?: unknown } = {}) => http(`${env.appUrl}${path}`, { method: init.method, headers: { ...appHeaders(env), ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: init.body });
 
 const created: string[] = [];
 async function makeUser(label: string): Promise<Who> {
@@ -52,25 +83,78 @@ async function makeUser(label: string): Promise<Who> {
   const c = await http(`${env.supabaseUrl}/auth/v1/admin/users`, { method: 'POST', headers: svc(), body: { email, password: PASSWORD, email_confirm: true } });
   expect(c.status, c.text).toBeLessThan(300);
   created.push(c.body!.id);
+  journal.update({}); // an aborted run is recoverable from the first user on (users are found by run id)
   const t = await http(`${env.supabaseUrl}/auth/v1/token?grant_type=password`, { method: 'POST', headers: { apikey: env.anonKey }, body: { email, password: PASSWORD } });
   expect(t.status, t.text).toBe(200);
   return { id: c.body!.id, email, token: t.body!.access_token };
 }
 
 const ids: J = {};
-const original: J = {};
+const OPTIMIZE_FLAGS = ['verified_optimization_vnext', 'optimization_intelligence_vnext', 'zevir_shadow'];
+const DISPOSABLE_FLAG = `${RUN}_flag`;
+
+const io = {
+  svc: (method: string, path: string, body?: unknown) => rest(path, svc(), { method, body }),
+  admin: (method: string, path: string, body?: unknown) => (ids.admin?.token ? app(path, ids.admin.token, { method, body }) : null),
+};
+const cleanup = new CleanupRegistry();
+const journal = new Journal(join(process.cwd(), '.staging-journal'), RUN);
+
+// Teardown (after every restore, in this order). Registered up front so it always runs.
+cleanup.teardown('evaluation request', async () => {
+  if (!ids.lead) return;
+  const r = await rest(`evaluation_requests?id=eq.${ids.lead}`, svc(), { method: 'DELETE' });
+  if (r.status >= 300) throw new Error(`delete HTTP ${r.status}`);
+  if (((await rest(`evaluation_requests?id=eq.${ids.lead}&select=id`, svc())).body as J[] | null)?.length) throw new Error('still present');
+});
+cleanup.teardown('admin role', async () => {
+  if (!ids.admin) return;
+  const r = await rest(`admin_roles?user_id=eq.${ids.admin.id}`, svc(), { method: 'DELETE' });
+  if (r.status >= 300) throw new Error(`delete HTTP ${r.status}`);
+  if (((await rest(`admin_roles?user_id=eq.${ids.admin.id}&select=user_id`, svc())).body as J[] | null)?.length) throw new Error('still present');
+});
+// Workspaces and everything under them cascade from their owners (020 lets an
+// owner with frozen contracts and decisions be deleted). Verify, don't assume.
+cleanup.teardown('test users', async () => {
+  const problems: string[] = [];
+  for (const id of created) {
+    const del = await http(`${env.supabaseUrl}/auth/v1/admin/users/${id}`, { method: 'DELETE', headers: svc() });
+    if (del.status >= 300) problems.push(`user ${id}: delete returned ${del.status} ${del.text.slice(0, 200)}`);
+    const gone = await http(`${env.supabaseUrl}/auth/v1/admin/users/${id}`, { headers: svc() });
+    if (gone.status !== 404) problems.push(`user ${id}: still present (GET ${gone.status})`);
+  }
+  if (problems.length) throw new Error(problems.join(' | '));
+});
+cleanup.teardown('leftover rows', async () => {
+  const problems: string[] = [];
+  const wsIds = [ids.wsA, ids.wsB].filter(Boolean);
+  if (wsIds.length) {
+    const left = await rest(`workspaces?id=in.(${wsIds.join(',')})&select=id`, svc());
+    if ((left.body as J[] | null)?.length) problems.push(`workspaces left behind: ${JSON.stringify(left.body)}`);
+  }
+  const leftProducts = await rest(`engine_products?root_path=like.${RUN}*&select=id`, svc());
+  if ((leftProducts.body as J[] | null)?.length) problems.push(`engine_products left behind: ${(leftProducts.body as J[]).length}`);
+  for (const key of OPTIMIZE_FLAGS) {
+    const f = await rest(`feature_flags?key=eq.${key}&select=workspace_overrides`, svc());
+    const o = (f.body as J[] | null)?.[0]?.workspace_overrides || {};
+    if (wsIds.some((w) => w in o)) problems.push(`${key} still has a test workspace override`);
+  }
+  if (problems.length) throw new Error(problems.join(' | '));
+});
 
 describe.skipIf(!enabled)('staging: identity, session and isolation', () => {
   let owner: Who;
   let outsider: Who;
   let viewer: Who;
+  let editor: Who;
   let adminUser: Who;
 
   beforeAll(async () => {
-    [owner, outsider, viewer, adminUser] = await Promise.all(['owner', 'outsider', 'viewer', 'admin'].map(makeUser));
+    [owner, outsider, viewer, editor, adminUser] = await Promise.all(['owner', 'outsider', 'viewer', 'editor', 'admin'].map(makeUser));
     ids.owner = owner;
     ids.outsider = outsider;
     ids.viewer = viewer;
+    ids.editor = editor;
     ids.admin = adminUser;
   }, 120_000);
 
@@ -111,6 +195,39 @@ describe.skipIf(!enabled)('staging: identity, session and isolation', () => {
     expect(write.status).toBe(403);
   });
 
+  it('an editor (member) can write but is refused admin-only actions, enforced by the server', async () => {
+    const add = await rest('workspace_members', svc(), { method: 'POST', body: { workspace_id: ids.wsA, user_id: editor.id, role: 'member' } });
+    expect(add.status, add.text).toBeLessThan(300);
+    const prod = await app('/api/engine/products', editor.token, { method: 'POST', body: { workspace_id: ids.wsA, root_path: `${RUN}://editor`, name: `${RUN} editor (synthetic)` } });
+    expect(prod.status, prod.text).toBe(200);
+    const contract = await app(`/api/optimize/products/${prod.body!.id}/contracts`, editor.token, { method: 'POST', body: {} });
+    expect(contract.status, contract.text).toBe(403);
+    expect(contract.body!.code).toBe('FORBIDDEN');
+    expect((await app(`/api/workspaces/${ids.wsA}`, editor.token, { method: 'PATCH', body: { name: `${RUN} renamed by editor` } })).status).toBe(403);
+  });
+
+  it('cross-tenant writes are refused through the API (404) and through PostgREST/RLS, and nothing changes', async () => {
+    const before = await rest(`workspaces?id=eq.${ids.wsA}&select=name`, svc());
+    expect((await app('/api/engine/products', outsider.token, { method: 'POST', body: { workspace_id: ids.wsA, root_path: `${RUN}://outsider` } })).status).toBe(404);
+    expect((await app(`/api/workspaces/${ids.wsA}`, outsider.token, { method: 'PATCH', body: { name: `${RUN} hijacked` } })).status).toBe(404);
+    const join = await rest('workspace_members', userH(outsider.token), { method: 'POST', body: { workspace_id: ids.wsA, user_id: outsider.id, role: 'owner' } });
+    expect(join.status, join.text).toBeGreaterThanOrEqual(400);
+    // Whatever status PostgREST returns (no UPDATE grant, or RLS filtering every row), the row must not change.
+    await rest(`workspaces?id=eq.${ids.wsA}`, userH(outsider.token), { method: 'PATCH', body: { name: `${RUN} hijacked` } });
+    const after = await rest(`workspaces?id=eq.${ids.wsA}&select=name`, svc());
+    expect(after.body).toEqual(before.body);
+    const members = await rest(`workspace_members?workspace_id=eq.${ids.wsA}&user_id=eq.${outsider.id}&select=role`, svc());
+    expect(members.body).toEqual([]);
+  });
+
+  it('invalid input is rejected with 400 before any work is done', async () => {
+    expect((await app('/api/workspaces', owner.token, { method: 'POST', body: { name: '' } })).status).toBe(400);
+    expect((await app('/api/workspaces', owner.token, { method: 'POST', body: { name: 'x'.repeat(81) } })).status).toBe(400);
+    const badId = await app('/api/engine/products', owner.token, { method: 'POST', body: { workspace_id: 'not-a-uuid', root_path: 'x' } });
+    expect(badId.status).toBe(400);
+    expect(badId.body!.code).toBe('VALIDATION');
+  });
+
   it('presentation views grant nothing: a non-admin is refused on every admin route (404) and it is logged', async () => {
     for (const p of ['/api/admin/command-center', '/api/admin/security?range=7d', '/api/admin/evaluation-requests', '/api/admin/cms', '/api/admin/feature-flags']) {
       expect((await app(p, owner.token)).status, p).toBe(404);
@@ -143,11 +260,13 @@ describe.skipIf(!enabled)('staging: identity, session and isolation', () => {
   });
 
   it('the deployed bundle contains no service-role credential', async () => {
-    const html = (await http(`${env.appUrl}/`)).text;
+    // A loopback API (scripts/dev-api.mjs) serves no site: check the local production build instead.
+    const read = async (p: string) => (env.mode === 'local' ? readFileSync(join('dist', p === '/' ? 'index.html' : p), 'utf8') : (await http(`${env.appUrl}${p}`, { headers: appHeaders(env) })).text);
+    const html = await read('/');
     const assets = [...html.matchAll(/src="(\/assets\/[^"]+\.js)"/g)].map((m) => m[1]);
     expect(assets.length).toBeGreaterThan(0);
     for (const a of assets) {
-      const js = (await http(`${env.appUrl}${a}`)).text;
+      const js = await read(a);
       expect(js.includes(env.serviceKey), a).toBe(false);
       expect(/SUPABASE_SERVICE_ROLE_KEY|service_role"\s*:/.test(js), a).toBe(false);
     }
@@ -158,10 +277,6 @@ describe.skipIf(!enabled)('staging: admin control plane with real permissions', 
   beforeAll(async () => {
     const g = await rest('admin_roles', svc(), { method: 'POST', body: { user_id: ids.admin.id, role: 'admin' } });
     expect(g.status, g.text).toBeLessThan(300);
-    const hero = await rest('site_content?key=eq.hero&select=value', svc());
-    original.hero = (hero.body as J[])[0]?.value;
-    const flag = await rest('feature_flags?key=eq.zevir_graph_ui&select=*', svc());
-    original.flag = (flag.body as J[])[0];
   }, 60_000);
 
   it('an admin reads the command center and security events, and the read is audited', async () => {
@@ -181,6 +296,12 @@ describe.skipIf(!enabled)('staging: admin control plane with real permissions', 
   });
 
   it('CMS: draft is not public, publish is, restore brings back the previous copy; all audited', async () => {
+    // Shared, public content: snapshot it and register the restore before touching it.
+    const snap = await snapshotHero(io);
+    if (snap.openDraftId) throw new Error('A hero draft already exists on staging (someone else is editing); refusing to touch shared CMS content.');
+    journal.update({ hero: snap });
+    cleanup.restore('CMS hero', () => restoreHero(io, snap));
+    const original = { hero: snap.value };
     const draft = await app('/api/admin/cms/hero/draft', ids.admin.token, { method: 'PUT', body: { value: { ...original.hero, headline: `${RUN} headline` } } });
     expect(draft.status, draft.text).toBe(200);
     const live1 = await rest('site_content?key=eq.hero&select=value', anonH());
@@ -199,23 +320,30 @@ describe.skipIf(!enabled)('staging: admin control plane with real permissions', 
     expect((audit.body as J[]).map((a) => a.action)).toEqual(expect.arrayContaining(['cms.draft_save', 'cms.publish', 'cms.rollback']));
   });
 
-  it('flags: selected targeting + an override reaches one workspace only; a non-admin cannot change it', async () => {
-    expect((await app('/api/admin/feature-flags/zevir_graph_ui', ids.owner.token, { method: 'PUT', body: { targeting: 'on' } })).status).toBe(404);
-    expect((await app('/api/admin/feature-flags/zevir_graph_ui', ids.admin.token, { method: 'PUT', body: { targeting: 'selected' } })).status).toBe(200);
-    expect((await app('/api/admin/feature-flags/zevir_graph_ui', ids.admin.token, { method: 'PUT', body: { workspace_overrides: { ...(original.flag?.workspace_overrides || {}), [ids.wsA]: true } } })).status).toBe(200);
-    const meA = await app('/api/me', ids.owner.token);
-    const meB = await app('/api/me', ids.outsider.token);
-    expect((meA.body!.workspaces as J[]).find((w) => w.id === ids.wsA).features.zevir_graph_ui).toBe(true);
-    expect((meB.body!.workspaces as J[]).find((w) => w.id === ids.wsB).features.zevir_graph_ui).toBe(false);
+  it('flags (disposable flag, no real flag touched): selected targeting + an override reaches one workspace only; a non-admin cannot change it', async () => {
+    journal.update((j: { disposable_flags: string[] }) => ({ disposable_flags: [...j.disposable_flags, DISPOSABLE_FLAG] }));
+    cleanup.restore('disposable flag', () => deleteDisposableFlag(io, DISPOSABLE_FLAG));
+    await createDisposableFlag(io, DISPOSABLE_FLAG);
+    const path = `/api/admin/feature-flags/${DISPOSABLE_FLAG}`;
+    expect((await app(path, ids.owner.token, { method: 'PUT', body: { targeting: 'on' } })).status).toBe(404);
+    expect((await app(path, ids.admin.token, { method: 'PUT', body: { targeting: 'selected' } })).status).toBe(200);
+    expect((await app(path, ids.admin.token, { method: 'PUT', body: { workspace_overrides: { [ids.wsA]: true } } })).status).toBe(200);
+    const row = ((await rest(`feature_flags?key=eq.${DISPOSABLE_FLAG}&select=targeting,workspace_overrides`, svc())).body as J[])[0];
+    expect(row).toEqual({ targeting: 'selected', workspace_overrides: { [ids.wsA]: true } });
+    // The server's own resolution across every staging workspace: exactly one (wsA) is on.
+    const reach = await app('/api/admin/flags/reach', ids.admin.token);
+    expect(reach.status, reach.text).toBe(200);
+    expect(reach.body!.reach[DISPOSABLE_FLAG].workspaces_on).toBe(1);
   });
 });
 
 describe.skipIf(!enabled)('staging: authenticated product workflow', () => {
   beforeAll(async () => {
-    for (const key of ['verified_optimization_vnext', 'optimization_intelligence_vnext', 'zevir_shadow']) {
-      const f = await rest(`feature_flags?key=eq.${key}&select=workspace_overrides`, svc());
-      original[key] = (f.body as J[])[0]?.workspace_overrides || {};
-      await rest(`feature_flags?key=eq.${key}`, svc(), { method: 'PATCH', body: { workspace_overrides: { ...original[key], [ids.wsA]: true } } });
+    // Only the test workspace's own override key is added (and later removed); other keys are never rewritten.
+    for (const key of OPTIMIZE_FLAGS) {
+      journal.update((j: { flag_overrides: string[] }) => ({ workspaces: [ids.wsA, ids.wsB].filter(Boolean), flag_overrides: [...new Set([...j.flag_overrides, key])] }));
+      cleanup.restore(`flag override ${key}`, () => removeWorkspaceOverrides(io, key, [ids.wsA, ids.wsB].filter(Boolean)));
+      await addWorkspaceOverride(io, key, ids.wsA);
     }
   }, 60_000);
 
@@ -229,6 +357,11 @@ describe.skipIf(!enabled)('staging: authenticated product workflow', () => {
     expect((await app(`/api/engine/products/${prod.body!.id}/traces/import`, t, { method: 'POST', body: { traces } })).body!.imported).toBe(6);
     const draft = await app(`/api/optimize/products/${prod.body!.id}/contracts`, t, { method: 'POST', body: {} });
     const frozen = await app(`/api/optimize/products/${prod.body!.id}/contracts/${draft.body!.id}/freeze`, t, { method: 'POST', body: {} });
+    expect(frozen.status, frozen.text).toBe(200);
+    // A frozen contract is immutable in the database itself, even for the service role.
+    const tamper = await rest(`evaluation_contracts?id=eq.${frozen.body!.id}`, svc(), { method: 'PATCH', body: { requirements: { quality_floor: 0 } } });
+    expect(tamper.status, tamper.text).toBeGreaterThanOrEqual(400);
+    expect(tamper.text).toMatch(/CONTRACT_IMMUTABLE/);
     const run = await app(`/api/optimize/products/${prod.body!.id}/runs`, t, { method: 'POST', body: { contract_id: frozen.body!.id } });
     const base = await app(`/api/optimize/runs/${run.body!.id}/baseline`, t, { method: 'POST', body: {} });
     expect(base.body!.snapshot.completeness).toBe('incomplete');
@@ -271,10 +404,9 @@ describe.skipIf(!enabled)('staging: authenticated product workflow', () => {
 
 afterAll(async () => {
   if (!enabled) return;
-  if (original.flag) await rest('feature_flags?key=eq.zevir_graph_ui', svc(), { method: 'PATCH', body: { targeting: original.flag.targeting ?? null, rollout_percent: original.flag.rollout_percent ?? null, enabled: original.flag.enabled, workspace_overrides: original.flag.workspace_overrides } });
-  for (const key of ['verified_optimization_vnext', 'optimization_intelligence_vnext', 'zevir_shadow']) if (original[key]) await rest(`feature_flags?key=eq.${key}`, svc(), { method: 'PATCH', body: { workspace_overrides: original[key] } });
-  if (ids.lead) await rest(`evaluation_requests?id=eq.${ids.lead}`, svc(), { method: 'DELETE' });
-  if (ids.admin) await rest(`admin_roles?user_id=eq.${ids.admin.id}`, svc(), { method: 'DELETE' });
-  // Workspaces and everything under them cascade from their owners.
-  for (const id of created) await http(`${env.supabaseUrl}/auth/v1/admin/users/${id}`, { method: 'DELETE', headers: svc() });
-}, 120_000);
+  const problems = await cleanup.runAll();
+  for (const line of cleanup.log) console.log(`[staging] cleanup ${line}`);
+  console.log(`[staging] cleanup: ${created.length} users, ${problems.length} problem(s)`);
+  if (problems.length) throw new Error(`STAGING CLEANUP INCOMPLETE — ${problems.join(' | ')} — journal kept: ${journal.file} (scripts/staging/recover-shared-state.mjs)`);
+  journal.clear();
+}, 180_000);

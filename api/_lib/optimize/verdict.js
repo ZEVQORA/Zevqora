@@ -21,7 +21,7 @@ const casePassed = (results) => Array.isArray(results) && results.length > 0 && 
 
 /** Side metrics from the graded cases of one evaluation. */
 function sideMetrics(cases, side) {
-  const graded = cases.filter((c) => Array.isArray(c[`${side}_grader`]) && c[`${side}_grader`].length);
+  const graded = cases.filter((c) => Array.isArray(c[`${side}_grader`]) && c[`${side}_grader`].length && !c[`${side}_grader`].some((r) => r.unknown));
   const passed = graded.filter((c) => casePassed(c[`${side}_grader`]));
   const costs = cases.map((c) => c[`${side}_cost_usd`]);
   const priced = costs.filter(known).map(Number);

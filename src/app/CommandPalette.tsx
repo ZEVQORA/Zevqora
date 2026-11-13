@@ -35,7 +35,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       list.push({ id: 'admin:pricing', label: 'Admin: Pricing', group: 'Admin', run: () => navigate('/admin/pricing') });
       list.push({ id: 'admin:audit', label: 'Admin: Audit log', group: 'Admin', run: () => navigate('/admin/audit') });
     }
-    list.push({ id: 'act:signout', label: 'Sign out', group: 'Account', run: () => void signOut().then(() => navigate('/')) });
+    list.push({ id: 'act:signout', label: 'Sign out', group: 'Account', run: () => void signOut().then(() => navigate('/', { state: { site: true } })) });
     return list;
   }, [navigate, me, activeWorkspace, setActiveWorkspaceId, signOut]);
 

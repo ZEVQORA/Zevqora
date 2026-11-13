@@ -1,0 +1,190 @@
+
+> zevqora@2.0.0 test
+> vitest run
+
+
+ RUN  v3.2.7 C:/Users/<user>/OneDrive/ドキュメント/Zevqora_prot/Zevqora
+
+ ✓ tests/unlabelled-evidence-verdict.test.ts (3 tests) 17041ms
+   ✓ candidate replay on an unlabelled workload > is INCOMPLETE with quality and task success unknown — not REJECTED, not VERIFIED  1491ms
+ ✓ tests/zevir-routes.test.ts (18 tests) 17325ms
+ ✓ tests/optimize-acceptance.test.ts (13 tests) 18487ms
+   ✓ Verified Optimization Run — demo workload > 2. freezes an Evaluation Contract (draft → frozen; new version supersedes)  327ms
+   ✓ Verified Optimization Run — demo workload > 3–6. builds the Verified Performance baseline (cost, CPSO, p95, reliability)  780ms
+   ✓ Verified Optimization Run — demo workload > 9–10. replays supported candidates and decides under the frozen contract  560ms
+ ✓ tests/experience-api.test.ts (26 tests) 23175ms
+   ✓ product events > the optimization flow records each step once, even when a step is retried  1354ms
+   ✓ admin control plane > flag targeting: deterministic limited rollout, internal = admin-owned workspaces, global flags only on/off — all audited  365ms
+ ✓ tests/plan-search-compute.test.ts (3 tests) 27880ms
+   ✓ with platform compute > model-substitution plans become executable and compose with caches and lookups  851ms
+   ✓ with platform compute > 61. a provider-spend budget stops paid work before it is spent, and says so; free plans continue  8668ms
+   ✓ with platform compute > 38 (route). a cache in front of the substituted model serves the model’s answers; 76. billing goes through the platform path  1166ms
+ ✓ tests/zevir-db.test.ts (28 tests) 24653ms
+   ✓ migration 016 > passes the documented production dry run and leaves nothing behind  6203ms
+   ✓ migration 016 > grants browser roles nothing beyond SELECT even under Supabase-style permissive default privileges  6792ms
+ ✓ tests/optimize-db.test.ts (15 tests) 31066ms
+   ✓ privileges > 39. hostile Supabase default grants stay revoked  4869ms
+   ✓ rollback > removes everything 017 added and leaves 016 and existing engine rows intact  7865ms
+   ✓ rollback > passes the production dry-run wrapper and leaves nothing behind  5855ms
+ ✓ tests/retention-and-boundaries.test.ts (3 tests) 10273ms
+ ✓ tests/engine-routes.test.ts (7 tests) 1277ms
+ ✓ tests/env-isolation.test.ts (11 tests) 714ms
+   ✓ the API fails closed in a preview pointed at production > refuses every database-backed route with 503 and reports the violation on /api/health  693ms
+ ✓ tests/plan-search-db.test.ts (20 tests) 32186ms
+   ✓ privileges > 68. hostile Supabase default grants stay revoked  5132ms
+   ✓ rollback and dry run > 018 rolls back cleanly (then 017 can roll back), keeps engine rows, and re-applies  8455ms
+   ✓ rollback and dry run > passes the production dry-run wrapper and leaves nothing behind  6135ms
+ ✓ tests/row-cap.test.ts (2 tests) 13418ms
+   ✓ reads behind a 1000-row API cap > the Verified Performance evidence window reads all 1200 traces and is not marked truncated  2456ms
+ ✓ tests/optimize-core.test.ts (37 tests) 361ms
+ ✓ tests/security-definer-helpers.test.ts (6 tests) 7831ms
+ ✓ tests/product-engine.test.ts (16 tests) 85ms
+ ✓ tests/zevir-adapters.test.ts (21 tests) 88ms
+ ✓ tests/plan-intelligence-core.test.ts (56 tests) 492ms
+ ✓ tests/connection-membership-security.test.ts (10 tests) 14719ms
+ ✓ tests/graph-model.test.ts (13 tests) 88ms
+ ✓ tests/trial.test.ts (4 tests) 30ms
+ ✓ tests/evidence-explain.test.ts (5 tests) 34ms
+ ✓ tests/staging-guard.test.ts (16 tests) 32ms
+ ✓ tests/zevir-contract.test.ts (36 tests) 54ms
+ ✓ tests/router.test.ts (2 tests) 25ms
+ ✓ tests/paging.test.ts (5 tests) 15ms
+ ✓ tests/analysis.test.ts (5 tests) 25ms
+ ✓ tests/client-boundary.test.ts (4 tests) 15ms
+ ✓ tests/http.test.ts (3 tests) 19ms
+ ✓ tests/graders.test.ts (7 tests) 16ms
+ ✓ tests/sanitize.test.ts (4 tests) 12ms
+ ✓ tests/platform.test.ts (6 tests) 15ms
+ ✓ tests/tokens.test.ts (3 tests) 14ms
+ ✓ tests/bundle-scan.test.ts (4 tests) 11ms
+ ✓ tests/pricing.test.ts (3 tests) 14ms
+ ✓ tests/unified-frontend.test.ts (5 tests) 11ms
+ ✓ tests/plan-search-acceptance.test.ts (18 tests) 41711ms
+   ✓ Optimization Intelligence — synthetic demo > loads the labelled demo, freezes the contract, builds the baseline and diagnoses (incl. agent + retrieval)  1285ms
+   ✓ Optimization Intelligence — synthetic demo > 69. starts a plan search; a repeated start returns the same search and never duplicates plans  610ms
+   ✓ Optimization Intelligence — synthetic demo > calibrates within budget; 70. a repeated calibration request is idempotent  6392ms
+   ✓ Optimization Intelligence — synthetic demo > 37/40. full replay under the SAME frozen contract; hard-gate failures are REJECTED; 71. a refresh never duplicates a replay  1951ms
+   ✓ Optimization Intelligence — synthetic demo > applies decision policies from the frontier and explains the choice  757ms
+   ✓ Optimization Intelligence — synthetic demo > 53/57. Bad-Day Replay keeps a separate verdict and never claims production  340ms
+   ✓ budgets > 59/62. the calibration budget is enforced and exhaustion is explicit  1767ms
+   ✓ budgets > 60. the full-replay budget is enforced  5931ms
+   ✓ budgets > 61. a replay-sample budget stops work cleanly with what was and was not evaluated  4620ms
+   ✓ cancellation > 72. a cancelled search stays cancelled and refuses further stages  599ms
+ ✓ tests/experience-db.test.ts (16 tests) 42223ms
+   ✓ privileges > hostile Supabase default grants stay revoked on every 019 table and function  5073ms
+   ✓ homepage copy (guarded like 013) > replaces 013 copy with the Part 3 copy as version 2, and rollback puts 013 copy back  8225ms
+   ✓ homepage copy (guarded like 013) > leaves a hero edited from /admin alone  6579ms
+   ✓ rollback > removes 019 completely, leaves published content alone, and can be re-applied  5300ms
+   ✓ rollback > passes the production dry-run wrapper and leaves nothing behind  4664ms
+ ✓ tests/oauth-providers.test.tsx (4 tests) 3771ms
+   ✓ enabled OAuth providers > reads the public Auth settings with the publishable key and keeps only enabled providers  314ms
+   ✓ enabled OAuth providers > renders no buttons and no divider when only email is enabled  3394ms
+ ✓ tests/experience-ui.test.tsx (12 tests) 2381ms
+   ✓ Command Center > CEO view keeps evaluated, projected and realized apart; realized is NOT YET MEASURED  626ms
+   ✓ Command Center > switching views changes emphasis but not the data request or permissions  556ms
+ ✓ tests/unified-integration.test.tsx (28 tests) 6203ms
+   ✓ IntegrationCatalog > upgrades a card only from server evidence and stays accessible  1780ms
+   ✓ EnterpriseView > shows the verified role, denies admin actions to a viewer and sends nothing  741ms
+   ✓ routing and public claims > reference prices never reach checkout  2940ms
+ ✓ tests/optimize-view.test.tsx (6 tests) 2220ms
+   ✓ Optimization Run view > shows unknown cost as unknown and an unavailable CPSO with its reason — never $0  669ms
+   ✓ Optimization Run view > offers replay only for executable candidates, all labelled NOT VERIFIED  619ms
+   ✓ Optimization Run view > shows the verdict with NOT YET MEASURED production results  446ms
+ ✓ tests/product-views.test.tsx (17 tests) 3067ms
+   ✓ Evidence view > INCOMPLETE lists the exact evidence still required  413ms
+   ✓ Savings view > counts only the verified line and keeps projected and realized separate  332ms
+ ✓ tests/website-admin-ui.test.tsx (9 tests) 4736ms
+   ✓ website > homepage leads with the design headline and the internal REJECTED example, labelled as internal  1863ms
+   ✓ website > the security page says imported trace files keep prompt content, instead of claiming nothing is stored  302ms
+   ✓ website > the evaluation form validates locally, then submits once and confirms  691ms
+   ✓ website > a server failure is announced and the form stays filled for retry  328ms
+   ✓ admin > CMS: edits become a saved draft; publishing needs a confirmation and calls the publish contract  784ms
+ ✓ tests/onboarding.test.tsx (3 tests) 1993ms
+   ✓ onboarding > reaches first evidence and shows the first supported opportunity  1163ms
+   ✓ onboarding > says so explicitly when no supported opportunity is found  395ms
+   ✓ onboarding > surfaces an import that brought in nothing instead of continuing  431ms
+ ✓ tests/zevir-panel.test.tsx (4 tests) 416ms
+ ✓ tests/a11y.test.tsx (7 tests) 6911ms
+   ✓ axe (WCAG 2.2 A/AA, contrast excluded) > home page  3435ms
+   ✓ axe (WCAG 2.2 A/AA, contrast excluded) > evaluation page with its form, including the error state  654ms
+   ✓ axe (WCAG 2.2 A/AA, contrast excluded) > product and how-it-works pages  1084ms
+   ✓ axe (WCAG 2.2 A/AA, contrast excluded) > security and company pages  457ms
+   ✓ axe (WCAG 2.2 A/AA, contrast excluded) > Command Center (empty and populated states) and the CMS editor  509ms
+   ✓ axe (WCAG 2.2 A/AA, contrast excluded) > confirmation dialog: focus moves in, Tab is trapped, Escape closes, focus returns to the trigger  553ms
+ ✓ tests/user-deletion-db.test.ts (7 tests) 52230ms
+   ✓ 020: deleting a user who left optimization evidence > fails on the 017/018 guards (the staging defect)  12972ms
+   ✓ 020: deleting a user who left optimization evidence > a member is deleted; the evidence stays, unchanged except the cleared references  5244ms
+   ✓ 020: deleting a user who left optimization evidence > the owner is deleted after someone else froze, ran, cancelled and decided; the workspace and everything under it go  7484ms
+   ✓ 020: deleting a user who left optimization evidence > the owner is deleted after the owner themself froze, ran, cancelled and decided; the workspace and everything under it go  6585ms
+   ✓ 020: deleting a user who left optimization evidence > a product with a VERIFIED plan can be deleted; the plan goes with its evidence (it failed on 018)  10250ms
+   ✓ 020: deleting a user who left optimization evidence > a direct edit of the same columns is still refused  5405ms
+   ✓ 020: deleting a user who left optimization evidence > the rollback restores the 017/018 guards  4273ms
+ ✓ tests/plan-search-view.test.tsx (8 tests) 6760ms
+   ✓ Optimization Intelligence view > shows the plan search with counts, stages and ESTIMATED effects; blocked plans say why  1924ms
+   ✓ Optimization Intelligence view > expands a plan into its full explanation  1712ms
+   ✓ Optimization Intelligence view > labels calibration CALIBRATED and never VERIFIED  765ms
+   ✓ Optimization Intelligence view > highlights the Pareto frontier among VERIFIED plans and draws an accessible scatter  552ms
+   ✓ Optimization Intelligence view > shows unknown, never $0, when a verified metric is unknown  561ms
+   ✓ Optimization Intelligence view > explains the selected plan, its Bad-Day Replay, and that production is NOT YET MEASURED  426ms
+   ✓ Optimization Intelligence view > switches the report between Executive and Developer views  524ms
+ ✓ tests/auth-guard.test.tsx (6 tests) 211ms
+
+ Test Files  49 passed (49)
+      Tests  565 passed (565)
+   Start at  17:56:09
+   Duration  54.55s (transform 11.22s, setup 0ms, collect 63.59s, tests 416.34s, environment 38.69s, prepare 20.17s)
+
+
+--- stderr ---
+npm warn Unknown env config "devdir". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+stderr | tests/router.test.ts > router > dispatches JSON, 404, 405 and hides internal errors
+[api] GET /api/boom database password leaked
+
+stderr | tests/website-admin-ui.test.tsx > website > homepage leads with the design headline and the internal REJECTED example, labelled as internal
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\jsdom\lib\jsdom\living\nodes\HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\jsdom\lib\jsdom\living\generated\HTMLCanvasElement.js:131:58)
+    at C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\src\brand\EngineFilm.tsx:68:23
+    at Object.react_stack_bottom_frame (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+    at recursivelyTraversePassiveMountEffects (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\jsdom\lib\jsdom\living\nodes\HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\jsdom\lib\jsdom\living\generated\HTMLCanvasElement.js:131:58)
+    at startEngineCanvas (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\src\brand\EngineCanvasFallback.ts:9:22)
+    at C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\src\brand\EngineFilm.tsx:75:14
+    at Object.react_stack_bottom_frame (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13) undefined
+
+stderr | tests/a11y.test.tsx > axe (WCAG 2.2 A/AA, contrast excluded) > home page
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\jsdom\lib\jsdom\living\nodes\HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\jsdom\lib\jsdom\living\generated\HTMLCanvasElement.js:131:58)
+    at C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\src\brand\EngineFilm.tsx:68:23
+    at Object.react_stack_bottom_frame (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13)
+    at recursivelyTraversePassiveMountEffects (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:15439:11) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\jsdom\lib\jsdom\browser\not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\jsdom\lib\jsdom\living\nodes\HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\jsdom\lib\jsdom\living\generated\HTMLCanvasElement.js:131:58)
+    at startEngineCanvas (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\src\brand\EngineCanvasFallback.ts:9:22)
+    at C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\src\brand\EngineFilm.tsx:75:14
+    at Object.react_stack_bottom_frame (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:25989:20)
+    at runWithFiberInDEV (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:874:13)
+    at commitHookEffectListMount (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:13249:29)
+    at commitHookPassiveMountEffects (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:13336:11)
+    at commitPassiveMountOnFiber (C:\Users\<user>\OneDrive\ドキュメント\Zevqora_prot\Zevqora\node_modules\react-dom\cjs\react-dom-client.development.js:15484:13) undefined
+
