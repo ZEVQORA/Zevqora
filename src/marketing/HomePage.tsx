@@ -24,7 +24,7 @@ export default function HomePage() {
   const findY = useTransform(scrollYProgress, [.22, .38, .71], [60, 0, -55]);
   const keepY = useTransform(scrollYProgress, [.64, .83], [55, 0]);
   useMotionValueEvent(scrollYProgress, 'change', (value) => {
-    const next = value < .24 ? 0 : value < .56 ? 1 : value < .82 ? 3 : 2;
+    const next = value < .18 ? 0 : value < .35 ? 3 : value < .58 ? 1 : value < .83 ? 3 : 2;
     if (phaseRef.current !== next) { phaseRef.current = next; setPhase(next); }
   });
   const target = status === 'signed_in' ? '/app' : '/signup';

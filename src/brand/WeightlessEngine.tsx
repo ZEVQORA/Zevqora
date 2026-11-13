@@ -17,8 +17,8 @@ mat3 rz(float a){float c=cos(a),s=sin(a);return mat3(c,-s,0.,s,c,0.,0.,0.,1.);}
 float band(vec3 p,float r){vec2 q=vec2(length(p.xz)-r,p.y);vec2 b=abs(q)-vec2(.145,.285);return length(max(b,0.))+min(max(b.x,b.y),0.)-.085;}
 vec2 scene(vec3 p){
  float phase=u_progress;
- float x=mix(1.65,-1.40,smoothstep(.22,.55,phase));
- x=mix(x,1.65,smoothstep(.62,.96,phase));
+ float x=mix(1.65,-1.80,smoothstep(.18,.35,phase));
+ x=mix(x,1.65,smoothstep(.58,.82,phase));
  p.x-=mix(x,0.,u_centered);
  p.y+=mix(.04,.4,smoothstep(.68,1.,phase));
  p.y-=sin(u_time*.35)*.045;
