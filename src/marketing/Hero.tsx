@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUpRight } from "lucide-react";
+import { ArrowDown, ArrowUpRight, Pause, Play } from "lucide-react";
 import { Link } from "react-router";
 import { DimensionalZ } from "@/brand/DimensionalZ";
+import { EngineFilm } from "@/brand/EngineFilm";
 
 const COMPACT = "(max-width: 940px)";
 const compactNow = () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(COMPACT).matches;
@@ -20,17 +21,24 @@ function useMarkSize() {
 }
 
 /**
- * First viewport: the headline, the Ask Zev slot right under it, the two
- * CTAs, and the dimensional Z mark. The composer is passed in and mounted
- * once in the slot; it docks on scroll without being remounted. Text and CTAs
- * are plain markup with no entrance animation, so nothing waits on motion or
- * on the mark.
+ * First viewport, in layers: main's flowing blue EngineFilm (WebGL, with
+ * its canvas and still-image fallbacks) fills the hero; a scrim keeps the
+ * copy legible; the dimensional Z stands in front; the headline, the Ask Zev
+ * slot and the CTAs sit on top. The composer is passed in and mounted once in
+ * the slot; it docks on scroll without being remounted. Text and CTAs are
+ * plain markup with no entrance animation, so nothing waits on the film or
+ * the mark. The film can be paused (WCAG 2.2.2); it already stops offscreen,
+ * in hidden tabs and under prefers-reduced-motion.
  */
 export function Hero({ composer }: { composer: ReactNode }) {
   const markSize = useMarkSize();
+  const [playing, setPlaying] = useState(true);
   return (
     <section className="zev-hero" aria-labelledby="zev-hero-title">
-      <div className="zev-hero-field" aria-hidden />
+      <div className="zev-hero-film" aria-hidden>
+        <EngineFilm playing={playing} />
+      </div>
+      <div className="zev-hero-scrim" aria-hidden />
       <div className="zev-hero-grid">
         <div className="zev-hero-copy">
           <p className="zev-hero-eyebrow">
@@ -67,7 +75,16 @@ export function Hero({ composer }: { composer: ReactNode }) {
           <ArrowDown size={14} aria-hidden />
           <span>Scroll to get lighter</span>
         </a>
-        <span>Observe · Challenge · Verify · Release</span>
+        <span className="zev-hero-chapters">Observe · Challenge · Verify · Release</span>
+        <button
+          type="button"
+          className="zev-hero-motion"
+          onClick={() => setPlaying((v) => !v)}
+          aria-pressed={!playing}
+        >
+          {playing ? <Pause size={13} aria-hidden /> : <Play size={13} aria-hidden />}
+          <span>{playing ? "Pause motion" : "Play motion"}</span>
+        </button>
       </div>
     </section>
   );

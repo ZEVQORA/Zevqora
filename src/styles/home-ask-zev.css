@@ -13,28 +13,24 @@
   flex-direction: column;
   min-height: calc(100svh - 84px);
   padding: clamp(28px, 5.5vh, 72px) 4.4vw 22px;
-  background: #0f1115;
+  background: #080a0f;
   color: #f7f8fa;
 }
-.zev-hero-field {
+/* Main's flowing blue film, full bleed behind everything (EngineFilm). */
+.zev-hero-film {
+  position: absolute;
+  inset: -2% -3% -4% -2%;
+  z-index: 0;
+}
+/* Legibility only: darker where the copy and composer sit, open over the flow. */
+.zev-hero-scrim {
   position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 42% 56% at 76% 44%, rgba(70, 139, 255, 0.24), transparent 70%),
-    radial-gradient(ellipse 90% 40% at 50% 115%, rgba(70, 139, 255, 0.1), transparent 70%);
-}
-.zev-hero-field::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(247, 248, 250, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(247, 248, 250, 0.05) 1px, transparent 1px);
-  background-size: 64px 64px;
-  -webkit-mask-image: radial-gradient(ellipse 60% 70% at 74% 46%, #000 20%, transparent 72%);
-  mask-image: radial-gradient(ellipse 60% 70% at 74% 46%, #000 20%, transparent 72%);
+    linear-gradient(90deg, rgba(8, 10, 15, 0.9) 0%, rgba(8, 10, 15, 0.62) 38%, rgba(8, 10, 15, 0.12) 64%, transparent 80%),
+    linear-gradient(0deg, rgba(8, 10, 15, 0.92), transparent 30%, transparent 78%, rgba(8, 10, 15, 0.4));
 }
 .zev-hero-grid,
 .zev-hero-foot {
@@ -131,9 +127,21 @@
   outline-offset: 4px;
 }
 .zev-hero-art {
+  position: relative;
   display: grid;
   place-items: center;
   min-width: 0;
+}
+/* A soft pool of ink behind the mark separates it from the bright ribbons. */
+.zev-hero-art::before {
+  content: "";
+  position: absolute;
+  inset: 4% 2%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(8, 10, 15, 0.72), rgba(8, 10, 15, 0.35) 55%, transparent);
+  filter: blur(8px);
+  pointer-events: none;
 }
 .zev-hero-foot {
   display: flex;
@@ -155,6 +163,30 @@
   align-items: center;
   gap: 10px;
   color: #c4cedd;
+}
+.zev-hero-chapters {
+  margin-left: auto;
+}
+.zev-hero-motion {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(247, 248, 250, 0.24);
+  border-radius: 999px;
+  color: #c4cedd;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+.zev-hero-motion:hover {
+  border-color: #468bff;
+  color: #f7f8fa;
+}
+.zev-hero-motion:focus-visible {
+  outline: 2px solid #468bff;
+  outline-offset: 3px;
 }
 
 /* ── Dimensional Z ────────────────────────────────────────────────────── */
@@ -625,6 +657,18 @@
   }
   .zev-hero-foot > span {
     display: none;
+  }
+  /* The flow sweeps in from the right; on narrow screens show more of it. */
+  .zev-hero-film {
+    inset: 0 -70% 0 -5%;
+  }
+  .zev-hero-film .engine-film > img {
+    object-position: 53% 50%;
+  }
+  .zev-hero-scrim {
+    background:
+      linear-gradient(180deg, rgba(8, 10, 15, 0.2), rgba(8, 10, 15, 0.55) 30%, rgba(8, 10, 15, 0.82) 55%, rgba(8, 10, 15, 0.95) 85%),
+      linear-gradient(90deg, rgba(8, 10, 15, 0.55), transparent 85%);
   }
 }
 @media (max-width: 680px) {
