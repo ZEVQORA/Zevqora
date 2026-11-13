@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router';
 import { AnimatePresence, motion } from 'motion/react';
-import { BarChart3, BookOpen, Boxes, ClipboardCheck, ChevronsUpDown, FileCheck2, FlaskConical, FolderGit2, Gauge, GitPullRequest, Home, LayoutDashboard, Lightbulb, LogOut, Menu, MessageSquare, Monitor, Network, Plug, Scale, Search, Settings, Shield, Stethoscope, Users, X, PanelLeftClose, PanelLeftOpen, ChevronRight, Check, Plus } from 'lucide-react';
+import { BarChart3, BookOpen, Boxes, ClipboardCheck, ChevronsUpDown, FileCheck2, FlaskConical, FolderGit2, Gauge, GitPullRequest, Home, LayoutDashboard, Lightbulb, LogOut, Menu, MessageSquare, Monitor, Network, Plug, Scale, Search, Settings, Shield, Stethoscope, Users, X, PanelLeftClose, PanelLeftOpen, ChevronRight, Check, Plus, CircleHelp } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useSession } from '@/lib/session';
 import { ZevqoraMark } from '@/brand/ZevqoraMark';
@@ -9,6 +9,7 @@ import { ZevqoraLogo } from '@/brand/ZevqoraLogo';
 import { Avatar, Kbd } from '@/components/ui/Misc';
 import { FullPageLoader } from '@/brand/BrandLoader';
 import { CommandPalette } from './CommandPalette';
+import { ProductTour, productTourStorageKey } from './ProductTour';
 import { PresentationModeProvider, usePresentationMode, MODES } from '@/lib/mode';
 import { Popover } from '@/components/ui/Overlay';
 import { experienceApi, type CommandCenter } from '@/product/experience';
@@ -234,6 +235,31 @@ export function AppShell() {
   });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const touredKeys = useRef<Set<string>>(new Set());
+  const tourScope = me?.user?.id && activeWorkspace?.id
+    ? productTourStorageKey(me.user.id, activeWorkspace.id)
+    : null;
+  useEffect(() => {
+    if (!tourScope || location.pathname !== '/app' || touredKeys.current.has(tourScope)) return;
+    touredKeys.current.add(tourScope);
+    try {
+      if (localStorage.getItem(tourScope) === 'done') return;
+    } catch {
+      /* Private browser storage unavailable: show once per mounted session. */
+    }
+    setTourOpen(true);
+  }, [tourScope, location.pathname]);
+  const closeTour = () => {
+    if (tourScope) {
+      try {
+        localStorage.setItem(tourScope, 'done');
+      } catch {
+        /* Dismissing in memory still closes it. */
+      }
+    }
+    setTourOpen(false);
+  };
 
 
   useEffect(() => {
@@ -375,6 +401,16 @@ export function AppShell() {
                 )}
               </nav>
               <div className="ml-auto flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTourOpen(true)}
+                  aria-label="Open product tour"
+                  title="Take a quick tour"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-caption text-muted transition-control hover:bg-surface hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                >
+                  <CircleHelp size={17} aria-hidden="true" />
+                  <span className="hidden xl:inline">Tour</span>
+                </button>
                 <ModeMenu />
                 <Notifications workspaceId={activeWorkspace.id} />
                 <button type="button" onClick={() => setPaletteOpen(true)} className="text-caption hidden h-8 items-center gap-2 rounded-md border border-line/70 bg-surface/70 px-2.5 text-muted transition-control hover:bg-surface hover:text-ink md:inline-flex" aria-label="Open command palette">
@@ -396,6 +432,7 @@ export function AppShell() {
             </main>
           </div>
           <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+          <ProductTour open={tourOpen && Boolean(tourScope)} onClose={closeTour} />
         </div>
     </PresentationModeProvider>
   );
