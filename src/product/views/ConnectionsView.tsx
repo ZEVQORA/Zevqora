@@ -3,9 +3,10 @@ import { FolderGit2, Radio, ScanSearch, ShieldCheck, Upload } from 'lucide-react
 import { NoProject, ProductFrame } from '../Frame';
 import { useProduct } from '../store';
 import { useProductDialogs } from '../dialogs/context';
-import { Button, Card, CardHeader, Empty, KeyValue, StatusChip } from '../ui';
+import { Button, Card, CardHeader, KeyValue, StatusChip } from '../ui';
 import { relativeTime } from '../format';
 import IntegrationCatalog from './IntegrationCatalog';
+import ConnectChooser from './ConnectChooser';
 
 /** Evidence sources for the selected project, what each one sends, and its state. */
 export default function ConnectionsView() {
@@ -15,8 +16,8 @@ export default function ConnectionsView() {
   if (!selected) {
     return (
       <NoProject>
-        <Empty title="Nothing connected yet" description="Connect the repository you develop in, or a workload you can export traces from. ZEVQORA reads what you give it and changes nothing." action={<Button onClick={dialogs.openConnect}><FolderGit2 size={15} /> Connect evidence</Button>} />
-        <div className="mt-6"><IntegrationCatalog /></div>
+        <ConnectChooser onScanFolder={canEdit ? dialogs.openConnect : undefined} />
+        <div className="mt-10"><IntegrationCatalog /></div>
       </NoProject>
     );
   }
@@ -28,6 +29,10 @@ export default function ConnectionsView() {
 
   return (
     <ProductFrame>
+      <div className="mb-10">
+        <ConnectChooser onScanFolder={canEdit ? dialogs.openConnect : undefined} onImportTraces={canEdit ? () => void importTraceFile() : undefined} />
+      </div>
+
       <div className="mb-6">
         <div className="peyebrow">Connections</div>
         <h1 className="ph1">Evidence sources for {selected.name}.</h1>
@@ -82,9 +87,9 @@ export default function ConnectionsView() {
         </Card>
 
         <Card>
-          <CardHeader title={<span className="inline-flex items-center gap-2"><Radio size={15} /> Live runtime ingestion</span>} action={<StatusChip status="disconnected" label="NOT AVAILABLE" />} />
+          <CardHeader title={<span className="inline-flex items-center gap-2"><Radio size={15} /> Live runtime ingestion</span>} action={<StatusChip status="disconnected" label="NOT IN PROOF ENGINE" />} />
           <div className="pcard-body">
-            <p className="text-[13px] text-muted">Streaming production calls straight into the proof engine is not available yet. Export a representative sample of traces and import them instead; the experiment is the same.</p>
+            <p className="text-[13px] text-muted">Runtime usage (for example from a LiteLLM gateway, above) is recorded for cost and latency, but it does not feed replays or verification. Export a representative sample of traces and import them for that.</p>
           </div>
         </Card>
 

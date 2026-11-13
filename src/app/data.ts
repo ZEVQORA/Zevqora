@@ -1,9 +1,19 @@
 import { api } from '@/lib/api';
 import type { Connection, Member, Invite, Project, UsageSummary, Workspace } from '@/lib/types';
 
+export interface RuntimeSummary {
+  project: { id: string; name: string };
+  window_hours: number;
+  totals: { requests: number; errors: number; cost_usd: number; input_tokens: number; output_tokens: number; last_seen: string | null };
+  connections: Connection[];
+}
+
 export const app = {
   createWorkspace: (name: string) => api<{ workspace: Workspace }>('/api/workspaces', { method: 'POST', body: { name } }),
   updateWorkspace: (id: string, body: Record<string, unknown>) => api<{ workspace: Workspace }>(`/api/workspaces/${id}`, { method: 'PATCH', body }),
+  projects: (workspaceId: string) => api<{ projects: Project[] }>(`/api/workspaces/${workspaceId}/projects`),
+  /** Runtime telemetry for one project: connections (no secrets) and what the server has received. */
+  runtime: (projectId: string, window: '24h' | '7d' | '30d' = '30d') => api<RuntimeSummary>(`/api/projects/${projectId}/runtime?window=${window}`),
   createProject: (workspaceId: string, body: { name: string; description?: string; source_kind?: string; repo_url?: string }) => api<{ project: Project }>(`/api/workspaces/${workspaceId}/projects`, { method: 'POST', body }),
   updateProject: (id: string, body: Record<string, unknown>) => api<{ project: Project }>(`/api/projects/${id}`, { method: 'PATCH', body }),
   archiveProject: (id: string) => api(`/api/projects/${id}`, { method: 'DELETE' }),

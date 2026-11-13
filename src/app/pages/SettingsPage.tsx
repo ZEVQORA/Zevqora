@@ -12,6 +12,35 @@ import { useToast } from '@/components/ui/Toast';
 import { errorMessage } from '@/lib/api';
 import { getSupabase } from '@/lib/supabase';
 import { dateOnly, titleCase } from '@/lib/format';
+import { EXPLAIN_OPTIONS, useExplainMode } from '@/product/explainMode';
+import { usePresentationMode, MODES } from '@/lib/mode';
+
+/** Explanation style (presentation only) and the advanced dashboard emphasis. Neither is a permission. */
+function ExplainPanel() {
+  const explain = useExplainMode();
+  const { mode, setMode } = usePresentationMode();
+  return (
+    <Panel>
+      <PanelHeader title="How Zev explains things" description="Changes how answers are written. It never changes what you can see or do; your workspace role decides that." />
+      <div className="flex flex-col gap-2 px-5 pb-5" role="radiogroup" aria-label="Explanation style">
+        {EXPLAIN_OPTIONS.map((o) => (
+          <label key={o.value} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border border-line px-3 py-2.5 has-[:checked]:border-accent has-[:checked]:bg-accent-subtle">
+            <input type="radio" name="explain_mode" className="mt-1" checked={explain.choice === o.value || (!explain.choice && o.value === 'later')} disabled={explain.saving} onChange={() => void explain.set(o.value)} />
+            <span><span className="text-caption block font-medium text-ink">{o.label}</span><span className="text-technical block text-muted">{o.description}</span></span>
+          </label>
+        ))}
+        {explain.error && <p className="text-technical text-rejected" role="alert">{explain.error}</p>}
+        <details className="mt-3">
+          <summary className="text-caption flex min-h-11 cursor-pointer items-center font-medium text-ink">Advanced: Overview emphasis</summary>
+          <p className="text-technical mb-2 text-muted">Chooses which figures the Overview puts first (business, engineering or developer detail). Same data, same permissions.</p>
+          <Select id="presentation_mode" aria-label="Overview emphasis" value={mode} onChange={(e) => setMode(e.target.value as typeof mode)}>
+            {MODES.map((m) => <option key={m.value} value={m.value}>{m.label} — {m.description}</option>)}
+          </Select>
+        </details>
+      </div>
+    </Panel>
+  );
+}
 
 type Tab = 'profile' | 'workspace' | 'security';
 
@@ -147,6 +176,7 @@ export default function SettingsPage() {
             </form>
           </Panel>
           <div className="flex flex-col gap-4">
+            <ExplainPanel />
             <Panel>
               <PanelHeader title="Linked login" />
               <div className="px-5 pb-5">

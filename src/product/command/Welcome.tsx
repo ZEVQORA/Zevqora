@@ -54,10 +54,10 @@ export function WelcomeArea({ cc }: { cc: CommandCenter | null }) {
         <ZevFace expression="warm-smile" size={44} />
         <div className="zq-welcome-copy">
           <h2 id="zq-welcome-title">{name ? `Welcome to ZEVQORA, ${name}.` : 'Welcome to ZEVQORA.'}</h2>
-          <p>Start with one workload: import a sanitized trace, connect OpenTelemetry, or explore the labelled demo. It takes a few minutes.</p>
+          <p>This overview fills in once your AI app sends evidence. Ask Zev what to do first, or connect your AI app.</p>
           <div className="zq-welcome-actions">
-            <Link to="/app/onboarding" className="zq-welcome-primary">Start guided setup <ArrowRight size={15} aria-hidden /></Link>
-            <Link to="/app/connections" className="zq-welcome-secondary"><Plug size={14} aria-hidden /> Connect evidence</Link>
+            <Link to="/app" className="zq-welcome-primary">Ask Zev <ArrowRight size={15} aria-hidden /></Link>
+            <Link to="/app/connections" className="zq-welcome-secondary"><Plug size={14} aria-hidden /> Connect my AI app</Link>
           </div>
         </div>
         <button type="button" className="zq-welcome-skip" onClick={skip} aria-label="Skip the welcome guide">

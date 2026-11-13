@@ -6,6 +6,8 @@ import { ProductFrame } from '../Frame';
 import { useProduct } from '../store';
 import { engineErrorMessage } from '../engine';
 import { useZevThread } from '../zevChat';
+import { useExplainMode } from '../explainMode';
+import { ExplainSwitch } from '../command/ZevHome';
 import type { AICall, ChatLine, Evaluation, Finding } from '../types';
 import { ZevirPanel } from './ZevirPanel';
 import './zev-ide.css';
@@ -45,6 +47,7 @@ export default function ZevView() {
   const { engine, products, selected, selectProduct, findings, evaluations, aiCalls, economics, health, model, refreshProductData, setZevState } = useProduct();
   const { activeWorkspace } = useSession();
   const { lines, setLines } = useZevThread(activeWorkspace?.id || null);
+  const explain = useExplainMode();
   const [tab, setTab] = useState<Tab>('findings');
   const [sel, setSel] = useState<Selection>(null);
   const [input, setInput] = useState('');
@@ -93,7 +96,7 @@ export default function ZevView() {
     controller.current = ac;
     try {
       const wire = history.map((l, i) => ({ role: l.role, content: i === history.length - 1 && context ? `${l.content}\n\n(Selected in the workspace: ${context})` : l.content }));
-      const res = await engine.chat(selected?.id || null, wire.slice(-16), model || undefined, ac.signal);
+      const res = await engine.chat(selected?.id || null, wire.slice(-16), model || undefined, ac.signal, explain.mode);
       if (controller.current !== ac) return;
       failed.current = null;
       setLines((cur) => [
@@ -352,6 +355,7 @@ export default function ZevView() {
             <span className={`zide-chat-provider ${configured === false ? 'is-off' : configured ? 'is-on' : ''}`}>
               {providerLabel}
             </span>
+            <ExplainSwitch value={explain.mode} onChange={(v) => void explain.set(v)} disabled={explain.saving} />
             <button type="button" className="zide-icon" onClick={() => setChatOpen((v) => !v)} aria-expanded={chatOpen} aria-label={chatOpen ? 'Collapse Engineering Zev' : 'Expand Engineering Zev'}>
               {chatOpen ? <ChevronDown size={16} aria-hidden /> : <ChevronUp size={16} aria-hidden />}
             </button>

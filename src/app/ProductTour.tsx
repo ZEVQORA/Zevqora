@@ -14,40 +14,41 @@ export interface TourStep {
 /**
  * This tour explains existing, supported product paths only. It does not
  * claim enabled ZevIR/vNext flags, ready provider connections or verified
- * savings. The first-evidence setup wizard remains available separately.
+ * savings. It opens only from Help (never automatically), so it never stacks
+ * on top of the chat-first home. Advanced setup remains available separately.
  */
 export const PRODUCT_TOUR_STEPS: readonly TourStep[] = [
   {
-    eyebrow: '01 / YOUR COMMAND CENTER',
-    title: 'Start with the whole picture.',
+    eyebrow: '01 / ASK ZEV',
+    title: 'Ask Zev anything.',
     description:
-      'Your Command Center separates observed activity, experimental results and decisions needing your review. Empty metrics mean evidence has not been recorded yet.',
+      'Start on the home screen: ask a question in your own words, or open the labelled sample to see how a decision looks. Nothing needs to be connected first.',
     path: '/app',
-    action: 'Open Command Center',
+    action: 'Ask Zev',
   },
   {
-    eyebrow: '02 / FIRST WORKLOAD',
-    title: 'Choose one task to improve.',
+    eyebrow: '02 / CONNECT WHEN READY',
+    title: 'Connect one source when you are ready.',
     description:
-      'A workload is one application, repository or recorded AI workflow. New here? Guided setup helps choose a workspace and define an evaluation boundary.',
-    path: '/app/onboarding',
-    action: 'Start guided setup',
-  },
-  {
-    eyebrow: '03 / EVIDENCE',
-    title: 'Connect evidence you are allowed to share.',
-    description:
-      'Scan a repository locally or import a sanitized JSON/JSONL trace. Review what leaves your device first. A connector card is not proof of an active integration.',
+      'Connect your AI app through a LiteLLM gateway, OpenTelemetry or a sanitized trace file. Each option says what it can and cannot show, and a source is only marked as sending data after the server has received it.',
     path: '/app/connections',
-    action: 'See evidence sources',
+    action: 'Connect my AI app',
   },
   {
-    eyebrow: '04 / VERIFY THE OUTCOME',
+    eyebrow: '03 / VERIFY THE OUTCOME',
     title: 'Understand every verdict.',
     description:
       'VERIFIED means the required gates passed. REJECTED means a candidate failed. INCOMPLETE means there is not enough evidence. Never treat a projected saving as realized value.',
     path: '/app/evidence',
     action: 'Explore evidence',
+  },
+  {
+    eyebrow: '04 / OVERVIEW',
+    title: 'See the whole picture.',
+    description:
+      'The Overview separates observed activity, experimental results and decisions needing your review. Empty metrics mean evidence has not been recorded yet.',
+    path: '/app/command',
+    action: 'Open Overview',
   },
   {
     eyebrow: '05 / ENGINEERING ZEV',
@@ -59,31 +60,37 @@ export const PRODUCT_TOUR_STEPS: readonly TourStep[] = [
   },
 ];
 
+/** How the tour ended: finished, skipped (not the same as done), or paused to resume later. */
+export type TourOutcome = 'done' | 'skipped' | 'paused';
+
 export const productTourStorageKey = (userId: string, workspaceId: string) =>
   `zevqora.productTour.v1:${userId}:${workspaceId}`;
 
 export function ProductTour({
   open,
   onClose,
+  startAt = 0,
 }: {
   open: boolean;
-  onClose: () => void;
+  onClose: (outcome?: TourOutcome, step?: number) => void;
+  /** Step to resume from (0-based). */
+  startAt?: number;
 }) {
   const [index, setIndex] = useState(0);
   const titleRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    if (open) setIndex(0);
-  }, [open]);
+    if (open) setIndex(Math.min(Math.max(0, startAt), PRODUCT_TOUR_STEPS.length - 1));
+  }, [open, startAt]);
 
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') onClose('paused', index);
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [open, onClose]);
+  }, [open, onClose, index]);
 
   useEffect(() => {
     if (open) titleRef.current?.focus();
@@ -110,7 +117,7 @@ export function ProductTour({
             <p className="mt-1 text-[12px] text-muted">Learn the app in five steps</p>
           </div>
         </div>
-        <button type="button" aria-label="Close product tour" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted hover:bg-sunken hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
+        <button type="button" aria-label="Close product tour" onClick={() => onClose('paused', index)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted hover:bg-sunken hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
           <X size={18} aria-hidden="true" />
         </button>
       </div>
@@ -127,7 +134,7 @@ export function ProductTour({
         <p id="zevqora-tour-description" className="mt-3 text-[13px] leading-[1.7] text-muted">{step.description}</p>
         <Link
           to={step.path}
-          onClick={onClose}
+          onClick={() => (last ? onClose('done') : onClose('paused', index + 1))}
           className="mt-5 inline-flex min-h-10 items-center gap-2 text-[13px] font-semibold text-accent-text underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
         >
           {step.action} <ArrowRight size={16} aria-hidden="true" />
@@ -135,17 +142,20 @@ export function ProductTour({
       </div>
 
       <div className="mt-6 flex items-center justify-between gap-3 border-t border-line pt-4">
-        <button type="button" onClick={onClose} className="min-h-10 px-1 text-[12px] font-medium text-muted hover:text-ink">Skip tour</button>
+        <div className="flex items-center gap-1">
+          <button type="button" onClick={() => onClose('skipped')} className="min-h-11 px-1.5 text-[12px] font-medium text-muted hover:text-ink">Skip tour</button>
+          {!last && <button type="button" onClick={() => onClose('paused', index)} className="min-h-11 px-1.5 text-[12px] font-medium text-muted hover:text-ink">Resume later</button>}
+        </div>
         <div className="flex items-center gap-2">
           {index > 0 && (
-            <button type="button" onClick={() => setIndex((i) => Math.max(0, i - 1))} className="inline-flex min-h-10 items-center gap-1 rounded-md border border-line px-3 text-[12px] font-semibold hover:bg-sunken">
+            <button type="button" onClick={() => setIndex((i) => Math.max(0, i - 1))} className="inline-flex min-h-11 items-center gap-1 rounded-md border border-line px-3 text-[12px] font-semibold hover:bg-sunken">
               <ArrowLeft size={14} aria-hidden="true" /> Back
             </button>
           )}
           <button
             type="button"
-            onClick={() => last ? onClose() : setIndex((i) => Math.min(PRODUCT_TOUR_STEPS.length - 1, i + 1))}
-            className="inline-flex min-h-10 items-center gap-2 rounded-md bg-accent px-4 text-[12px] font-semibold text-white hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            onClick={() => last ? onClose('done') : setIndex((i) => Math.min(PRODUCT_TOUR_STEPS.length - 1, i + 1))}
+            className="inline-flex min-h-11 items-center gap-2 rounded-md bg-accent px-4 text-[12px] font-semibold text-white hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             {last ? <><Check size={15} aria-hidden="true" /> Finish</> : <>Next <ArrowRight size={15} aria-hidden="true" /></>}
           </button>
@@ -153,7 +163,7 @@ export function ProductTour({
       </div>
       <div className="mt-3 flex items-center gap-1.5 text-[11px] text-subtle">
         <CircleHelp size={13} aria-hidden="true" />
-        You can replay this tour from the Help button.
+        Replay or resume this tour any time from Help.
       </div>
     </section>
   );

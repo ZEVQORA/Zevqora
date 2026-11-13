@@ -1,0 +1,163 @@
+/*
+ * App shell: sidebar, workspace switcher, header controls.
+ * Selectors are scoped under .workspace-experience .zshell so they win over the
+ * older layered sidebar rules in experience.css / engine.css without !important.
+ * The sidebar is always the dark Ink surface; its popovers use the same surface
+ * so text never ends up light-on-light.
+ */
+.workspace-experience .zshell {
+  background: #0b0d11;
+  border-right: 1px solid #ffffff14;
+  color: #e8ebf0;
+}
+
+/* Links: readable size, clear hover, 40px rows (44px on touch / small screens). */
+.workspace-experience .zshell nav[aria-label='Application'] .zshell-link,
+.workspace-experience .zshell .zshell-link {
+  min-height: 40px;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-radius: 8px;
+  color: #b9c2d0;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+.workspace-experience .zshell nav[aria-label='Application'] .zshell-link svg { color: #8d97a8; }
+.workspace-experience .zshell nav[aria-label='Application'] .zshell-link:hover {
+  background: #ffffff0f;
+  color: #f7f8fa;
+}
+.workspace-experience .zshell nav[aria-label='Application'] .zshell-link:hover svg { color: #f7f8fa; }
+.workspace-experience .zshell nav[aria-label='Application'] a.zshell-link[aria-current='page'],
+.workspace-experience .zshell nav[aria-label='Application'] a.zshell-link.is-active {
+  background: #468bff;
+  box-shadow: none;
+  color: #0f1115;
+  font-weight: 600;
+}
+.workspace-experience .zshell nav[aria-label='Application'] a.zshell-link[aria-current='page'] svg { color: #0f1115; }
+.workspace-experience .zshell .zshell-link:focus-visible,
+.workspace-experience .zshell .zshell-ws:focus-visible,
+.zshell-pop .zshell-pop-item:focus-visible {
+  outline: 2px solid #8cb6ff;
+  outline-offset: 1px;
+}
+
+.workspace-experience .zshell .zshell-group {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #ffffff12;
+}
+.workspace-experience .zshell nav[aria-label='Application'] .zshell-group-label {
+  padding: 4px 10px 6px;
+  color: #8d97a8;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Workspace switcher trigger */
+.workspace-experience .zshell .zshell-ws {
+  min-height: 48px;
+  border: 1px solid #ffffff1a;
+  background: #ffffff08;
+  color: #f7f8fa;
+}
+.workspace-experience .zshell .zshell-ws:hover { background: #ffffff12; }
+.workspace-experience .zshell .zshell-ws svg { color: #9aa2b1; }
+.zshell-ws-name { font-size: 13.5px; font-weight: 600; color: #f7f8fa; }
+.zshell-ws-meta { font-size: 11px; color: #9aa2b1; text-transform: uppercase; letter-spacing: 0.04em; }
+.zshell-ws-initial {
+  display: inline-flex;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: #1a2434;
+  color: #8cb6ff;
+  font-size: 13px;
+  font-weight: 700;
+}
+.zshell-ws-initial.is-small { width: 26px; height: 26px; font-size: 12px; }
+
+/* Workspace menu: solid Ink surface, high contrast, above every app layer. */
+.zshell-pop {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 70;
+  width: max(100%, 248px);
+  max-width: calc(100vw - 24px);
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid #333a47;
+  border-radius: 12px;
+  background: #15181e;
+  color: #f7f8fa;
+  box-shadow: 0 18px 48px -12px rgb(0 0 0 / 0.6);
+}
+.zshell-pop-label { padding: 6px 10px 4px; color: #9aa2b1; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.zshell-pop-item {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border-radius: 8px;
+  color: #f7f8fa;
+  font-size: 13.5px;
+  text-align: left;
+}
+.zshell-pop-item:hover,
+.zshell-pop-item:focus-visible { background: #ffffff14; }
+.zshell-pop-item[aria-selected='true'] { background: #1a2434; }
+.zshell-pop-item[aria-selected='true'] svg { color: #8cb6ff; }
+.zshell-pop-item.is-action { color: #c9d1dd; font-weight: 500; }
+.zshell-pop-item.is-action svg { color: #8cb6ff; }
+.zshell-pop-role { color: #9aa2b1; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+.zshell-pop-sep { height: 1px; margin: 6px 4px; background: #ffffff14; }
+
+/* Header controls: 40px (44px on touch). */
+.zshell-icon-btn {
+  display: inline-flex;
+  flex: none;
+  min-width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--zq-fg-muted);
+  transition: background-color 0.15s, color 0.15s;
+}
+.zshell-icon-btn:hover { background: color-mix(in srgb, var(--zq-fg) 7%, transparent); color: var(--zq-fg); }
+.zshell-icon-btn:focus-visible { outline: 2px solid var(--zq-focus); outline-offset: 1px; }
+.zshell-icon-btn.is-dark { color: #c9d1dd; }
+.zshell-icon-btn.is-dark:hover { background: #ffffff14; color: #f7f8fa; }
+
+.zshell-menu-item {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: var(--zq-fg);
+  text-align: left;
+}
+.zshell-menu-item:hover { background: color-mix(in srgb, var(--zq-fg) 6%, transparent); }
+.zshell-menu-item svg { margin-top: 2px; color: var(--zq-accent-text); flex: none; }
+.zshell-menu-item b { display: block; font-size: 13px; font-weight: 600; }
+.zshell-menu-item small { display: block; margin-top: 1px; color: var(--zq-fg-muted); font-size: 11.5px; line-height: 1.4; }
+
+@media (max-width: 1023px), (pointer: coarse) {
+  .workspace-experience .zshell nav[aria-label='Application'] .zshell-link,
+  .workspace-experience .zshell .zshell-link { min-height: 44px; }
+  .zshell-icon-btn { min-width: 44px; height: 44px; }
+}

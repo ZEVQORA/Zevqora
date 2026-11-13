@@ -24,7 +24,7 @@ import { parseTraces, diagnoseRuntimeEvidence, economics } from '../product/trac
 import { planExactReuse, planModelSubstitution } from '../product/strategies.js';
 import { runEvaluation, enforceRequirements, sanitizeRequirements } from '../product/evaluator.js';
 import { unifiedDiff } from '../product/diff.js';
-import { runZev } from '../product/zev.js';
+import { EXPLAIN_MODES, runZev } from '../product/zev.js';
 import { claudeModel, engineeringZevProvider, runZevClaude } from '../anthropic.js';
 import { mergeTrial } from '../product/trial.js';
 import { projectEngineProduct, zevirEnabled } from '../zevir/store.js';
@@ -609,6 +609,8 @@ on('POST', '/api/engine/agent/chat', async ({ request }) => {
   // Authorization first: the product is loaded through the caller's membership (viewer or above).
   let product = null;
   if (body?.product_id) product = (await loadProduct(admin, user, body.product_id, 'viewer')).product;
+  // Presentation preference only (technical / nontechnical); never used for authorization.
+  const explainMode = EXPLAIN_MODES.includes(body?.explain_mode) ? body.explain_mode : null;
   let workspaceId = product?.workspace_id || null;
   if (!workspaceId && body?.workspace_id) {
     // A bare workspace id is used only after the caller's membership is confirmed (404 otherwise),
@@ -630,14 +632,14 @@ on('POST', '/api/engine/agent/chat', async ({ request }) => {
   if (provider === 'anthropic') {
     const scope = workspaceId ? `ws:${workspaceId}` : `user:${user.id}`;
     await takeEngineeringZevBudget(admin, scope);
-    const out = await runZevClaude({ ctx, history, productId: product?.id || null, signal: request.signal, budget: engineeringZevSpend(admin, scope) });
+    const out = await runZevClaude({ ctx, history, productId: product?.id || null, signal: request.signal, budget: engineeringZevSpend(admin, scope), explainMode });
     return { ...out, openrouter_configured: openRouterConfigured(), provider_configured: true };
   }
   const billing = await resolveBilling({ admin, user, workspaceId, projectId: product?.project_id || null });
   const complete = async (payload) => completeText({ admin, user, billing, payload, operation: 'zev_chat', extraMeta: { product_id: product?.id || null } });
   const requested = str(body?.model, { name: 'model', max: 160 }) || DEFAULT_MODEL;
   const model = requested === 'openrouter/auto' ? DEFAULT_MODEL : requested;
-  const out = await runZev({ complete, ctx, history, model, productId: product?.id || null });
+  const out = await runZev({ complete, ctx, history, model, productId: product?.id || null, explainMode });
   return { ...out, provider: 'zevqora-platform', openrouter_configured: true, provider_configured: true };
 });
 

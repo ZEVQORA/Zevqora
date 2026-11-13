@@ -17,6 +17,16 @@ Hard rules:
 - Human approval is mandatory before risky implementation, merge, or deployment.
 - Be concise, technical, and understandable to a founder or engineer.`;
 
+/**
+ * How Zev should phrase answers. A presentation preference only: it never
+ * changes which tools run, which data is visible, or any permission.
+ */
+export const EXPLAIN_MODES = ['technical', 'nontechnical'];
+export function explainInstruction(mode) {
+  if (mode === 'technical') return 'Explanation style: technical. Include model names, token counts, latency, trace and API details, and concrete implementation steps when the evidence supports them.';
+  return 'Explanation style: plain language for a non-technical reader. Lead with cost, speed, risk and the verified outcome in short sentences; avoid jargon, and explain any technical term you must use. Offer technical detail only if asked.';
+}
+
 const product = { type: 'object', properties: { product_id: { type: 'string' } }, required: ['product_id'] };
 
 export const TOOL_DEFINITIONS = [
@@ -59,8 +69,8 @@ export async function executeTool(ctx, name) {
  * Tool loop. `complete` is the accounted platform call (payload → {content,
  * toolCalls, model}). Returns {message, model, tool_events}.
  */
-export async function runZev({ complete, ctx, history, model, productId, maxSteps = 6 }) {
-  const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...history.map((m) => ({ role: m.role, content: m.content }))];
+export async function runZev({ complete, ctx, history, model, productId, explainMode = null, maxSteps = 6 }) {
+  const messages = [{ role: 'system', content: `${SYSTEM_PROMPT}\n\n${explainInstruction(explainMode)}` }, ...history.map((m) => ({ role: m.role, content: m.content }))];
   if (productId) messages.push({ role: 'system', content: `The currently selected ZEVQORA product_id is ${productId}. Use it for tools unless the user explicitly changes product.` });
   const events = [];
   let chosen = model;

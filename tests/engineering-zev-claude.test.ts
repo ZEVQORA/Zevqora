@@ -379,3 +379,36 @@ describe('security review: workspace scope, money budget, fallback accounting', 
     expect(limiter.usd.get(`engzev:usd:platform:${day()}`)).toBe(Math.round(((500 * 4) / 1e6) * 1e6));
   });
 });
+
+describe('explanation style (presentation only, never a permission)', () => {
+  beforeEach(() => {
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-test-not-real-0000';
+  });
+  const TOOLS = ['workspace_summary', 'list_ai_calls', 'list_findings', 'economics_summary', 'list_experiments'];
+
+  it('technical and non-technical change only the wording instruction, not tools or scope', async () => {
+    create.mockResolvedValueOnce(final('Technical answer.')).mockResolvedValueOnce(final('Plain answer.'));
+    await chat({ product_id: P_A, explain_mode: 'technical', messages: [{ role: 'user', content: 'Explain' }] });
+    await chat({ product_id: P_A, explain_mode: 'nontechnical', messages: [{ role: 'user', content: 'Explain' }] });
+    const [tech] = create.mock.calls[0];
+    const [plain] = create.mock.calls[1];
+    expect(tech.system).toContain('Explanation style: technical');
+    expect(plain.system).toContain('plain language for a non-technical reader');
+    for (const p of [tech, plain]) {
+      expect(p.tools.map((t: { name: string }) => t.name)).toEqual(TOOLS);
+      expect(p.system).toContain(P_A);
+    }
+  });
+
+  it('an unknown style falls back to plain language and grants nothing', async () => {
+    create.mockResolvedValueOnce(final('ok'));
+    await chat({ product_id: P_A, explain_mode: 'admin', messages: [{ role: 'user', content: 'Explain' }] });
+    const [params] = create.mock.calls[0];
+    expect(params.system).toContain('plain language');
+    expect(params.tools.map((t: { name: string }) => t.name)).toEqual(TOOLS);
+    // Choosing "technical" does not open another tenant's product.
+    const res = await chat({ product_id: P_B, explain_mode: 'technical', messages: [{ role: 'user', content: 'Explain' }] });
+    expect(res.status).toBe(404);
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+});
