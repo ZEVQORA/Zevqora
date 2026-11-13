@@ -91,7 +91,8 @@ export default function OnboardingPage() {
       } else if (workspaceId) {
         setActiveWorkspaceId(workspaceId);
       }
-      void app.updateMe({ onboarding: { started_at: new Date(startedAt.current).toISOString() } }).catch(() => undefined);
+      const startedIso = new Date(startedAt.current).toISOString();
+      void app.updateMe({ onboarding: advanced ? { started_at: startedIso } : { started_at: startedIso, completed_at: new Date().toISOString(), plan_interest: params.get('plan') || null, intent: params.get('intent') || null, path: 'chat_first' } }).catch(() => undefined);
       if (!advanced) {
         navigate('/app', { replace: true });
         return;

@@ -29,7 +29,7 @@ const EnterpriseView = lazy(() => import('@/product/views/EnterpriseView'));
 
 /** Paths from the retired telemetry-era pages, kept so old links and bookmarks still land somewhere useful. */
 const RETIRED: Array<[string, string]> = [
-  ['dashboard', '/app'],
+  ['dashboard', '/app/command'],
   ['projects', '/app/project'],
   ['runs', '/app/experiments'],
   ['runtime', '/app/connections'],

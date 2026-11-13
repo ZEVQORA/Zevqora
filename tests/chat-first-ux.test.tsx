@@ -156,9 +156,11 @@ describe('connect your AI app', () => {
   const conn = (over: Record<string, unknown> = {}) => ({ id: 'c', workspace_id: 'ws-1', project_id: 'p', kind: 'server_telemetry', name: 'LiteLLM gateway', status: 'active', token_prefix: 'zq_', token_last4: 'abcd', scopes: [], permissions: {}, metadata: {}, created_by: 'u', created_at: '2026-11-13T00:00:00Z', last_used_at: null, last_seen_at: null, revoked_at: null, ...over }) as never;
 
   it('derives status only from what the server reports', () => {
-    expect(liteStatus(null, null)).toBe('not_connected');
-    expect(liteStatus(conn(), null)).toBe('authorized');
-    expect(liteStatus(conn({ last_seen_at: '2026-11-13T01:00:00Z' }), null)).toBe('data_flowing');
+    expect(liteStatus(null)).toBe('not_connected');
+    expect(liteStatus(conn())).toBe('authorized');
+    expect(liteStatus(conn({ last_seen_at: '2026-11-13T01:00:00Z' }))).toBe('data_flowing');
+    // Activity recorded before this token existed (e.g. an older revoked token) is not this token's data.
+    expect(liteStatus(conn({ last_seen_at: '2026-11-12T23:00:00Z' }))).toBe('authorized');
   });
 
   it('never shows Vercel or GitHub as connected, and offers the working alternatives', async () => {

@@ -83,7 +83,7 @@ export default function AdminOverviewPage() {
 
       <section className="zadm-kpis" aria-label={`Key figures, ${windowLabel}`}>
         <Kpi label="Visitors" value={webOn ? num(w?.totals.visitor_days) : null} hint={w && !webOn ? 'Website analytics off' : web.error ? 'Could not load' : webOn ? 'daily visitor keys' : undefined} href="/admin/analytics" />
-        <Kpi label="Signups" value={prodOn ? num(p?.funnel.signup ?? null) : null} hint={p && !prodOn ? 'Product analytics off' : prod.error ? 'Could not load' : undefined} href="/admin/product" />
+        <Kpi label="Signups" value={prodOn ? num(p?.funnel.signup ?? null) : preset === '7d' && d ? num(d.counts.signups_7d) : null} hint={!prodOn && preset === '7d' && d ? 'accounts created' : p && !prodOn ? 'Product analytics off' : prod.error ? 'Could not load' : undefined} href="/admin/product" />
         <Kpi label="Active users" value={prodOn ? num(p?.active.users) : null} hint={prodOn ? 'with a product event' : undefined} />
         <Kpi label="Active workspaces" value={prodOn ? num(p?.active.workspaces) : null} />
         <Kpi label="Plan searches" value={o ? num(o.searches.total) : null} hint={opt.error ? 'Could not load' : undefined} href="/admin/optimization" />
@@ -149,6 +149,7 @@ export default function AdminOverviewPage() {
         </Panel>
 
         <Panel title="Security signals" meta="Last 7 days · security_events" action={<Link to="/admin/security" className="zadm-link">Details <ArrowUpRight size={13} aria-hidden /></Link>}>
+          {cc.error && <Empty>Could not load: {cc.error}</Empty>}
           {d && (Object.keys(d.security_7d).length ? (
             <ul className="zadm-list">
               {Object.entries(d.security_7d).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
@@ -159,6 +160,7 @@ export default function AdminOverviewPage() {
         </Panel>
 
         <Panel title="Recent signups" meta="Newest accounts">
+          {cc.error && <Empty>Could not load: {cc.error}</Empty>}
           {d && (d.recent_signups.length ? (
             <ul>
               {d.recent_signups.map((u) => <ActivityItem key={u.id} icon={<UserPlus size={12} />} title={<Link to={`/admin/users/${u.id}`} className="hover:text-accent-text">{u.display_name || u.email || u.id.slice(0, 8)}</Link>} meta={u.email} at={u.created_at} />)}
@@ -167,6 +169,7 @@ export default function AdminOverviewPage() {
         </Panel>
 
         <Panel title="Recent server errors" meta="5xx responses · route only, no payloads">
+          {cc.error && <Empty>Could not load: {cc.error}</Empty>}
           {d && (d.recent_errors.length ? (
             <ul>
               {d.recent_errors.map((e) => <ActivityItem key={e.id} icon={<AlertTriangle size={12} />} title={<span className="font-mono text-[12px]">{e.method} {e.route}</span>} meta={`${e.status} · ${e.code || 'INTERNAL'}`} at={e.occurred_at} />)}

@@ -149,6 +149,8 @@ on('POST', '/api/telemetry/ingest', async ({ request }) => {
     accepted = data?.length || 0;
   }
   const now = new Date().toISOString();
-  await admin.from('connections').update({ last_used_at: now, last_seen_at: now }).eq('id', connection.id);
+  // last_seen_at means "data received": it moves only when at least one event was stored,
+  // so a token whose events are all rejected never reads as data flowing.
+  await admin.from('connections').update(accepted > 0 ? { last_used_at: now, last_seen_at: now } : { last_used_at: now }).eq('id', connection.id);
   return json({ accepted, duplicates: rows.length - accepted, rejected: errors.length, errors: errors.slice(0, 5), samples_captured: captureSamples }, 200, CORS);
 });

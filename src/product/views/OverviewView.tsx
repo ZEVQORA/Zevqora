@@ -25,7 +25,7 @@ export default function OverviewView() {
             <h1 className="ph1 mt-2">Make AI cheaper without guessing.</h1>
             <p className="plede">Connect one authorized evidence source: the repository you develop in, or an export of a workload&rsquo;s traces. ZEVQORA establishes a baseline, tests supported candidates on the same cases, and only calls a saving verified when every gate passes.</p>
             <div className="mt-6 flex flex-wrap gap-2">
-              <Button onClick={() => navigate('/app/onboarding')}>
+              <Button onClick={() => navigate('/app/onboarding?advanced=1')}>
                 <Upload size={15} /> Start from a trace export
               </Button>
               <Button variant="secondary" onClick={dialogs.openConnect}>

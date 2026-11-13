@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { Check, Copy, FileUp, FlaskConical, FolderGit2, GitBranch, Radio, Route as RouteIcon, Triangle } from 'lucide-react';
 import { useSession } from '@/lib/session';
 import { ApiClientError } from '@/lib/api';
@@ -102,9 +102,10 @@ function useLiteLLM(workspaceId: string | null) {
   return { state, reload: load };
 }
 
-export function liteStatus(connection: Connection | null, runtime: RuntimeSummary | null): ConnStatus {
+/** Status from the server only: a token it issued, and events it stored for this connection. */
+export function liteStatus(connection: Connection | null): ConnStatus {
   if (!connection) return 'not_connected';
-  if (connection.last_seen_at || (runtime?.totals.requests ?? 0) > 0) return 'data_flowing';
+  if (connection.last_seen_at && connection.last_seen_at >= connection.created_at) return 'data_flowing';
   return 'authorized';
 }
 
@@ -148,14 +149,17 @@ function LiteLLMCard() {
     }
   };
   const copy = (what: 'token' | 'code', text: string) => {
-    void navigator.clipboard?.writeText(text).then(() => {
-      setCopied(what);
-      window.setTimeout(() => setCopied(null), 1500);
-    });
+    void navigator.clipboard?.writeText(text).then(
+      () => {
+        setCopied(what);
+        window.setTimeout(() => setCopied(null), 1500);
+      },
+      () => setError('Copy failed. Select the text and copy it manually.'),
+    );
   };
 
   const ready = state.phase === 'ready' ? state : null;
-  const status = ready ? liteStatus(ready.connection, ready.runtime) : 'not_connected';
+  const status = ready ? liteStatus(ready.connection) : 'not_connected';
 
   return (
     <article className="zconn-card is-primary" aria-labelledby="zconn-litellm">
@@ -172,6 +176,7 @@ function LiteLLMCard() {
         <div><dt>Cannot show</dt><dd>Answer quality. Verifying a cheaper plan still needs recorded examples (trace import).</dd></div>
         <div><dt>Sent</dt><dd>Usage metadata only. Prompts, outputs and headers are not sent.</dd></div>
       </dl>
+      {!ready?.connection && <p className="zconn-hint">Creates a project named &ldquo;LiteLLM gateway&rdquo; in this workspace; it counts toward your plan&rsquo;s project limit.</p>}
       {ready?.connection && (
         <p className="zconn-meta">
           Token {ready.connection.token_prefix}…{ready.connection.token_last4} · issued {relativeTime(ready.connection.created_at)}
@@ -244,6 +249,11 @@ function StaticCard({ id, icon, title, lead, can, cannot, status, children }: { 
 export default function ConnectChooser({ onImportTraces, onScanFolder }: { onImportTraces?: () => void; onScanFolder?: () => void }) {
   const { activeWorkspace } = useSession();
   const otelEnabled = Boolean(activeWorkspace?.features?.zevir_shadow);
+  const { hash } = useLocation();
+  // Router navigation does not scroll to a hash by itself.
+  useEffect(() => {
+    if (hash === '#advanced') document.getElementById('advanced')?.scrollIntoView({ block: 'start' });
+  }, [hash]);
   return (
     <section className="zconn" aria-labelledby="zconn-title">
       <div className="zconn-intro">

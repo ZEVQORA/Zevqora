@@ -40,7 +40,7 @@ function RepositorySwitcher() {
             <button type="button" onClick={() => { setOpen(false); dialogs.openConnect(); }} className="text-caption flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-muted transition-control hover:bg-ink/5 hover:text-ink">
               <Plus size={14} aria-hidden /> Connect a repository
             </button>
-            <button type="button" onClick={() => { setOpen(false); navigate('/app/onboarding'); }} className="text-caption flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-muted transition-control hover:bg-ink/5 hover:text-ink">
+            <button type="button" onClick={() => { setOpen(false); navigate('/app/onboarding?advanced=1'); }} className="text-caption flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-muted transition-control hover:bg-ink/5 hover:text-ink">
               <Plus size={14} aria-hidden /> Start from a trace export
             </button>
           </div>

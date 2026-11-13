@@ -289,7 +289,7 @@ export default function CommandCenterView() {
           action={
             <>
               <ButtonLink to="/app/connections"><Plug size={14} aria-hidden /> Connect evidence</ButtonLink>
-              <ButtonLink to="/app/onboarding" variant="secondary">Guided setup</ButtonLink>
+              <ButtonLink to="/app/onboarding?advanced=1" variant="secondary">Guided setup</ButtonLink>
             </>
           }
         />

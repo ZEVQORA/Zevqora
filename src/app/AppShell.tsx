@@ -431,7 +431,7 @@ export function AppShell() {
           {rail ? <ZevqoraMark height={22} /> : <ZevqoraLogo variant="inverse" size={22} />}
         </Link>
         {drawer && (
-          <button type="button" onClick={() => setMobileOpen(false)} aria-label="Close navigation" className="zshell-icon-btn is-dark">
+          <button type="button" onClick={() => setMobileOpen(false)} aria-label="Close navigation" className="zshell-icon-btn is-dark" autoFocus>
             <X size={18} aria-hidden />
           </button>
         )}
