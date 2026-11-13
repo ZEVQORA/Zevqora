@@ -85,6 +85,29 @@ describe('with platform compute', () => {
     expect(cal.body.search.spend.provider_usd).toBe(0);
   });
 
+  it('61b. the spend-skip report survives a time-sliced calibration (continuation)', async () => {
+    const { setStageSliceStepsForTests } = await import('../api/_lib/optimize/search-store.js');
+    setStageSliceStepsForTests(1);
+    try {
+      const x = (await call('POST', `/api/optimize/runs/${s.run}/searches`, { seed: 'no-spend-sliced', bounds: { max_provider_spend_usd: 0 } })).body.search;
+      const before = provider.calls.length;
+      let cal: Row = {};
+      let slices = 0;
+      for (; slices < 300; slices += 1) {
+        cal = await call('POST', `/api/optimize/searches/${x.id}/calibrate`);
+        if (cal.status !== 200 || cal.body.done) break;
+      }
+      expect(slices).toBeGreaterThan(1); // it really was split across slices
+      expect(cal.body.done).toBe(true);
+      expect(provider.calls.length).toBe(before);
+      expect(cal.body.budget.code).toBe('SEARCH_BUDGET_EXHAUSTED');
+      expect(cal.body.budget.spend_skipped.length).toBeGreaterThan(0);
+      expect(cal.body.budget.spend_skipped.every((p: Row) => /Smaller model/.test(p.name) && /max_provider_spend_usd/.test(p.reason))).toBe(true);
+    } finally {
+      setStageSliceStepsForTests(Infinity);
+    }
+  });
+
   it('38 (route). a cache in front of the substituted model serves the model’s answers; 76. billing goes through the platform path', async () => {
     const plan = (await call('GET', `/api/optimize/searches/${s.search}`)).body.plans.find((p: Row) => p.passes.map((x: Row) => x.kind).join('+') === 'exact_response_reuse+model_substitution' && p.passes[0].scope === 'classify_ticket' && p.passes[0].config.ttl_ms === null);
     expect(plan).toBeTruthy();
