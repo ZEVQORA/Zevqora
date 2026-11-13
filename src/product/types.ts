@@ -8,6 +8,9 @@ export interface EngineHealth {
   openrouter_configured: boolean;
   provider_mode: ProviderMode;
   platform_connected: boolean;
+  /** Which provider serves Engineering Zev on this deployment (cloud engine only). */
+  engineering_zev_provider?: 'anthropic' | 'openrouter' | 'none';
+  engineering_zev_model?: string | null;
 }
 
 export interface EnginePlatformStatus {
@@ -335,6 +338,9 @@ export interface AgentResponse {
   provider: string;
   tool_events: ToolEvent[];
   openrouter_configured: boolean;
+  /** False when no provider serves Engineering Zev here. */
+  provider_configured?: boolean;
+  usage?: { input_tokens: number; output_tokens: number; model_calls: number };
 }
 
 export interface ChatLine {

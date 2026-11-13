@@ -63,7 +63,7 @@ describe('Engineering Zev workspace', () => {
     expect(screen.getByRole('complementary', { name: 'Inspector' })).toBeTruthy();
     const chat = screen.getByRole('region', { name: 'Engineering Zev' });
     expect(within(chat).getByText(/Scope: Support triage/)).toBeTruthy();
-    expect(within(chat).getByText('Platform compute')).toBeTruthy();
+    expect(within(chat).getByText('Platform compute (OpenRouter)')).toBeTruthy();
     expect(screen.getByRole('textbox', { name: 'Ask Engineering Zev' })).toBeTruthy();
   });
 

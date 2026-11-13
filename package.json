@@ -22,6 +22,7 @@
     "staging:local": "node scripts/staging/local-e2e.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
     "@supabase/supabase-js": "^2.57.4",
     "@xyflow/react": "^12.12.0",
     "ajv": "^8.20.0",

@@ -56,7 +56,9 @@ export default function ZevView() {
   const controller = useRef<AbortController | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const graphEnabled = Boolean(activeWorkspace?.features?.zevir_graph_ui || activeWorkspace?.features?.zevir_shadow);
-  const configured = health ? Boolean(health.openrouter_configured) : null;
+  const zevProvider = health?.engineering_zev_provider ?? (health ? (health.openrouter_configured ? 'openrouter' : 'none') : null);
+  const configured = zevProvider === null ? null : zevProvider !== 'none';
+  const providerLabel = zevProvider === 'anthropic' ? `Claude${health?.engineering_zev_model ? ` · ${health.engineering_zev_model}` : ''}` : zevProvider === 'openrouter' ? 'Platform compute (OpenRouter)' : zevProvider === 'none' ? 'Not configured for this environment' : 'Checking provider…';
 
   useEffect(() => setSel(null), [selected?.id]);
   useEffect(() => () => controller.current?.abort(), []);
@@ -99,9 +101,9 @@ export default function ZevView() {
         {
           id: uid(),
           role: 'assistant',
-          content: res.openrouter_configured === false ? `Engineering Zev is not configured for this environment. ${res.message}` : res.message,
+          content: res.provider_configured === false || (res.provider_configured === undefined && res.openrouter_configured === false) ? (res.message.startsWith('Engineering Zev is not configured') ? res.message : `Engineering Zev is not configured for this environment. ${res.message}`) : res.message,
           toolEvents: res.tool_events,
-          model: res.openrouter_configured === false ? undefined : res.model,
+          model: res.provider === 'none' ? undefined : `${res.provider === 'anthropic' ? 'Claude' : 'Platform compute'} · ${res.model}`,
         },
       ]);
       if (res.tool_events.length) await refreshProductData();
@@ -348,7 +350,7 @@ export default function ZevView() {
             <b>Engineering Zev</b>
             <span className="zide-chat-scope">{selected ? `Scope: ${selected.name}` : `Scope: ${activeWorkspace?.name || 'workspace'}`} · read-only tools</span>
             <span className={`zide-chat-provider ${configured === false ? 'is-off' : configured ? 'is-on' : ''}`}>
-              {configured === false ? 'Not configured for this environment' : configured ? 'Platform compute' : 'Checking provider…'}
+              {providerLabel}
             </span>
             <button type="button" className="zide-icon" onClick={() => setChatOpen((v) => !v)} aria-expanded={chatOpen} aria-label={chatOpen ? 'Collapse Engineering Zev' : 'Expand Engineering Zev'}>
               {chatOpen ? <ChevronDown size={16} aria-hidden /> : <ChevronUp size={16} aria-hidden />}
