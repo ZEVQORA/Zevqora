@@ -6,6 +6,7 @@ import { generateInviteToken } from '../tokens.js';
 import { appUrl } from '../stripe.js';
 import { emitProductEvent } from '../analytics/product-events.js';
 import { recordSecurityEvent } from '../analytics/security.js';
+import { workspacePlan, retentionCeiling, initialRetentionDays, MIN_RETENTION_DAYS, MAX_RETENTION_DAYS } from '../plan-limits.js';
 
 /** Audit record of a membership change (security_events, never throttled). */
 const auditMembership = (request, { user, workspaceId, action, metadata = {} }) =>
@@ -25,11 +26,8 @@ async function uniqueSlug(admin, table, base, scope = null) {
   return `${base}-${Date.now().toString(36)}`;
 }
 
-export async function workspacePlan(admin, workspaceId) {
-  const { data: planId } = await admin.rpc('workspace_plan', { ws: workspaceId });
-  const plan = await loadPlan(admin, planId || 'free');
-  return { planId: planId || 'free', plan };
-}
+// Plan resolution lives in plan-limits.js; re-exported for existing importers.
+export { workspacePlan } from '../plan-limits.js';
 
 on('POST', '/api/workspaces', async ({ request }) => {
   const { user, admin } = await requireUser(request);
@@ -39,7 +37,11 @@ on('POST', '/api/workspaces', async ({ request }) => {
   const { count } = await admin.from('workspaces').select('id', { count: 'exact', head: true }).eq('owner_id', user.id);
   if ((count || 0) >= MAX_OWNED_WORKSPACES) throw new ApiError(409, `You can own up to ${MAX_OWNED_WORKSPACES} workspaces.`, 'LIMIT_REACHED');
   const slug = await uniqueSlug(admin, 'workspaces', slugify(name));
-  const { data: ws, error } = await admin.from('workspaces').insert({ name, slug, owner_id: user.id }).select('*').single();
+  // SEC-02: a new workspace starts inside its plan's retention window (the column default is 90).
+  // Its plan is the owner's subscription until an admin sets an override.
+  const { data: sub } = await admin.from('subscriptions').select('plan').eq('user_id', user.id).maybeSingle();
+  const data_retention_days = initialRetentionDays(await loadPlan(admin, sub?.plan || 'free'));
+  const { data: ws, error } = await admin.from('workspaces').insert({ name, slug, owner_id: user.id, data_retention_days }).select('*').single();
   if (error) throw error;
   const { error: memberError } = await admin.from('workspace_members').insert({ workspace_id: ws.id, user_id: user.id, role: 'owner' });
   if (memberError) throw memberError;
@@ -54,7 +56,14 @@ on('PATCH', '/api/workspaces/:id', async ({ request, params }) => {
   const body = await readJson(request);
   const update = {};
   if (body.name !== undefined) update.name = str(body.name, { name: 'Workspace name', required: true, min: 2, max: 80 });
-  if (body.data_retention_days !== undefined) update.data_retention_days = num(body.data_retention_days, { name: 'Retention', min: 7, max: 730, integer: true, required: true });
+  if (body.data_retention_days !== undefined) {
+    const days = num(body.data_retention_days, { name: 'Retention', min: MIN_RETENTION_DAYS, max: MAX_RETENTION_DAYS, integer: true, required: true });
+    // SEC-02: the plan ceiling is enforced on write, not only by the purge job.
+    const { plan } = await workspacePlan(admin, workspaceId);
+    const ceiling = retentionCeiling(plan);
+    if (days > ceiling) throw new ApiError(402, `The ${plan.name} plan keeps telemetry for up to ${ceiling} days.`, 'PLAN_LIMIT', { limit: 'telemetry_retention_days', plan: plan.id, max: ceiling });
+    update.data_retention_days = days;
+  }
   if (body.settings !== undefined) {
     const s = body.settings && typeof body.settings === 'object' ? body.settings : {};
     const clean = {};

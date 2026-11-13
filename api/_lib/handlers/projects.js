@@ -7,7 +7,7 @@ import { recordSecurityEvent } from '../analytics/security.js';
 /** Audit record of a deliberate connection change (security_events, never throttled). */
 const auditConnection = (request, kind, { user, connection, action, metadata = {} }) =>
   recordSecurityEvent(request, { kind, severity: 'low', actorId: user.id, workspaceId: connection.workspace_id, throttle: false, metadata: { action, connection_id: connection.id, connection_kind: connection.kind, ...metadata } });
-import { workspacePlan } from './workspaces.js';
+import { billingScope, assertProjectAllowance, confirmProjectAllowance, assertUnarchiveAllowance, confirmUnarchiveAllowance } from '../plan-limits.js';
 
 const SOURCE_KINDS = ['runtime', 'server', 'repository', 'github', 'manual'];
 
@@ -32,12 +32,9 @@ on('POST', '/api/workspaces/:id/projects', async ({ request, params }) => {
   const repoUrl = str(body?.repo_url, { name: 'Repository URL', max: 300 });
   if (repoUrl && !/^https:\/\/(github\.com|gitlab\.com|bitbucket\.org)\/[\w.-]+\/[\w.-]+/.test(repoUrl)) throw new ApiError(400, 'Repository URL must be an https GitHub, GitLab or Bitbucket URL.', 'VALIDATION');
 
-  const { plan } = await workspacePlan(admin, workspaceId);
-  const limit = plan.limits?.projects;
-  const { count } = await admin.from('projects').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).is('archived_at', null);
-  if (limit !== null && limit !== undefined && (count || 0) >= limit) {
-    throw new ApiError(402, `The ${plan.name} plan includes ${limit} project${limit === 1 ? '' : 's'}. Upgrade to add more.`, 'PLAN_LIMIT', { limit: 'projects', plan: plan.id });
-  }
+  // SEC-01: the project allowance belongs to the billing account, not to one workspace.
+  const scope = await billingScope(admin, workspaceId);
+  await assertProjectAllowance(admin, scope);
   let slug = slugify(name, 'project');
   const { data: clash } = await admin.from('projects').select('id').eq('workspace_id', workspaceId).eq('slug', slug).limit(1);
   if (clash?.length) slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
@@ -47,6 +44,7 @@ on('POST', '/api/workspaces/:id/projects', async ({ request, params }) => {
     .select('*')
     .single();
   if (error) throw error;
+  await confirmProjectAllowance(admin, scope, project.id);
   return { project };
 });
 
@@ -75,8 +73,13 @@ on('PATCH', '/api/projects/:id', async ({ request, params }) => {
     update.archived_at = body.archived ? new Date().toISOString() : null;
   }
   if (!Object.keys(update).length) throw new ApiError(400, 'Nothing to update.', 'VALIDATION');
+  // Restoring an archived project re-enters the account allowance (archive -> create -> restore bypass).
+  const restoring = update.archived_at === null && project.archived_at;
+  const scope = restoring ? await billingScope(admin, project.workspace_id) : null;
+  if (scope) await assertUnarchiveAllowance(admin, scope);
   const { data, error } = await admin.from('projects').update(update).eq('id', projectId).select('*').single();
   if (error) throw error;
+  if (scope) await confirmUnarchiveAllowance(admin, scope, projectId);
   return { project: data };
 });
 
