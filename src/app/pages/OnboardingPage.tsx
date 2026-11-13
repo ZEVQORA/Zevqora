@@ -37,6 +37,9 @@ export default function OnboardingPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const desktop = isDesktop();
+  // The default path is one step (a workspace) and then the chat-first home.
+  // The evidence wizard (folder scan, trace import, requirements) is Advanced.
+  const advanced = params.get('advanced') === '1';
   const startedAt = useRef(Date.now());
 
   const [step, setStep] = useState(0);
@@ -48,7 +51,8 @@ export default function OnboardingPage() {
   const [creatingWorkspace, setCreatingWorkspace] = useState(false);
   const [workspaceName, setWorkspaceName] = useState('');
 
-  const [source, setSource] = useState<Source>('repository');
+  // Traces first: a folder scan is never the default. The desktop app has only the repository path.
+  const [source, setSource] = useState<Source>(desktop ? 'repository' : 'workload');
   const [projectName, setProjectName] = useState('');
   const [authorized, setAuthorized] = useState(false);
 
@@ -88,6 +92,10 @@ export default function OnboardingPage() {
         setActiveWorkspaceId(workspaceId);
       }
       void app.updateMe({ onboarding: { started_at: new Date(startedAt.current).toISOString() } }).catch(() => undefined);
+      if (!advanced) {
+        navigate('/app', { replace: true });
+        return;
+      }
       setStep(1);
     } catch (e) {
       setError(errorMessage(e));
@@ -160,7 +168,7 @@ export default function OnboardingPage() {
         <Link to="/" aria-label="ZEVQORA home" className="rounded-sm">
           <ZevqoraLogo size={24} />
         </Link>
-        <ol className="no-scrollbar flex items-center gap-2 overflow-x-auto" aria-label="Onboarding progress">
+        {advanced && <ol className="no-scrollbar flex items-center gap-2 overflow-x-auto" aria-label="Onboarding progress">
           {STEPS.map((s, i) => (
             <li key={s} className="flex items-center gap-2">
               <span className={cn('inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-full px-2 font-mono text-[10px] uppercase tracking-wide', i === step ? 'bg-ink text-cloud' : i < step ? 'bg-verified-bg text-verified' : 'bg-sunken text-subtle')} aria-current={i === step ? 'step' : undefined}>
@@ -169,15 +177,16 @@ export default function OnboardingPage() {
               {i < STEPS.length - 1 && <span aria-hidden className="h-px w-3 bg-line" />}
             </li>
           ))}
-        </ol>
+        </ol>}
+        {!advanced && <Link to="/app" className="text-caption text-muted underline underline-offset-4 hover:text-ink">Skip to Zev</Link>}
       </header>
 
       <div className="container-page max-w-[42rem] py-8 lg:py-14">
         {step === 0 && (
           <>
-            <p className="text-eyebrow uppercase text-muted">Step 1 · Workspace</p>
-            <h1 className="text-h1 mt-4 text-ink">Where should this evaluation live?</h1>
-            <p className="text-body mt-4 text-muted">A workspace holds your team, projects and evidence. The goal of the next few minutes is your first piece of evidence, not an account.</p>
+            <p className="text-eyebrow uppercase text-muted">{advanced ? 'Advanced setup · Step 1 · Workspace' : 'Welcome to ZEVQORA'}</p>
+            <h1 className="text-h1 mt-4 text-ink">{advanced ? 'Where should this evaluation live?' : 'Name your workspace.'}</h1>
+            <p className="text-body mt-4 text-muted">{advanced ? 'A workspace holds your team, projects and evidence. The goal of the next few minutes is your first piece of evidence, not an account.' : 'A workspace holds your team and evidence. Next, Zev explains what ZEVQORA does. Nothing to upload or connect first.'}</p>
             <div className="mt-8 grid gap-2">
               {existing.map((w) => (
                 <button key={w.id} type="button" onClick={() => { setCreatingWorkspace(false); setWorkspaceId(w.id); }} className={cn('flex items-center justify-between rounded-md border px-4 py-3 text-left transition-control', !creatingWorkspace && workspaceId === w.id ? 'border-accent bg-accent-subtle' : 'border-line bg-surface hover:border-line-control')}>

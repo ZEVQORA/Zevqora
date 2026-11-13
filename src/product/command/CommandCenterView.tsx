@@ -256,7 +256,7 @@ export default function CommandCenterView() {
   const wsId = activeWorkspace?.id || '';
   const { data: cc, error, loading, reload } = useAsync(() => experienceApi.commandCenter(wsId, Number(days)), [wsId, days], { enabled: Boolean(wsId) });
   useEffect(() => {
-    document.title = 'Command Center — ZEVQORA';
+    document.title = 'Overview — ZEVQORA';
   }, []);
 
   return (
@@ -264,7 +264,7 @@ export default function CommandCenterView() {
       <WelcomeArea cc={cc ?? null} />
       <ViewHeader
         eyebrow={activeWorkspace?.name}
-        title="Command Center"
+        title="Overview"
         actions={
           <>
             <SegmentedControl label="Presentation view" value={mode} onChange={setMode} options={MODES.map((m) => ({ value: m.value, label: m.label, title: m.description }))} />

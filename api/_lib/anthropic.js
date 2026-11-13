@@ -15,7 +15,7 @@
  */
 import Anthropic from '@anthropic-ai/sdk';
 import { ApiError } from './http.js';
-import { SYSTEM_PROMPT, executeTool } from './product/zev.js';
+import { SYSTEM_PROMPT, executeTool, explainInstruction } from './product/zev.js';
 
 export const DEFAULT_CLAUDE_MODEL = 'claude-opus-5-5';
 const MODEL_RE = /^claude-[a-z0-9.-]{1,60}$/;
@@ -162,9 +162,10 @@ const textOf = (content) =>
  *   settle(deltaUsd) -> applies measured cost minus the reservation.
  * Unavailable accounting stops before any paid call (fail closed).
  */
-export async function runZevClaude({ ctx, history, productId, signal, budget }) {
+export async function runZevClaude({ ctx, history, productId, signal, budget, explainMode = null }) {
   const model = claudeModel();
-  const system = productId ? `${SYSTEM_PROMPT}\n\nThe selected ZEVQORA product_id is ${productId}. Tools always read that product.` : SYSTEM_PROMPT;
+  const base = `${SYSTEM_PROMPT}\n\n${explainInstruction(explainMode)}`;
+  const system = productId ? `${base}\n\nThe selected ZEVQORA product_id is ${productId}. Tools always read that product.` : base;
   /** @type {import('@anthropic-ai/sdk').default.MessageParam[]} */
   const messages = history.map((m) => ({ role: m.role, content: m.content }));
   const events = [];

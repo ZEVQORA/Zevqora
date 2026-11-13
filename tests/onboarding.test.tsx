@@ -30,7 +30,7 @@ const { default: OnboardingPage } = await import('@/app/pages/OnboardingPage');
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={['/app/onboarding?intent=evaluation']}>
+    <MemoryRouter initialEntries={['/app/onboarding?advanced=1&intent=evaluation']}>
       <Routes>
         <Route path="/app/onboarding" element={<OnboardingPage />} />
         <Route path="/app" element={<p>app overview</p>} />
