@@ -241,6 +241,8 @@
 /* ── Ask Zev (one composer: hero slot or docked) ──────────────────────── */
 .zev-ask {
   position: relative;
+  /* The stage centers its copy; the composer and the docked panel read left-aligned. */
+  text-align: left;
   color: #f7f8fa;
   font-family: var(--font-sans);
   --zev-line: rgba(247, 248, 250, 0.16);
