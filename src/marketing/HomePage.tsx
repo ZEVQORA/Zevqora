@@ -2,20 +2,22 @@ import { Hero } from "./Hero";
 import { PageTitle } from "./Editorial";
 import {
   EngineBoundaries,
-  EngineChapters,
   EngineEnd,
-  EngineManifesto,
   EngineProductStage,
   EngineProof,
-  EngineTicker,
-  EngineZev,
 } from "./EngineSections";
+import {
+  ClarityAudience,
+  ClarityClose,
+  ClarityFlow,
+  ClarityIntro,
+} from "./PremiumNarrative";
 import { PricingGrid } from "./Pricing";
 import { AskZev } from "./askzev/AskZev";
 import { SITE_URL } from "@/lib/seo";
 
 const DESCRIPTION =
-  "Verified AI optimization: understand how an AI system executes, find expensive or unreliable paths, and prove which changes are worth shipping.";
+  "ZEVQORA tests AI cost and performance optimizations against quality requirements. Observe a workload, replay candidate changes, examine the evidence, and keep the human in control.";
 
 const JSON_LD = {
   "@context": "https://schema.org",
@@ -29,18 +31,25 @@ export default function HomePage() {
   return (
     <>
       <PageTitle title="Make AI lighter." description={DESCRIPTION} jsonLd={JSON_LD} />
-      {/* One composer for the whole page: in the hero slot, docked bottom-right past it. */}
+      {/* Retain the single Ask Zev instance as it moves from the hero into the dock. */}
       <Hero composer={<AskZev />} />
-      <EngineTicker />
-      <EngineManifesto />
-      <EngineChapters />
+
+      {/* Lead with customer clarity instead of a repeating ticker and abstract manifesto. */}
+      <ClarityIntro />
+      <ClarityFlow />
+
+      {/* Existing functional product preview and evidence remain intact. */}
       <EngineProductStage />
       <EngineProof />
+
+      <ClarityAudience />
       <EngineBoundaries />
-      <EngineZev />
+
       <section className="engine-home-pricing">
         <PricingGrid />
       </section>
+
+      <ClarityClose />
       <EngineEnd />
     </>
   );
