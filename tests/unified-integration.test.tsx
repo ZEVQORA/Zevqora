@@ -167,15 +167,27 @@ describe('EnterpriseView', () => {
 });
 
 describe('public Zev support', () => {
-  it('stays off the cinematic hero and appears once the visitor scrolls past it', async () => {
+  it('keeps a failed question and retries it once without duplicating the conversation', async () => {
+    apiMock.fn.mockReset().mockRejectedValueOnce(new Error('Connection interrupted')).mockResolvedValueOnce({ answer: 'Start with one workload.', answer_mode: 'public_faq' });
     const { SupportZevLauncher } = await import('@/marketing/SupportZevLauncher');
-    Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 });
-    render(<MemoryRouter><SupportZevLauncher afterHero /></MemoryRouter>);
-    expect(screen.queryByRole('button', { name: 'Open Ask Zev public support' })).toBeNull();
-    Object.defineProperty(window, 'scrollY', { configurable: true, value: window.innerHeight });
-    act(() => { window.dispatchEvent(new Event('scroll')); });
+    render(<MemoryRouter><SupportZevLauncher /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: 'Open Ask Zev public support' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Ask Zev a question' }), { target: { value: 'Where do I start?' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send question' }));
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', expect.stringContaining('Connection interrupted'));
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByText('Start with one workload.')).toBeTruthy();
+    expect(screen.getAllByText('Where do I start?')).toHaveLength(1);
+    expect(apiMock.fn).toHaveBeenCalledTimes(2);
+    expect(apiMock.fn.mock.calls[1][1]).toMatchObject({ method: 'POST', auth: false, body: { message: 'Where do I start?' } });
+  });
+
+  it('is available immediately and the page CTA opens the same support dialog', async () => {
+    const { SupportZevLauncher, openZevSupport } = await import('@/marketing/SupportZevLauncher');
+    render(<MemoryRouter><SupportZevLauncher /></MemoryRouter>);
     expect(screen.getByRole('button', { name: 'Open Ask Zev public support' })).toBeTruthy();
-    Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 });
+    act(() => openZevSupport());
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
   });
 
   it('opens without network requests or private data, labels FAQ mode, and returns focus on Escape', async () => {
@@ -187,7 +199,7 @@ describe('public Zev support', () => {
     const { container } = render(<MemoryRouter><main><SupportZevLauncher /></main></MemoryRouter>);
     const trigger = screen.getByRole('button', { name: 'Open Ask Zev public support' });
     act(() => trigger.click());
-    const dialog = screen.getByRole('dialog', { name: /Hey, I’m Zev/ });
+    const dialog = screen.getByRole('dialog', { name: 'Ask Zev' });
     expect(dialog.textContent).toContain('FAQ answers');
     expect(document.activeElement?.getAttribute('aria-label')).toBe('Close support');
     expect(await violations(container)).toEqual([]);

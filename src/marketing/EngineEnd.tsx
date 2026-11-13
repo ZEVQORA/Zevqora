@@ -1,7 +1,9 @@
 import { ArrowUpRight } from "lucide-react";
 import { Link } from "react-router";
+import { useSession } from "@/lib/session";
 
 export function EngineEnd() {
+  const { status } = useSession();
   return (
     <section className="engine-end">
       <div className="engine-section-meta">
@@ -21,8 +23,8 @@ export function EngineEnd() {
           <br />
           See what your AI could stop carrying.
         </p>
-        <Link to="/signup" className="engine-end-action">
-          LET’S GET LIGHTER
+        <Link to={status === "signed_in" ? "/app" : "/signup"} className="engine-end-action">
+          {status === "signed_in" ? "OPEN WORKSPACE" : "START OPTIMIZING"}
           <ArrowUpRight size={36} />
         </Link>
         <Link to="/product" className="engine-inline-link">

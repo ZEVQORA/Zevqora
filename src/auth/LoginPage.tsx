@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useSearchParams } from "react-router";
-import { ArrowRight, Mail, ShieldCheck } from "lucide-react";
+import { ArrowRight, Mail } from "lucide-react";
 import { PasswordInput } from "./PasswordInput";
 import {
   AuthShell,
@@ -39,6 +39,7 @@ export default function LoginPage() {
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (pending || oauthPending) return;
     setPending(true);
     setError(null);
     const fd = new FormData(e.currentTarget);
@@ -94,7 +95,7 @@ export default function LoginPage() {
   return (
     <AuthShell
       title="Welcome back"
-      subtitle="Log in to your ZEVQORA account"
+      subtitle="Sign in to your ZEVQORA workspace."
       footer={
         <p className="text-caption text-muted">
           New to ZEVQORA?{" "}
@@ -114,7 +115,7 @@ export default function LoginPage() {
       )}
       <OAuthButtons
         onClick={oauth}
-        disabled={status === "unconfigured" || Boolean(oauthPending)}
+        disabled={status === "unconfigured" || pending || Boolean(oauthPending)}
         pending={oauthPending}
       />
       <OrDivider />
@@ -127,6 +128,8 @@ export default function LoginPage() {
               name="identifier"
               autoComplete="username"
               placeholder="you@company.com"
+              autoCapitalize="none"
+              spellCheck={false}
               required
             />
           </div>
@@ -144,20 +147,17 @@ export default function LoginPage() {
             {error}
           </p>
         )}
-        <div className="nova-auth-note">
-          <span>
-            <ShieldCheck size={12} /> You’ll stay signed in
-          </span>
+        <div className="polished-auth-note">
           <Link to="/forgot-password">Forgot password?</Link>
         </div>
         <Button
           type="submit"
           size="lg"
           loading={pending}
-          disabled={status === "unconfigured"}
+          disabled={status === "unconfigured" || Boolean(oauthPending)}
           className="mt-1 w-full"
         >
-          <span>Log in</span>
+          <span>{pending ? "Signing in…" : "Sign in"}</span>
           <ArrowRight size={17} />
         </Button>
       </form>

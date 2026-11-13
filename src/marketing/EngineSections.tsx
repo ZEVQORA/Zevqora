@@ -19,6 +19,7 @@ import { Zev } from "@/brand/Zev";
 import { ZevqoraMark } from "@/brand/ZevqoraMark";
 import { ProductPreview } from "./ProductPreview";
 import { Rise } from "./Editorial";
+import { openZevSupport } from "./SupportZevLauncher";
 
 export function EngineTicker() {
   return (
@@ -230,51 +231,38 @@ export function EngineBoundaries() {
 }
 
 export function EngineZev() {
-  const [wave, setWave] = useState(false);
   return (
     <section className="engine-zev">
       <div className="engine-section-meta">
-        <span>A HUMAN TOUCH TO SERIOUS WORK</span>
-        <span>MEET ZEV / YOUR COMPANION</span>
+        <span>MEET ZEV</span>
       </div>
       <div className="engine-zev-layout">
         <div>
           <h2>
-            Big brain.
+            A little help.
             <br />
-            Soft side<span>.</span>
+            A clearer next step<span>.</span>
           </h2>
           <p>
-            Good engineering can feel a little lighter, too. Zev keeps the
-            evidence in view and the next step understandable.
+            Questions about setup, your stack, or verification? Zev helps
+            you find your way and understand what comes next.
           </p>
-          <Link to="/product" className="engine-button engine-button-white">
-            See Zev in the product
+          <button type="button" onClick={openZevSupport} className="engine-button engine-button-white">
+            Ask Zev
             <ArrowUpRight size={17} />
-          </Link>
+          </button>
         </div>
-        <button
-          type="button"
-          className="engine-zev-stage"
-          onClick={() => setWave((v) => !v)}
-          aria-label="Say hello to Zev"
-        >
-          <span className="engine-zev-label">
-            EVIDENCE FIRST.
-            <br />
-            ALWAYS.
-          </span>
-          <div>
+        <div className="zev-companion-card">
+          <div className="zev-companion-caption"><ZevqoraMark height={24} /><span>Your optimization companion</span></div>
+          <div className="zev-companion-art">
             <Zev
-              view={wave ? "pose-waving" : "three-quarter-front"}
-              height={310}
+              view="three-quarter-front"
+              height={235}
               alt="Zev, Zevqora’s optimization companion"
             />
           </div>
-          <span className="engine-zev-name">
-            ZEV<span>↗</span>
-          </span>
-        </button>
+          <p>Good decisions start with good questions.</p>
+        </div>
       </div>
       <span className="engine-zev-watermark" aria-hidden>
         <ZevqoraMark height={200} />

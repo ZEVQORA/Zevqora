@@ -1,66 +1,46 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router";
-import { motion, useReducedMotion } from "motion/react";
-import { ArrowLeft, Info, X } from "lucide-react";
-import { Aurora } from "@/brand/Aurora";
+import { ArrowLeft, ArrowRight, Check, Info } from "lucide-react";
 import { ZevqoraLogo } from "@/brand/ZevqoraLogo";
+import { ZevqoraMark } from "@/brand/ZevqoraMark";
 import { getEnabledOAuthProviders, type OAuthProvider } from "@/lib/supabase";
 
-export function AuthShell({
-  title,
-  subtitle,
-  children,
-  footer,
-  aside,
-}: {
-  title: string;
-  subtitle?: ReactNode;
-  children: ReactNode;
-  footer?: ReactNode;
-  aside?: ReactNode;
+export function AuthShell({ title, subtitle, children, footer, aside }: {
+  title: string; subtitle?: ReactNode; children: ReactNode; footer?: ReactNode; aside?: ReactNode;
 }) {
-  const reduced = useReducedMotion();
   return (
-    <main id="main" className="nova-auth">
-      <Aurora />
-      <header className="nova-auth-header">
-        <Link to="/" aria-label="ZEVQORA home">
-          <ZevqoraLogo variant="inverse" size={30} />
-        </Link>
-        <Link to="/">
-          <ArrowLeft size={13} /> Back to website
-        </Link>
+    <main id="main" className="z-auth polished-auth">
+      <header className="polished-auth-header">
+        <Link to="/" aria-label="ZEVQORA home"><ZevqoraLogo size={27} /></Link>
+        <Link to="/"><ArrowLeft size={16} /> Back to website</Link>
       </header>
-      <div>
-        <motion.section
-          className="nova-auth-card"
-          aria-label={title}
-          initial={reduced ? false : { opacity: 0, y: 20, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <Link
-            to="/"
-            className="nova-auth-close"
-            aria-label="Close and return home"
-          >
-            <X size={20} />
-          </Link>
-          <div className="nova-auth-brand">
-            <ZevqoraLogo variant="inverse" size={28} />
+      <div className="polished-auth-layout">
+        <aside className="polished-auth-story">
+          <span className="polished-eyebrow">YOUR NEXT LIGHTER STEP</span>
+          <h2>Big ideas.<br />A lighter way<span>.</span></h2>
+          <p>Understand your AI spend. Test a better approach. Keep quality in the decision.</p>
+          {aside || <div className="polished-auth-diagram" aria-hidden="true">
+            <div className="polished-auth-source">Your AI workload<span>Calls · Context · Retries</span></div>
+            <div className="polished-auth-connector" />
+            <div className="polished-auth-node"><ZevqoraMark height={34} /><span>Measure. Replay. Verify.</span></div>
+            <div className="polished-auth-connector" />
+            <div className="polished-auth-result"><Check size={17} /> Evidence for your next decision</div>
+          </div>}
+          <Link to="/product">Take a look inside <ArrowRight size={17} /></Link>
+        </aside>
+        <section className="polished-auth-surface" aria-label={title}>
+          <div className="polished-auth-form">
+            <h1>{title}</h1>
+            {subtitle && <p className="auth-subtitle">{subtitle}</p>}
+            <div className="auth-form">{children}</div>
+            {footer && <div className="auth-form-footer">{footer}</div>}
           </div>
-          <h1>{title}</h1>
-          {subtitle && <p className="auth-subtitle">{subtitle}</p>}
-          {aside && <div className="nova-auth-aside">{aside}</div>}
-          <div className="auth-form">{children}</div>
-          {footer && <div className="auth-form-footer">{footer}</div>}
-        </motion.section>
-        <footer className="nova-auth-footer">
-          <span>© {new Date().getFullYear()} ZEVQORA</span>
-          <Link to="/privacy">Privacy</Link>
-          <Link to="/terms">Terms</Link>
-        </footer>
+        </section>
       </div>
+      <footer className="polished-auth-footer">
+        <span>© {new Date().getFullYear()} ZEVQORA</span>
+        <nav aria-label="Legal"><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link></nav>
+      </footer>
     </main>
   );
 }

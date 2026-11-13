@@ -33,12 +33,12 @@ describe('website', () => {
     wrap(<HomePage />);
     // The design (207cab5) hero sets its two-line headline as one accessible name.
     expect(screen.getByRole('heading', { level: 1, name: 'Make AI lighter.' })).toBeTruthy();
-    expect(screen.getByText('Product preview')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Ask Zev', exact: true }));
-    expect(screen.getByRole('heading', { name: /A second pair of eyes/ })).toBeTruthy();
+    expect(screen.getByText('PRODUCT PREVIEW · SAMPLE DATA')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Opportunities', exact: true }));
+    expect(screen.getByRole('heading', { name: 'Opportunities', exact: true })).toBeTruthy();
     const text = document.body.textContent || '';
     expect(text).not.toMatch(/our customers|trusted by|paying customers|saved \$|realized savings of/i);
-    expect(screen.getByRole('link', { name: 'Explore ZEVQORA' }).getAttribute('href')).toBe('/signup');
+    expect(screen.getByRole('link', { name: 'Start optimizing' }).getAttribute('href')).toBe('/signup');
     expect(document.title).toMatch(/Make AI lighter/);
     expect(document.querySelector('link[rel=canonical]')?.getAttribute('href')).toBe('https://zevqora.vercel.app');
   });

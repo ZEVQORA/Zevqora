@@ -38,6 +38,7 @@ export default function SignupPage() {
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (pending || oauthPending) return;
     track("signup_started", { path: "/signup" });
     setPending(true);
     setError(null);
@@ -116,16 +117,16 @@ export default function SignupPage() {
 
   return (
     <AuthShell
-      title="A lighter start"
+      title="Create your account"
       subtitle={
         plan
           ? `You picked the ${plan} plan. Create your account, then choose billing from Usage.`
-          : "Create your ZEVQORA account"
+          : "A clearer picture of your AI starts here."
       }
       footer={
         <p className="text-caption text-muted">
           Already have an account?{" "}
-          <Link to="/login" className="text-ink underline underline-offset-4">
+          <Link to={`/login?next=${encodeURIComponent(next)}`} className="text-ink underline underline-offset-4">
             Sign in
           </Link>
         </p>
@@ -133,7 +134,7 @@ export default function SignupPage() {
     >
       <OAuthButtons
         onClick={oauth}
-        disabled={status === "unconfigured" || Boolean(oauthPending)}
+        disabled={status === "unconfigured" || pending || Boolean(oauthPending)}
         pending={oauthPending}
       />
       <OrDivider />
@@ -207,10 +208,10 @@ export default function SignupPage() {
           type="submit"
           size="lg"
           loading={pending}
-          disabled={status === "unconfigured"}
+          disabled={status === "unconfigured" || Boolean(oauthPending)}
           className="mt-1 w-full"
         >
-          <span>Create your workspace</span>
+          <span>{pending ? "Creating account…" : "Create account"}</span>
           <ArrowRight size={17} />
         </Button>
       </form>

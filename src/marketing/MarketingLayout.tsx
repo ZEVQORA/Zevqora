@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Link,
   NavLink,
@@ -12,14 +12,18 @@ import { ZevqoraLogo } from "@/brand/ZevqoraLogo";
 import { ZevqoraWordmark } from "@/brand/ZevqoraWordmark";
 import { useSession } from "@/lib/session";
 import { useSiteContent } from "@/lib/site";
+import { SupportZevLauncher } from "./SupportZevLauncher";
 
 const NAV = [
-  ["Home", "/"],
   ["Product", "/product"],
-  ["Technology", "/how-it-works"],
-  ["About", "/company"],
+  ["How it works", "/how-it-works"],
+  ["Evidence", "/proof"],
+  ["Pricing", "/pricing"],
+  ["Security", "/security"],
 ];
 export function SiteHeader() {
+  const menuToggle = useRef<HTMLButtonElement>(null);
+  const menuPanel = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false),
     { status } = useSession(),
     location = useLocation(),
@@ -29,43 +33,62 @@ export function SiteHeader() {
     if (!open) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const background = Array.from(document.querySelectorAll<HTMLElement>('.marketing-app > main, .marketing-app > footer'));
+    const inert = background.map((element) => element.inert);
+    background.forEach((element) => { element.inert = true; });
+    menuPanel.current?.querySelector<HTMLAnchorElement>('a[href]')?.focus();
     const close = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        menuToggle.current?.focus();
+      }
+      if (e.key !== "Tab") return;
+      const links = menuPanel.current?.querySelectorAll<HTMLAnchorElement>('a[href]');
+      if (!links?.length) return;
+      const last = links[links.length - 1];
+      if (e.shiftKey && document.activeElement === menuToggle.current) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault(); menuToggle.current?.focus();
+      } else if (e.shiftKey && document.activeElement === links[0]) {
+        e.preventDefault(); menuToggle.current?.focus();
+      }
     };
     window.addEventListener("keydown", close);
     return () => {
       document.body.style.overflow = previous;
+      background.forEach((element, index) => { element.inert = inert[index]; });
       window.removeEventListener("keydown", close);
     };
   }, [open]);
   const target = status === "signed_in" ? "/app" : "/signup";
   const { status: siteStatus } = useSiteContent();
   return (
-    <header className="engine-header">
+    <header className="engine-header" data-signed-in={status === "signed_in"}>
       {siteStatus.banner && (
         <div className="engine-status-banner" role="status">
           {siteStatus.banner}
         </div>
       )}
       <div className="engine-header-inner">
-        <Link className="engine-header-logo" to="/" aria-label="ZEVQORA home">
+        <Link className="engine-header-logo" to="/" aria-label="ZEVQORA home" tabIndex={open ? -1 : undefined} onClick={() => setOpen(false)}>
           <ZevqoraLogo variant="inverse" size={24} />
         </Link>
         <nav aria-label="Primary">
           {NAV.map(([label, to]) => (
-            <NavLink key={to} to={to} end={to === "/"}>
+            <NavLink key={to} to={to}>
               {label}
             </NavLink>
           ))}
         </nav>
         <div className="engine-header-actions">
-          <Link to={status === "signed_in" ? "/app" : "/login"}>
-            {status === "signed_in" ? "Workspace" : "Log in"}
-          </Link>
+          {status !== "signed_in" && <Link to="/login">Sign in</Link>}
           <Link className="engine-button" to={target}>
-            {status === "signed_in" ? "Open app" : "Sign up"}
+            {status === "signed_in" ? "Open workspace" : "Get started"}
+            <ArrowUpRight size={14} />
           </Link>
           <button
+            ref={menuToggle}
             className="engine-menu-toggle"
             type="button"
             aria-label={open ? "Close navigation" : "Open navigation"}
@@ -80,6 +103,7 @@ export function SiteHeader() {
       <AnimatePresence>
         {open && (
           <motion.div
+            ref={menuPanel}
             id="engine-mobile-menu"
             className="engine-mobile-menu"
             initial={reduced ? false : { opacity: 0, y: -15 }}
@@ -87,19 +111,19 @@ export function SiteHeader() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.25 }}
           >
-            <div role="navigation" aria-label="Mobile">
+            <nav aria-label="Mobile">
               {[
                 ...NAV,
                 ["Our team", "/team"],
                 ["Evaluate your workload", "/evaluation"],
               ].map(([label, to], i) => (
                 <Link to={to} key={to}>
-                  <small>0{i + 1}</small>
+                  <small aria-hidden>0{i + 1}</small>
                   <span>{label}</span>
                   <ArrowUpRight size={22} />
                 </Link>
               ))}
-            </div>
+            </nav>
             <Link to={target}>
               Let’s get lighter
               <ArrowUpRight size={25} />
@@ -119,6 +143,7 @@ export function SiteFooter() {
         ["The product", "/product"],
         ["How it works", "/how-it-works"],
         ["Evidence", "/proof"],
+        ["Desktop engine", "/download"],
         ["Evaluate your workload", "/evaluation"],
       ],
     },
@@ -200,7 +225,7 @@ export function MarketingLayout() {
   const reduced = useReducedMotion();
   const page = location.pathname.split("/")[1] || "home";
   return (
-    <div className={`marketing-app engine-world nova-world page-${page}`}>
+    <div className={`marketing-app engine-world page-${page}`}>
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[90] focus:bg-white focus:p-4"
@@ -222,6 +247,7 @@ export function MarketingLayout() {
         <Outlet />
       </motion.main>
       <SiteFooter />
+      <SupportZevLauncher />
     </div>
   );
 }

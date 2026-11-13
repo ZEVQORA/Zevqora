@@ -34,12 +34,10 @@ const FACES: Record<ZevExpression, { w: number; h: number }> = {
   'friendly-idle': { w: 139, h: 128 },
 };
 
-const MAX_RENDER_HEIGHT = 320;
-
 /** A canonical Zev sprite extracted from the brand turnaround — never redrawn, never upscaled past source. */
 export function Zev({ view = 'three-quarter-front', height = 240, className, alt }: { view?: ZevView; height?: number; className?: string; alt?: string }) {
   const s = SPRITES[view];
-  const h = Math.min(height, MAX_RENDER_HEIGHT);
+  const h = Math.min(height, s.h);
   const w = Math.round((s.w / s.h) * h);
   return (
     <img

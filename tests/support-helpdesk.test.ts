@@ -30,6 +30,12 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllEnvs());
 describe("public Zev helpdesk", () => {
+  it("answers getting-started and verification prompts with specific next steps", async () => {
+    const start = await ask("How do I get started?");
+    expect((await start.json()).answer).toContain("1. Create an account");
+    const verification = await ask("How does verification work?");
+    expect((await verification.json()).answer).toContain("quality floor");
+  });
   it("labels fallback as FAQ and makes no model call", async () => {
     const response = await ask("How do I connect GitHub?");
     expect(response.status).toBe(200);
