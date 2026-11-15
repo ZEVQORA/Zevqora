@@ -26,6 +26,7 @@ import { runEvaluation, enforceRequirements, sanitizeRequirements } from '../pro
 import { unifiedDiff } from '../product/diff.js';
 import { EXPLAIN_MODES, runZev } from '../product/zev.js';
 import { claudeModel, engineeringZevProvider, runZevClaude } from '../anthropic.js';
+import { zevModel } from '../zev-model.js';
 import { mergeTrial } from '../product/trial.js';
 import { projectEngineProduct, zevirEnabled } from '../zevir/store.js';
 import { runPlanExecution } from '../product/run-plan.js';
@@ -128,7 +129,7 @@ on('GET', '/api/engine/health', async ({ request }) => {
   const configured = openRouterConfigured();
   // Booleans and a provider name only; never key material.
   const zev = engineeringZevProvider({ openRouterConfigured: configured });
-  return { status: 'ok', version: VERSION, openrouter_configured: configured, provider_mode: configured ? 'platform' : 'none', platform_connected: true, engineering_zev_provider: zev, engineering_zev_model: zev === 'anthropic' ? claudeModel() : null };
+  return { status: 'ok', version: VERSION, openrouter_configured: configured, provider_mode: configured ? 'platform' : 'none', platform_connected: true, engineering_zev_provider: zev, engineering_zev_model: zev === 'anthropic' ? claudeModel() : zev === 'openrouter' ? zevModel() : null };
 });
 
 on('GET', '/api/engine/platform/status', async ({ request, query }) => {
@@ -637,8 +638,8 @@ on('POST', '/api/engine/agent/chat', async ({ request }) => {
   }
   const billing = await resolveBilling({ admin, user, workspaceId, projectId: product?.project_id || null });
   const complete = async (payload) => completeText({ admin, user, billing, payload, operation: 'zev_chat', extraMeta: { product_id: product?.id || null } });
-  const requested = str(body?.model, { name: 'model', max: 160 }) || DEFAULT_MODEL;
-  const model = requested === 'openrouter/auto' ? DEFAULT_MODEL : requested;
+  // The server selects the free route; client model overrides cannot spend credit.
+  const model = zevModel();
   const out = await runZev({ complete, ctx, history, model, productId: product?.id || null, explainMode });
   return { ...out, provider: 'zevqora-platform', openrouter_configured: true, provider_configured: true };
 });

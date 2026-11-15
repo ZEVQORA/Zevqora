@@ -75,7 +75,8 @@ export async function runZev({ complete, ctx, history, model, productId, explain
   const events = [];
   let chosen = model;
   for (let step = 0; step < maxSteps; step += 1) {
-    const res = await complete({ model: chosen, messages, tools: TOOL_DEFINITIONS, tool_choice: 'auto', temperature: 0.2, max_tokens: 900 });
+    // Keep the requested route on every step; the resolved model is display metadata.
+    const res = await complete({ model, messages, tools: TOOL_DEFINITIONS, tool_choice: 'auto', temperature: 0.2, max_tokens: 900 });
     chosen = res.model || chosen;
     if (!res.toolCalls.length) return { message: res.content || 'I finished the analysis but received no text response.', model: chosen, tool_events: events };
     messages.push({ role: 'assistant', content: res.content, tool_calls: res.toolCalls });
