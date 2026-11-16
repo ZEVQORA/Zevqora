@@ -1598,9 +1598,10 @@
 .auth-form-wrap .z-kicker {
   font-size: 8px;
 }
-.auth-form input,
-.auth-form button,
-.auth-form a {
+/* Square fields belonged to the retired editorial sign-in; the Zev Light form (.zv-auth) is rounded. */
+.auth-editorial .auth-form input,
+.auth-editorial .auth-form button,
+.auth-editorial .auth-form a {
   border-radius: 0 !important;
   box-shadow: none !important;
 }

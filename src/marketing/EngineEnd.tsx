@@ -1,35 +1,15 @@
-import { ArrowUpRight } from "lucide-react";
-import { Link } from "react-router";
+import { PremiumCta } from "./v2/PremiumCta";
 
+/** The closing call to action on every inner page (same component as the homepage close). */
 export function EngineEnd() {
   return (
-    <section className="engine-end">
-      <div className="engine-section-meta">
-        <span>YOUR NEXT LIGHTER STEP</span>
-        <span>THE FUTURE CARRIES LESS.</span>
-      </div>
-      <h2>
-        Go build
-        <br />
-        <em>something</em>
-        <br />
-        <span>lighter.</span>
-      </h2>
-      <div className="engine-end-bottom">
-        <p>
-          Start with one workload.
-          <br />
-          See what your AI could stop carrying.
-        </p>
-        <Link to="/signup" className="engine-end-action">
-          LET’S GET LIGHTER
-          <ArrowUpRight size={36} />
-        </Link>
-        <Link to="/product" className="engine-inline-link">
-          Or take a look inside
-          <ArrowUpRight size={15} />
-        </Link>
-      </div>
-    </section>
+    <PremiumCta
+      kicker="Your next lighter step"
+      title="Go build something lighter."
+      body="Start with one workload. See what your AI could stop carrying — and keep the evidence for every decision."
+      primary={{ label: "Let’s get lighter", to: "/signup" }}
+      secondary={{ label: "Take a look inside", to: "/product" }}
+      fine=""
+    />
   );
 }

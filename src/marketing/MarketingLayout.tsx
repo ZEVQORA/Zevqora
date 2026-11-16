@@ -26,6 +26,15 @@ export function SiteHeader() {
     location = useLocation(),
     reduced = useReducedMotion();
   useEffect(() => setOpen(false), [location.pathname]);
+  // Ink header on every page (the live site's signature); it tightens into glass once scrolled.
+  const light = false;
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const on = () => setScrolled(window.scrollY > 12);
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
+  }, []);
   useEffect(() => {
     if (!open) return;
     const previous = document.body.style.overflow;
@@ -42,7 +51,7 @@ export function SiteHeader() {
   const target = status === "signed_in" ? "/app" : "/signup";
   const { status: siteStatus } = useSiteContent();
   return (
-    <header className="engine-header">
+    <header className={`engine-header zv-header${scrolled ? " is-scrolled" : ""}`}>
       {siteStatus.banner && (
         <div className="engine-status-banner" role="status">
           {siteStatus.banner}
@@ -50,7 +59,7 @@ export function SiteHeader() {
       )}
       <div className="engine-header-inner">
         <Link className="engine-header-logo" to="/" aria-label="ZEVQORA home">
-          <ZevqoraLogo variant="inverse" size={24} />
+          <ZevqoraLogo variant={light ? "default" : "inverse"} size={24} />
         </Link>
         <nav aria-label="Primary">
           {NAV.map(([label, to]) => (
@@ -113,87 +122,96 @@ export function SiteHeader() {
   );
 }
 export function SiteFooter() {
-  const { contact, footer } = useSiteContent();
+  const { contact, footer, status } = useSiteContent();
   const groups = [
     {
-      name: "ENGINEERED FOR AI",
+      name: "Product",
       links: [
         ["The product", "/product"],
         ["How it works", "/how-it-works"],
         ["Evidence", "/proof"],
+        ["Pricing", "/pricing"],
         ["Desktop engine", "/download"],
-        ["Evaluate your workload", "/evaluation"],
       ],
     },
     {
-      name: "BEHIND ZEVQORA",
+      name: "Company",
       links: [
         ["The team", "/team"],
         ["Company", "/company"],
         ["Security", "/security"],
-        ["Pricing", "/pricing"],
+        ["Evaluate your workload", "/evaluation"],
         ["Say hello", `mailto:${contact.email}`],
-        ["GitHub", "https://github.com/ZEVQORA/Zevqora"],
       ],
     },
     {
-      name: "THE DETAILS",
+      name: "Resources",
       links: [
+        ["GitHub", "https://github.com/ZEVQORA/Zevqora"],
         ["Privacy", "/privacy"],
         ["Terms", "/terms"],
       ],
     },
   ];
+  const operational = (status.public_status || "operational") === "operational";
   return (
-    <footer className="engine-footer">
-      <div className="engine-footer-top">
-        <div className="engine-footer-brand">
-          <Link to="/" aria-label="ZEVQORA home">
-            <ZevqoraLogo variant="inverse" size={26} />
-          </Link>
-          <p>
-            Intelligence, unburdened.
-            <br />A lighter way to build with AI.
-          </p>
-          <span>MEASURE. REPLAY. VERIFY. THEN OPTIMIZE.</span>
+    <footer className="engine-footer zv-foot">
+      <div className="zv-foot-glow" aria-hidden />
+      <div className="zv-foot-inner">
+        <div className="zv-foot-top">
+          <div className="zv-foot-brand">
+            <Link to="/" aria-label="ZEVQORA home">
+              <ZevqoraLogo variant="inverse" size={26} />
+            </Link>
+            <p className="zv-foot-claim">
+              Intelligence, unburdened.
+              <br />
+              <span>A lighter way to build with AI.</span>
+            </p>
+            <div className="zv-foot-actions">
+              <Link to="/signup" className="zv-foot-cta">
+                Start optimizing <ArrowUpRight size={15} aria-hidden />
+              </Link>
+              <a href="https://github.com/ZEVQORA/Zevqora" target="_blank" rel="noreferrer" className="zv-foot-ghost">
+                GitHub <ArrowUpRight size={15} aria-hidden />
+              </a>
+            </div>
+            <p className={`zv-foot-status${operational ? "" : " is-degraded"}`}>
+              <i aria-hidden /> {operational ? "All systems operational" : "Some systems degraded"}
+            </p>
+          </div>
+          <div className="zv-foot-cols">
+            {groups.map((g) => (
+              <nav className="zv-foot-group" aria-label={g.name} key={g.name}>
+                <h2>{g.name}</h2>
+                <ul>
+                  {g.links.map(([label, to]) => (
+                    <li key={label}>
+                      {to.startsWith("http") || to.startsWith("mailto:") ? (
+                        <a href={to} target={to.startsWith("http") ? "_blank" : undefined} rel="noreferrer">
+                          {label}
+                        </a>
+                      ) : (
+                        <Link to={to}>{label}</Link>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ))}
+          </div>
         </div>
-        {groups.map((g) => (
-          <nav className="engine-footer-group" aria-label={g.name} key={g.name}>
-            <h2>{g.name}</h2>
-            <ul>
-              {g.links.map(([label, to]) => (
-                <li key={label}>
-                  {to.startsWith("http") || to.startsWith("mailto:") ? (
-                    <a
-                      href={to}
-                      target={to.startsWith("http") ? "_blank" : undefined}
-                      rel="noreferrer"
-                    >
-                      {label}
-                    </a>
-                  ) : (
-                    <Link to={to}>{label}</Link>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </nav>
-        ))}
+        <div className="zv-foot-wordmark" aria-hidden>
+          <ZevqoraWordmark height={150} />
+        </div>
+        <div className="zv-foot-bottom">
+          <span>© {new Date().getFullYear()} ZEVQORA. Make AI lighter.</span>
+        </div>
+        <p className="zv-foot-disclosure">
+          {footer.note} First-party analytics without cookies; Do Not Track and
+          GPC are respected. See <Link to="/privacy">Privacy</Link>.
+        </p>
       </div>
-      <div className="engine-footer-wordmark" aria-hidden>
-        <ZevqoraWordmark height={150} />
-      </div>
-      <div className="engine-footer-bottom">
-        <span>© {new Date().getFullYear()} ZEVQORA. MAKE AI LIGHTER.</span>
-        <span>
-          <i />
-          ULAANBAATAR, MONGOLIA / BUILT FOR WHAT’S NEXT.
-        </span>
-      </div>
-      <p className="engine-footer-disclosure">
-        {footer.note} First-party analytics without cookies; Do Not Track and
-        GPC are respected. See <Link to="/privacy">Privacy</Link>.
-      </p>
     </footer>
   );
 }
@@ -203,7 +221,7 @@ export function MarketingLayout() {
   const reduced = useReducedMotion();
   const page = location.pathname.split("/")[1] || "home";
   return (
-    <div className={`marketing-app engine-world page-${page}`}>
+    <div className={`marketing-app engine-world zv-site page-${page}`}>
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[90] focus:bg-white focus:p-4"
