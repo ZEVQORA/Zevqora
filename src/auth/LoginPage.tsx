@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, Navigate, useSearchParams } from "react-router";
 import { ArrowRight, Mail } from "lucide-react";
 import { PasswordInput } from "./PasswordInput";
@@ -31,9 +31,20 @@ export default function LoginPage() {
         ? "Email confirmed. You can sign in now."
         : null;
 
+  const formRef = useRef<HTMLFormElement>(null);
+
   useEffect(() => {
     document.title = "Sign in — ZEVQORA";
   }, []);
+  // A gentle shake on a failed sign-in (skipped for reduced motion); typed values are kept.
+  useEffect(() => {
+    if (!error || !formRef.current?.animate) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    formRef.current.animate(
+      [{ transform: "translateX(0)" }, { transform: "translateX(-10px)" }, { transform: "translateX(9px)" }, { transform: "translateX(-6px)" }, { transform: "translateX(4px)" }, { transform: "translateX(0)" }],
+      { duration: 450, easing: "ease-out" },
+    );
+  }, [error]);
 
   if (status === "signed_in") return <Navigate to={next} replace />;
 
@@ -94,6 +105,7 @@ export default function LoginPage() {
   return (
     <AuthShell
       title="Sign in."
+      mood={error ? "oops" : notice ? "cheer" : undefined}
       subtitle="Welcome back. Let’s pick up where you left off."
       footer={
         <p className="text-caption text-muted">
@@ -118,7 +130,7 @@ export default function LoginPage() {
         pending={oauthPending}
       />
       <OrDivider />
-      <form onSubmit={onSubmit} className="auth-login-form flex flex-col gap-4">
+      <form ref={formRef} onSubmit={onSubmit} className="auth-login-form flex flex-col gap-4">
         <Field id="identifier" label="Username or email">
           <div className="auth-input-with-icon">
             <Mail size={16} />
@@ -140,7 +152,7 @@ export default function LoginPage() {
           />
         </Field>
         {error && (
-          <p role="alert" className="text-caption text-rejected">
+          <p role="alert" className="zv-auth-error">
             {error}
           </p>
         )}

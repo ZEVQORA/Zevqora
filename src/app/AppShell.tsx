@@ -13,7 +13,11 @@ import { ProductTour, PRODUCT_TOUR_STEPS, productTourStorageKey, type TourOutcom
 import { PresentationModeProvider } from '@/lib/mode';
 import { Popover } from '@/components/ui/Overlay';
 import { experienceApi, type CommandCenter } from '@/product/experience';
-import { Bell } from 'lucide-react';
+import { Bell, Moon, Sun } from 'lucide-react';
+
+/** First name for the welcome (same rule as the chat home: display name, then username). */
+const welcomeName = (p: { display_name: string | null; username: string | null } | null | undefined) =>
+  (p?.display_name?.trim() || p?.username?.trim() || '').split(/\s+/)[0].slice(0, 40);
 import './shell.css';
 
 export type NavGroup = 'Home' | 'Work' | 'Workspace';
@@ -286,7 +290,7 @@ function HelpMenu({ onTour, resumeStep }: { onTour: () => void; resumeStep: numb
       label="Help"
       className="zshell-help"
       trigger={(t) => (
-        <button type="button" onClick={t.toggle} aria-expanded={t['aria-expanded']} aria-controls={t['aria-controls']} aria-haspopup="dialog" className="zshell-icon-btn gap-1.5 px-2.5" title="Help">
+        <button type="button" onClick={t.toggle} aria-expanded={t['aria-expanded']} aria-controls={t['aria-controls']} aria-haspopup="dialog" className="zshell-icon-btn gap-1.5 px-2.5" title="Help" data-tour="help">
           <CircleHelp size={18} aria-hidden />
           <span className="hidden text-caption sm:inline">Help</span>
         </button>
@@ -318,6 +322,49 @@ function HelpMenu({ onTour, resumeStep }: { onTour: () => void; resumeStep: numb
         </div>
       )}
     </Popover>
+  );
+}
+
+/** Light or dark workspace. A per-device display preference only (never sent to the server). */
+type Theme = 'light' | 'dark';
+const THEME_KEY = 'zevqora.theme';
+function readTheme(): Theme {
+  try {
+    const v = localStorage.getItem(THEME_KEY);
+    if (v === 'light' || v === 'dark') return v;
+  } catch {
+    /* storage unavailable */
+  }
+  return 'light';
+}
+function useTheme() {
+  const [theme, setTheme] = useState<Theme>(readTheme);
+  useEffect(() => {
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch {
+      /* the choice still applies for this visit */
+    }
+    // Portals (palette, popovers, tour) read the theme from the document root.
+    const root = document.documentElement;
+    root.dataset.appTheme = theme;
+    return () => {
+      delete root.dataset.appTheme;
+    };
+  }, [theme]);
+  return { theme, toggleTheme: () => setTheme((t) => (t === 'dark' ? 'light' : 'dark')) };
+}
+
+function ThemeToggle({ theme, onToggle }: { theme: Theme; onToggle: () => void }) {
+  const dark = theme === 'dark';
+  return (
+    <button type="button" onClick={onToggle} className="zshell-icon-btn zv-theme-toggle" aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} title={dark ? 'Light mode' : 'Dark mode'} aria-pressed={dark}>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span key={theme} initial={{ rotate: -90, scale: 0.5, opacity: 0 }} animate={{ rotate: 0, scale: 1, opacity: 1 }} exit={{ rotate: 90, scale: 0.5, opacity: 0 }} transition={{ type: 'spring', stiffness: 420, damping: 22 }} style={{ display: 'inline-flex' }}>
+          {dark ? <Sun size={17} aria-hidden /> : <Moon size={17} aria-hidden />}
+        </motion.span>
+      </AnimatePresence>
+    </button>
   );
 }
 
@@ -355,6 +402,7 @@ export function AppShell() {
   const { me, activeWorkspace, status } = useSession();
   const location = useLocation();
   const desktop = useIsDesktop();
+  const { theme, toggleTheme } = useTheme();
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem('zevqora.sidebar') === 'collapsed';
@@ -368,8 +416,21 @@ export function AppShell() {
   const tourScope = me?.user?.id && activeWorkspace?.id ? productTourStorageKey(me.user.id, activeWorkspace.id) : null;
   const [tourState, setTourState] = useState(() => readTourState(tourScope));
   useEffect(() => setTourState(readTourState(tourScope)), [tourScope]);
-  // The tour never opens by itself: the chat-first home is the only first-run surface.
+  // A member who has never seen the tour in this workspace gets a one-time welcome on the
+  // chat home (owner request, 2026-11-15). Closing it in any way records an outcome, so it
+  // never appears twice; afterwards the tour opens only from Help.
+  const [tourIntro, setTourIntro] = useState(false);
+  const isHome = location.pathname.replace(/\/+$/, '') === '/app';
+  useEffect(() => {
+    if (!tourScope || !isHome || tourState.outcome !== null || tourOpen) return;
+    const id = window.setTimeout(() => {
+      setTourIntro(true);
+      setTourOpen(true);
+    }, 900);
+    return () => window.clearTimeout(id);
+  }, [tourScope, isHome, tourState.outcome, tourOpen]);
   const closeTour = (outcome: TourOutcome = 'paused', step?: number) => {
+    setTourIntro(false);
     const value = outcome === 'paused' ? `paused:${step ?? 0}` : outcome;
     if (tourScope) {
       try {
@@ -425,7 +486,7 @@ export function AppShell() {
   const toggleNav = () => (desktop ? setCollapsed((v) => !v) : setMobileOpen((v) => !v));
 
   const renderSidebar = (rail: boolean, drawer: boolean) => (
-    <aside id={drawer ? 'app-sidebar-drawer' : 'app-sidebar'} data-surface="ink" aria-label="Navigation" className={cn('glass-sidebar zshell flex h-full flex-col', rail ? 'w-[72px]' : 'w-[260px]')}>
+    <aside id={drawer ? 'app-sidebar-drawer' : 'app-sidebar'} data-surface="ink" aria-label="Navigation" className={cn('glass-sidebar zshell zv-ink-side flex h-full flex-col', rail ? 'w-[72px]' : 'w-[260px]')}>
       <div className={cn('flex h-14 shrink-0 items-center border-b border-line/60 px-3', rail ? 'justify-center' : 'justify-between')}>
         <Link to="/app" aria-label="ZEVQORA home" className="inline-flex items-center rounded-sm">
           {rail ? <ZevqoraMark height={22} /> : <ZevqoraLogo variant="inverse" size={22} />}
@@ -493,7 +554,7 @@ export function AppShell() {
 
   return (
     <PresentationModeProvider>
-      <div className="app-env workspace-experience flex min-h-dvh">
+      <div className="app-env workspace-experience flex min-h-dvh" data-theme={theme} data-surface={theme === 'dark' ? 'ink' : undefined}>
         <div className="sticky top-0 hidden h-dvh shrink-0 lg:block">{renderSidebar(collapsed, false)}</div>
         <AnimatePresence>
           {mobileOpen && !desktop && (
@@ -531,6 +592,7 @@ export function AppShell() {
               )}
             </nav>
             <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+              <ThemeToggle theme={theme} onToggle={toggleTheme} />
               <HelpMenu onTour={() => setTourOpen(true)} resumeStep={resumeStep} />
               <Notifications workspaceId={activeWorkspace.id} />
               <button type="button" onClick={() => setPaletteOpen(true)} className="text-caption hidden h-9 items-center gap-2 rounded-md border border-line/70 bg-surface/70 px-2.5 text-muted transition-control hover:bg-surface hover:text-ink md:inline-flex" aria-label="Open command palette">
@@ -552,7 +614,7 @@ export function AppShell() {
           </main>
         </div>
         <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
-        <ProductTour open={tourOpen && Boolean(tourScope)} onClose={closeTour} startAt={resumeStep ?? 0} />
+        <ProductTour open={tourOpen && Boolean(tourScope)} onClose={closeTour} startAt={resumeStep ?? 0} intro={tourIntro} name={welcomeName(me?.profile) || undefined} />
       </div>
     </PresentationModeProvider>
   );

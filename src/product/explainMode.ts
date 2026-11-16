@@ -30,13 +30,21 @@ export function effectiveExplainMode(choice: ExplainChoice | null): ExplainMode 
   return choice === 'technical' ? 'technical' : 'nontechnical';
 }
 
+/**
+ * The latest choice made on this screen. The switch reacts at once;
+ * the profile is updated in the background. If saving fails the choice still
+ * applies to this session (it only changes how answers are written) and the
+ * error is reported.
+ */
 export function useExplainMode() {
   const { me, refreshMe } = useSession();
-  const choice = readExplainChoice(me?.profile.onboarding);
+  const saved = readExplainChoice(me?.profile.onboarding);
+  const [local, setLocal] = useState<ExplainChoice | null>(null);
   const [pending, setPending] = useState<ExplainChoice | null>(null);
   const [error, setError] = useState<string | null>(null);
   const set = useCallback(
     async (next: ExplainChoice) => {
+      setLocal(next);
       setPending(next);
       setError(null);
       try {
@@ -50,6 +58,6 @@ export function useExplainMode() {
     },
     [refreshMe],
   );
-  const shown = pending ?? choice;
+  const shown = local ?? saved;
   return { choice: shown, mode: effectiveExplainMode(shown), set, saving: pending !== null, error };
 }

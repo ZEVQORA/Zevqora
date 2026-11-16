@@ -1,0 +1,1594 @@
+/* ==========================================================================
+   Zev Light — sign up / sign in, the chat-first workspace and the tour.
+   Tokens come from zev-light.css.
+   ========================================================================== */
+
+/* ─────────────────────────── auth ─────────────────────────── */
+.zv-auth {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--zv-cloud);
+  color: var(--zv-ink);
+  font-family: var(--font-sans);
+}
+.zv-auth-top {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 76px;
+  padding-inline: clamp(16px, 3vw, 40px);
+}
+.zv-auth-top-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.zv-auth-back,
+.zv-auth-alt {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  color: var(--zv-muted);
+  transition:
+    background 0.25s,
+    color 0.25s,
+    box-shadow 0.25s;
+}
+.zv-auth-back:hover {
+  color: var(--zv-ink);
+  background: rgb(255 255 255 / 0.7);
+}
+.zv-auth-alt {
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--zv-stone), var(--zv-shadow-sm);
+}
+.zv-auth-alt b {
+  color: var(--zv-ink);
+  font-weight: 600;
+}
+.zv-auth-alt:hover {
+  box-shadow: inset 0 0 0 1px rgb(70 139 255 / 0.45), var(--zv-shadow);
+}
+.zv-auth-alt:hover b {
+  color: var(--zv-blue-600);
+}
+
+.zv-auth-stage {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+/* left world */
+.zv-auth-world {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 110px clamp(24px, 4vw, 64px) 48px;
+  background: linear-gradient(160deg, #eaf2ff 0%, #f4f8ff 45%, #e3edff 100%);
+  border-right: 1px solid rgb(70 139 255 / 0.12);
+}
+.zv-auth-sky {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.zv-auth-sky .zv-blob.is-a {
+  top: -120px;
+  right: -80px;
+  background: #bcd5ff;
+}
+.zv-auth-sky .zv-blob.is-b {
+  bottom: -160px;
+  left: -120px;
+  background: #cfe0ff;
+}
+.zv-auth-headline {
+  position: relative;
+}
+.zv-auth-headline h2 {
+  margin: 0;
+  font: 800 clamp(2.6rem, 4.6vw, 4.4rem) / 0.96 var(--font-sans);
+  letter-spacing: -0.05em;
+  color: var(--zv-ink);
+}
+.zv-auth-headline h2 span {
+  color: var(--zv-blue);
+}
+.zv-auth-zev {
+  position: relative;
+  align-self: center;
+  display: grid;
+  justify-items: center;
+  min-height: 330px;
+  align-content: end;
+}
+.zv-auth-zev img {
+  width: auto;
+  filter: drop-shadow(0 22px 26px rgb(20 50 110 / 0.16));
+}
+.zv-auth-bubble {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  translate: 30px 0;
+  z-index: 2;
+  width: max-content;
+  max-width: 250px;
+  padding: 12px 16px;
+  border-radius: 18px 18px 18px 6px;
+  background: #fff;
+  box-shadow: var(--zv-shadow);
+  font-weight: 600;
+  font-size: 14.5px;
+  line-height: 1.4;
+  color: var(--zv-blue-600);
+}
+.zv-auth-sprite.is-shy img {
+  transform: scaleX(-1);
+}
+.zv-confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.zv-confetti i {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--zv-blue);
+  opacity: 0;
+  animation: zv-confetti 1.4s var(--zv-ease) forwards;
+  animation-delay: calc(var(--i) * 0.03s);
+  --a: calc(var(--i) * 25.7deg);
+}
+.zv-confetti i:nth-child(3n) {
+  background: #ffc857;
+}
+.zv-confetti i:nth-child(3n + 1) {
+  background: #9cc0ff;
+}
+@keyframes zv-confetti {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--a)) translateY(0) rotate(0);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateY(-170px) rotate(220deg);
+  }
+}
+.zv-auth-promises {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--zv-ink-2);
+}
+.zv-auth-promises li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.zv-auth-promises span {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--zv-blue);
+}
+.zv-auth-custom {
+  position: relative;
+  margin-top: auto;
+}
+
+/* right panel */
+.zv-auth-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100px clamp(16px, 4vw, 56px) 24px;
+}
+.zv-auth-card {
+  width: 100%;
+  max-width: 440px;
+}
+.zv-auth-card h1 {
+  margin: 0;
+  font: 800 clamp(2.2rem, 3.4vw, 2.9rem) / 1 var(--font-sans);
+  letter-spacing: -0.045em;
+  color: var(--zv-ink);
+}
+.zv-auth-card .auth-subtitle {
+  margin: 12px 0 0;
+  font-size: 15.5px;
+  line-height: 1.55;
+  color: var(--zv-muted);
+}
+.zv-auth-card .auth-form {
+  margin-top: 28px;
+}
+.zv-auth-card .auth-form-footer {
+  margin-top: 26px;
+}
+.zv-auth-card .auth-demo-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--zv-blue-600);
+}
+.zv-auth-kicker {
+  margin-bottom: 18px;
+}
+.zv-auth-foot {
+  display: flex;
+  gap: 18px;
+  margin-top: auto;
+  padding-top: 40px;
+  font-size: 12.5px;
+  color: var(--zv-subtle);
+}
+.zv-auth-foot a:hover {
+  color: var(--zv-ink);
+}
+
+/* step indicator */
+.zv-steps-ind {
+  display: flex;
+  gap: 8px;
+}
+.zv-steps-ind > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 5px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--zv-subtle);
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--zv-stone);
+  transition:
+    color 0.3s,
+    box-shadow 0.3s;
+}
+.zv-steps-ind i {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-style: normal;
+  font-size: 11px;
+  background: var(--zv-stone);
+  color: var(--zv-muted);
+  transition: background 0.3s;
+}
+.zv-steps-ind .is-active {
+  color: var(--zv-ink);
+  box-shadow: inset 0 0 0 1.5px var(--zv-blue);
+}
+.zv-steps-ind .is-active i {
+  background: var(--zv-blue);
+  color: #fff;
+}
+.zv-steps-ind .is-done {
+  color: var(--zv-green);
+}
+.zv-steps-ind .is-done i {
+  background: var(--zv-green);
+  color: #fff;
+}
+
+/* fields inside the auth card */
+.zv-auth .auth-form label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--zv-ink-2);
+}
+.zv-auth .auth-input-with-icon {
+  position: relative;
+}
+.zv-auth .auth-input-with-icon > svg {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  translate: 0 -50%;
+  color: var(--zv-subtle);
+  pointer-events: none;
+  transition: color 0.25s;
+}
+.zv-auth .auth-input-with-icon:focus-within > svg {
+  color: var(--zv-blue);
+}
+.zv-auth .auth-form input:not([type="checkbox"]) {
+  height: 50px;
+  padding-inline: 44px 14px;
+  border: 0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--zv-stone-2), 0 1px 2px rgb(15 17 21 / 0.04);
+  font-size: 15.5px;
+  transition:
+    box-shadow 0.25s,
+    background 0.25s;
+}
+.zv-auth .auth-form input:not([type="checkbox"]):hover {
+  box-shadow: inset 0 0 0 1px #b9c1cd, 0 1px 2px rgb(15 17 21 / 0.04);
+}
+.zv-auth .auth-form input:not([type="checkbox"]):focus {
+  outline: none;
+  box-shadow: inset 0 0 0 1.5px var(--zv-blue), var(--zv-ring);
+}
+.zv-auth .auth-form input.auth-password-input {
+  padding-right: 48px;
+}
+.zv-auth .auth-input-with-icon > button {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  translate: 0 -50%;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  color: var(--zv-subtle);
+}
+.zv-auth .auth-input-with-icon > button:hover {
+  background: var(--zv-cloud);
+  color: var(--zv-ink);
+}
+.zv-auth .auth-password-strength {
+  margin-top: 10px;
+}
+.zv-auth .auth-password-strength > div {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.zv-auth .auth-password-strength i {
+  height: 5px;
+  border-radius: 99px;
+  background: var(--zv-stone);
+  transition: background 0.4s var(--zv-ease);
+}
+.zv-auth .auth-password-strength i[data-filled="true"] {
+  background: var(--zv-blue);
+}
+.zv-auth .auth-password-strength > span {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--zv-muted);
+}
+.zv-rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: -4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.zv-rules li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 5px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--zv-muted);
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--zv-stone);
+  transition:
+    color 0.3s,
+    background 0.3s;
+}
+.zv-rules li > span:first-child {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--zv-stone);
+  color: #fff;
+  transition: background 0.3s var(--zv-spring), transform 0.4s var(--zv-spring);
+}
+.zv-rules li.is-ok {
+  color: var(--zv-green);
+  background: var(--zv-green-bg);
+  box-shadow: none;
+}
+.zv-rules li.is-ok > span:first-child {
+  background: var(--zv-green);
+  transform: scale(1.1);
+}
+.zv-match {
+  margin: -6px 0 0;
+  font-size: 12.5px;
+  color: var(--zv-muted);
+}
+.zv-match.is-ok {
+  color: var(--zv-green);
+}
+.zv-auth-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  color: var(--zv-red);
+  background: var(--zv-red-bg);
+}
+.zv-auth .zv-auth-submit,
+.zv-auth .auth-form button[type="submit"] {
+  height: 54px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 15.5px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(180deg, #5a98ff, var(--zv-blue) 55%, #3a7ff5);
+  box-shadow: var(--zv-shadow-blue), inset 0 1px 0 rgb(255 255 255 / 0.35);
+  transition:
+    transform 0.4s var(--zv-ease),
+    box-shadow 0.4s var(--zv-ease);
+}
+.zv-auth .auth-form button[type="submit"]:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px -12px rgb(70 139 255 / 0.75), inset 0 1px 0 rgb(255 255 255 / 0.35);
+}
+.zv-auth .auth-form button[type="submit"] svg {
+  transition: transform 0.4s var(--zv-ease);
+}
+.zv-auth .auth-form button[type="submit"]:hover svg {
+  transform: translateX(4px);
+}
+.zv-auth-actions {
+  display: flex;
+  gap: 10px;
+}
+.zv-auth-backbtn {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--zv-stone-2);
+  transition: box-shadow 0.25s;
+}
+.zv-auth-backbtn:hover {
+  box-shadow: inset 0 0 0 1px var(--zv-ink-2);
+}
+.zv-who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--zv-stone);
+}
+.zv-who-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #7fb0ff, var(--zv-blue));
+}
+.zv-who b,
+.zv-who small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.zv-who small {
+  font-size: 12.5px;
+  color: var(--zv-muted);
+}
+.zv-who button {
+  margin-left: auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--zv-blue-600);
+}
+.zv-who button:hover {
+  background: var(--zv-blue-050);
+}
+.zv-auth .auth-oauth-buttons {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 10px;
+}
+.zv-auth .auth-oauth-buttons button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 50px;
+  border-radius: 14px;
+  font-weight: 600;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--zv-stone-2), var(--zv-shadow-sm);
+  transition:
+    transform 0.35s var(--zv-ease),
+    box-shadow 0.35s;
+}
+.zv-auth .auth-oauth-buttons button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: inset 0 0 0 1px #b9c1cd, var(--zv-shadow);
+}
+.zv-auth .auth-oauth-buttons button > svg {
+  display: none;
+}
+.zv-auth .auth-or-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  font-size: 12px;
+  color: var(--zv-subtle);
+}
+.zv-auth .auth-or-divider > span:first-child,
+.zv-auth .auth-or-divider > span:last-child {
+  flex: 1;
+  height: 1px;
+  background: var(--zv-stone);
+}
+.zv-auth .auth-preview-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  color: var(--zv-amber);
+  background: var(--zv-amber-bg);
+}
+
+/* "check your email" */
+.zv-mail {
+  padding: 22px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: var(--zv-shadow), inset 0 0 0 1px var(--zv-stone);
+}
+.zv-mail-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  color: #fff;
+  background: linear-gradient(135deg, #7fb0ff, var(--zv-blue));
+  box-shadow: var(--zv-shadow-blue);
+  animation: zv-float 4s ease-in-out infinite;
+}
+.zv-mail p {
+  margin: 16px 0 0;
+  color: var(--zv-ink-2);
+  line-height: 1.6;
+}
+.zv-mail-steps {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--zv-muted);
+}
+.zv-mail-steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.zv-mail-steps span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--zv-blue-600);
+  background: var(--zv-blue-050);
+}
+
+@media (max-width: 960px) {
+  .zv-auth-stage {
+    grid-template-columns: 1fr;
+  }
+  .zv-auth-world {
+    min-height: 0;
+    padding: 96px 20px 28px;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 12px;
+    border-right: 0;
+    border-bottom: 1px solid rgb(70 139 255 / 0.12);
+  }
+  .zv-auth-headline h2 {
+    font-size: 2.2rem;
+  }
+  .zv-auth-zev {
+    min-height: 0;
+    scale: 0.55;
+    transform-origin: bottom right;
+    margin: -120px -20px -10px auto;
+  }
+  .zv-auth-promises {
+    display: none;
+  }
+  .zv-auth-panel {
+    padding-top: 32px;
+  }
+  .zv-auth-top .zv-auth-back {
+    display: none;
+  }
+}
+@media (max-width: 520px) {
+  .zv-auth .auth-field-pair {
+    grid-template-columns: 1fr;
+  }
+  .zv-auth-alt span {
+    display: none;
+  }
+  .zv-steps-ind > span {
+    font-size: 11.5px;
+  }
+}
+
+.zshell-pop {
+  background: #fff !important;
+  color: var(--zv-ink) !important;
+  border: 0 !important;
+  box-shadow: 0 20px 50px -20px rgb(15 17 21 / 0.35), 0 0 0 1px var(--zv-stone) !important;
+}
+.zshell-pop .zshell-pop-item {
+  color: var(--zv-ink);
+}
+.zshell-pop .zshell-pop-item:hover,
+.zshell-pop .zshell-pop-item:focus-visible {
+  background: var(--zv-cloud);
+}
+.zshell-pop .zshell-pop-item[aria-selected='true'] {
+  background: var(--zv-blue-050);
+}
+.zshell-pop .zshell-pop-item[aria-selected='true'] svg,
+.zshell-pop .zshell-pop-item.is-action svg {
+  color: var(--zv-blue);
+}
+.zshell-pop .zshell-pop-item.is-action {
+  color: var(--zv-ink-2);
+}
+.zshell-pop .zshell-pop-sep {
+  background: var(--zv-stone);
+}
+
+/* ─────────────────────────── chat-first home ─────────────────────────── */
+.zhome.zchat {
+  position: relative;
+  max-width: none;
+  height: calc(100dvh - 56px);
+  margin: 0;
+  padding: 0;
+  gap: 0;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(900px 420px at 50% -120px, rgb(70 139 255 / 0.1), transparent 70%),
+    var(--zv-cloud);
+}
+.zchat-col {
+  width: 100%;
+  max-width: 780px;
+  margin: 0 auto;
+  padding-inline: 20px;
+}
+.zchat-top.zhome-chat-head {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 4px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--zv-glass);
+  box-shadow: inset 0 0 0 1px var(--zv-stone), var(--zv-shadow-sm);
+  backdrop-filter: blur(10px);
+  font-size: 12.5px;
+  color: var(--zv-muted);
+}
+.zchat-top .zhome-scope {
+  flex: 0 1 auto;
+  max-width: 22ch;
+}
+.zchat-top .zhome-provider {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--zv-cloud);
+  font-weight: 600;
+  color: var(--zv-ink-2);
+}
+.zchat-top .zhome-provider::before {
+  display: none;
+}
+.zchat-top .zhome-provider i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--zv-subtle);
+}
+.zchat-top .zhome-provider.is-on i {
+  background: #19a07a;
+  box-shadow: 0 0 0 3px rgb(25 160 122 / 0.18);
+}
+.zchat-top .zhome-provider.is-off i {
+  background: var(--zv-red);
+}
+.zchat .zexplain {
+  border: 0;
+  background: var(--zv-cloud);
+}
+.zchat .zexplain button[aria-checked='true'] {
+  background: var(--zv-ink);
+  color: var(--zv-card);
+}
+
+.zchat-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  padding: clamp(40px, 9vh, 96px) 0 24px;
+}
+.zchat.is-started .zchat-scroll {
+  padding-top: 64px;
+}
+.zchat .zhome-hero {
+  gap: 8px;
+}
+.zchat-zev-big {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 150px;
+  height: 150px;
+  margin-bottom: 4px;
+}
+.zchat-zev-big img {
+  position: relative;
+  height: 128px;
+  width: auto;
+  filter: drop-shadow(0 14px 18px rgb(20 50 110 / 0.14));
+}
+.zchat-ring {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 55%, rgb(70 139 255 / 0.12) 56%, transparent 72%);
+}
+.zchat-ring::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1.5px dashed rgb(70 139 255 / 0.35);
+  animation: zv-spin 22s linear infinite;
+}
+.zchat-hello {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--zv-blue-600);
+}
+.zchat .zhome-hero h1 {
+  max-width: 20ch;
+  font-size: clamp(28px, 4.4vw, 44px);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+  color: var(--zv-ink);
+}
+.zchat.is-started .zhome-hero {
+  flex-direction: row;
+  justify-content: center;
+  text-align: left;
+  gap: 12px;
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--zv-stone);
+}
+.zchat.is-started .zhome-hero h1 {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  max-width: none;
+}
+.zchat.is-started .zhome-hero .zhome-sub,
+.zchat.is-started .zhome-hero .zhome-continue {
+  display: none;
+}
+.zchat .zhome-sub {
+  color: var(--zv-muted);
+  font-size: 15.5px;
+}
+.zchat .zhome-continue {
+  border-radius: 999px;
+  background: var(--zv-ink);
+  color: #fff;
+  box-shadow: var(--zv-shadow);
+  transition: transform 0.35s var(--zv-ease), background 0.25s;
+}
+.zchat .zhome-continue:hover {
+  background: var(--zv-blue);
+  transform: translateY(-1px);
+}
+
+/* starters */
+.zchat .zhome-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 34px;
+}
+.zchat .zhome-actions button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 18px;
+  text-align: left;
+  background: var(--zv-card);
+  box-shadow: inset 0 0 0 1px var(--zv-stone), 0 1px 2px rgb(15 17 21 / 0.04);
+  transition:
+    transform 0.45s var(--zv-ease),
+    box-shadow 0.45s var(--zv-ease);
+}
+.zchat .zhome-actions button:hover:not(:disabled) {
+  transform: translateY(-3px);
+  background: var(--zv-card);
+  box-shadow: inset 0 0 0 1px rgb(70 139 255 / 0.4), var(--zv-shadow);
+}
+.zchat .zhome-actions b {
+  display: block;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--zv-ink);
+}
+.zchat .zhome-actions small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--zv-muted);
+}
+.zchat-starter-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  color: var(--zv-blue);
+  background: var(--zv-blue-050);
+  transition: transform 0.45s var(--zv-spring), background 0.3s, color 0.3s;
+}
+.zchat .zhome-actions button:hover .zchat-starter-icon {
+  transform: rotate(-8deg) scale(1.08);
+  background: var(--zv-blue);
+  color: #fff;
+}
+
+/* preference card */
+.zchat .zhome-pref {
+  margin-top: 22px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--zv-card);
+  box-shadow: inset 0 0 0 1px var(--zv-stone);
+}
+.zchat .zhome-pref-options button {
+  border: 0;
+  border-radius: 12px;
+  background: var(--zv-cloud);
+  box-shadow: inset 0 0 0 1px var(--zv-stone);
+  transition: box-shadow 0.25s, transform 0.35s var(--zv-ease);
+}
+.zchat .zhome-pref-options button:hover {
+  transform: translateY(-2px);
+  box-shadow: inset 0 0 0 1.5px var(--zv-blue);
+}
+.zchat .zhome-unavailable {
+  margin-top: 22px;
+  border-radius: 14px;
+}
+
+/* messages */
+.zchat .zhome-log {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  border: 0;
+}
+.zhome.zchat .zhome-msg {
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  font-size: 15.5px;
+  line-height: 1.65;
+}
+.zchat .zhome-msg.is-user {
+  display: flex;
+  justify-content: flex-end;
+  background: none;
+}
+.zchat .zhome-msg.is-user p {
+  max-width: 82%;
+  padding: 11px 16px;
+  border-radius: 20px 20px 6px 20px;
+  color: #fff;
+  background: linear-gradient(180deg, #5a98ff, var(--zv-blue));
+  box-shadow: 0 8px 22px -12px rgb(70 139 255 / 0.7);
+}
+.zhome.zchat .zhome-msg.is-zev {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.zchat-avatar {
+  flex: none;
+  border: 0 !important;
+  box-shadow: 0 0 0 2px var(--zv-card), 0 0 0 3px var(--zv-blue-100);
+}
+.zchat-body {
+  min-width: 0;
+  flex: 1;
+  padding-top: 4px;
+}
+.zchat-rich {
+  color: var(--zv-ink);
+}
+.zchat-rich > * + * {
+  margin-top: 10px;
+}
+.zchat-rich p {
+  white-space: normal;
+  margin: 0;
+}
+.zchat-rich ul,
+.zchat-rich ol {
+  margin: 0;
+  padding-left: 20px;
+}
+.zchat-rich ul {
+  list-style: disc;
+}
+.zchat-rich ol {
+  list-style: decimal;
+}
+.zchat-rich li + li {
+  margin-top: 4px;
+}
+.zchat-rich li::marker {
+  color: var(--zv-blue);
+}
+.zchat-rich strong {
+  font-weight: 700;
+}
+.zchat-rich code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--zv-blue-050);
+  color: var(--zv-blue-600);
+}
+.zchat-rich pre {
+  overflow-x: auto;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--zv-ink);
+  color: #e8edf6;
+}
+.zchat-rich pre code {
+  padding: 0;
+  background: none;
+  color: inherit;
+}
+.zchat-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  border-radius: 2px;
+  background: var(--zv-blue);
+  animation: zv-blink 0.9s steps(1) infinite;
+}
+.zchat-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-top: 8px;
+}
+.zchat-meta small {
+  margin: 0 !important;
+  font-size: 11.5px;
+  color: var(--zv-subtle);
+}
+.zchat-act {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: var(--zv-subtle);
+  transition: background 0.2s, color 0.2s;
+}
+.zchat-act:hover {
+  background: var(--zv-card);
+  color: var(--zv-ink);
+  box-shadow: inset 0 0 0 1px var(--zv-stone);
+}
+.zchat .zhome-status {
+  gap: 12px;
+}
+.zchat-thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  background: linear-gradient(90deg, var(--zv-muted) 30%, var(--zv-blue) 50%, var(--zv-muted) 70%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: zv-shimmer 2.2s linear infinite;
+}
+.zchat-thinking .pthinking i {
+  background: var(--zv-blue);
+}
+@keyframes zv-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+.zchat .zhome-status button {
+  margin-left: auto;
+  background: var(--zv-card);
+}
+
+/* guides inside the thread */
+.zchat .zhome-guide {
+  border: 0;
+  border-radius: 20px;
+  background: var(--zv-card);
+  box-shadow: inset 0 0 0 1px var(--zv-stone), var(--zv-shadow-sm);
+  padding: 20px;
+}
+.zchat .zhome-guide h2 {
+  font-size: 18px;
+  font-weight: 700;
+}
+.zchat .zhome-guide-actions a {
+  background: var(--zv-blue);
+}
+.zchat-meter {
+  position: relative;
+  height: 10px;
+  border-radius: 99px;
+  background: var(--zv-stone);
+}
+.zchat-meter span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffb0a6, #e0574a);
+}
+.zchat-meter i {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  width: 2px;
+  background: var(--zv-ink);
+}
+
+/* composer dock */
+.zchat-dock {
+  position: relative;
+  padding: 10px 0 8px;
+  background: linear-gradient(180deg, transparent, var(--zv-cloud) 30%);
+}
+.zchat-dock::before {
+  content: '';
+  position: absolute;
+  inset: -36px 0 auto;
+  height: 36px;
+  background: linear-gradient(180deg, transparent, var(--zv-cloud));
+  pointer-events: none;
+}
+.zchat .zhome-composer {
+  display: block;
+  padding: 12px 12px 10px 18px;
+  border: 0;
+  border-radius: 24px;
+  background: var(--zv-card);
+  box-shadow: 0 24px 50px -30px rgb(15 17 21 / 0.35), inset 0 0 0 1px var(--zv-stone);
+  transition: box-shadow 0.3s;
+}
+.zchat .zhome-composer:focus-within {
+  box-shadow: 0 24px 50px -26px rgb(70 139 255 / 0.55), inset 0 0 0 1.5px var(--zv-blue), var(--zv-ring);
+}
+.zchat .zhome-composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  max-height: 220px;
+  padding: 4px 0;
+  font-size: 16px;
+  line-height: 1.55;
+  resize: none;
+  color: var(--zv-ink);
+}
+.zchat-composer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+}
+.zchat-hint {
+  font-size: 11.5px;
+  color: var(--zv-subtle);
+}
+.zchat-hint kbd {
+  padding: 1px 5px;
+  border-radius: 5px;
+  font: 600 10.5px/1.4 var(--font-sans);
+  background: var(--zv-cloud);
+  box-shadow: inset 0 0 0 1px var(--zv-stone);
+}
+.zchat .zchat-send {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  color: #fff;
+  background: var(--zv-blue);
+  box-shadow: var(--zv-shadow-blue);
+  transition:
+    transform 0.35s var(--zv-spring),
+    background 0.25s,
+    opacity 0.25s;
+}
+.zchat .zchat-send:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.04);
+}
+.zchat .zchat-send:disabled {
+  opacity: 1;
+  color: var(--zv-subtle);
+  background: var(--zv-stone);
+  box-shadow: none;
+}
+.zchat .zchat-send.is-stop {
+  background: var(--zv-ink);
+}
+.zchat-disclaimer {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--zv-subtle);
+}
+.zchat .zhome-foot {
+  justify-content: center;
+  gap: 4px 18px;
+  margin-top: 2px;
+}
+.zchat .zhome-foot a {
+  min-height: 30px;
+  font-size: 12px;
+  text-decoration: none;
+  color: var(--zv-subtle);
+}
+.zchat .zhome-foot a:hover {
+  color: var(--zv-blue-600);
+}
+.zchat .zhome-error {
+  margin-bottom: 8px;
+  border-radius: 14px;
+}
+
+@media (max-width: 760px) {
+  .zchat .zhome-actions {
+    grid-template-columns: 1fr;
+  }
+  .zchat-top.zhome-chat-head {
+    position: relative;
+    top: auto;
+    right: auto;
+    margin: 10px 12px 0;
+    justify-content: space-between;
+  }
+  .zchat-top .zhome-scope {
+    display: none;
+  }
+  .zchat-hint {
+    display: none;
+  }
+  .zchat-scroll,
+  .zchat.is-started .zchat-scroll {
+    padding-top: 24px;
+  }
+  .zchat-zev-big {
+    width: 120px;
+    height: 120px;
+  }
+  .zchat-zev-big img {
+    height: 104px;
+  }
+}
+
+/* ─────────────────────────── tour ─────────────────────────── */
+.ztour-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(15 17 21 / 0.28);
+  backdrop-filter: blur(3px);
+  animation: ztour-fade 0.4s ease both;
+}
+@keyframes ztour-fade {
+  from {
+    opacity: 0;
+  }
+}
+.ztour-welcome {
+  position: relative;
+  width: min(460px, 100%);
+  padding: 28px 28px 22px;
+  border-radius: 28px;
+  text-align: center;
+  background:
+    radial-gradient(420px 200px at 50% 0%, var(--zv-blue-050), transparent 70%),
+    #fff;
+  box-shadow: 0 40px 100px -30px rgb(15 17 21 / 0.45);
+  color: var(--zv-ink);
+}
+.ztour-welcome-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 160px;
+  margin-top: -6px;
+}
+.ztour-welcome-art img {
+  position: relative;
+  height: 150px;
+  width: auto;
+  filter: drop-shadow(0 16px 20px rgb(20 50 110 / 0.16));
+}
+.ztour-welcome-ring {
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  border: 1.5px dashed rgb(70 139 255 / 0.4);
+  animation: zv-spin 18s linear infinite;
+}
+.ztour-welcome h2 {
+  margin: 6px 0 0;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  outline: none;
+}
+.ztour-welcome > p:not(.ztour-eyebrow):not(.ztour-foot) {
+  margin: 10px auto 0;
+  max-width: 36ch;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--zv-muted);
+}
+.ztour-welcome-list {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  list-style: none;
+  text-align: left;
+  background: var(--zv-cloud);
+  font-size: 13.5px;
+  color: var(--zv-ink-2);
+}
+.ztour-welcome-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ztour-welcome-list svg {
+  color: var(--zv-green);
+}
+.ztour-welcome-actions {
+  display: grid;
+  gap: 6px;
+  margin-top: 18px;
+}
+.ztour-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font: 700 10.5px/1.2 var(--font-sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--zv-blue-600);
+}
+.ztour-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 650;
+  color: #fff;
+  background: linear-gradient(180deg, #5a98ff, var(--zv-blue) 55%, #3a7ff5);
+  box-shadow: var(--zv-shadow-blue);
+  transition: transform 0.35s var(--zv-ease), box-shadow 0.35s;
+}
+.ztour-primary:hover {
+  transform: translateY(-1px);
+}
+.ztour-primary svg {
+  transition: transform 0.35s var(--zv-ease);
+}
+.ztour-primary:hover svg {
+  transform: translateX(3px);
+}
+.ztour-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--zv-muted);
+}
+.ztour-ghost:hover {
+  color: var(--zv-ink);
+  background: var(--zv-cloud);
+}
+.ztour-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 12px 0 0;
+  font-size: 11.5px;
+  color: var(--zv-subtle);
+}
+
+.ztour-spot {
+  position: fixed;
+  z-index: 84;
+  border-radius: 16px;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 2px var(--zv-blue),
+    0 0 0 9999px rgb(15 17 21 / 0.38);
+}
+.ztour-spot-pulse {
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  border: 2px solid var(--zv-blue);
+  animation: ztour-pulse 1.8s var(--zv-ease) infinite;
+}
+@keyframes ztour-pulse {
+  0% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+}
+.ztour-card {
+  position: fixed;
+  z-index: 86;
+  right: 20px;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  width: min(400px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  padding: 18px 20px 14px;
+  border-radius: 24px;
+  background: var(--zv-card);
+  color: var(--zv-ink);
+  box-shadow: 0 30px 80px -24px rgb(15 17 21 / 0.45), 0 0 0 1px rgb(15 17 21 / 0.05);
+}
+.ztour-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ztour-head-text {
+  flex: 1;
+  min-width: 0;
+}
+.ztour-sub {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--zv-muted);
+}
+.ztour-x {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  color: var(--zv-subtle);
+}
+.ztour-x:hover {
+  background: var(--zv-cloud);
+  color: var(--zv-ink);
+}
+.ztour-progress {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+  margin-top: 16px;
+}
+.ztour-progress span {
+  height: 5px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: var(--zv-stone);
+}
+.ztour-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--zv-blue);
+  transform-origin: left;
+}
+.ztour-step {
+  margin: 18px 0 0;
+  font: 700 10.5px/1.2 var(--font-sans);
+  letter-spacing: 0.1em;
+  color: var(--zv-blue-600);
+}
+.ztour-card h2 {
+  margin: 8px 0 0;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.035em;
+  outline: none;
+}
+.ztour-desc {
+  margin: 10px 0 0;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--zv-muted);
+}
+.ztour-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  margin-top: 8px;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--zv-blue-600);
+}
+.ztour-go:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.ztour-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--zv-stone);
+}
+.ztour-actions-left {
+  display: flex;
+  gap: 2px;
+}
+.ztour-actions-left button {
+  min-height: 40px;
+  padding: 0 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--zv-subtle);
+}
+.ztour-actions-left button:hover {
+  color: var(--zv-ink);
+}
+.ztour-actions-right {
+  display: flex;
+  gap: 6px;
+}
+.ztour-actions-right .ztour-primary {
+  min-height: 40px;
+  font-size: 13px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ztour-spot-pulse,
+  .ztour-welcome-ring,
+  .zchat-ring::after,
+  .zv-newchat-spark,
+  .zchat-thinking {
+    animation: none !important;
+  }
+}
