@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { track } from "@/lib/analytics";
-import { Link, Navigate, useSearchParams } from "react-router";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowLeft, ArrowRight, AtSign, Check, Mail, MailCheck, User } from "lucide-react";
 import { PasswordInput } from "./PasswordInput";
@@ -34,6 +34,7 @@ function rules(pw: string) {
 
 export default function SignupPage() {
   const { status } = useSession();
+  const navigate = useNavigate();
   const reduced = useReducedMotion();
   const [params] = useSearchParams();
   const plan = params.get("plan");
@@ -60,6 +61,57 @@ export default function SignupPage() {
   useEffect(() => {
     document.title = "Create account — ZEVQORA";
   }, []);
+
+  // "Check your email": continue on its own once the link is confirmed. A link opened in
+  // this browser signs the other tab in (Supabase syncs tabs, so `status` flips); a link
+  // opened elsewhere is caught by retrying the password sign-in, which Supabase refuses
+  // with `email_not_confirmed` until the email is confirmed.
+  useEffect(() => {
+    if (!done) return;
+    if (status === "signed_in") {
+      navigate(next, { replace: true });
+      return;
+    }
+    if (!password) return;
+    const address = done;
+    const startedAt = Date.now();
+    let stopped = false;
+    let busy = false;
+    let timer = 0;
+    const stop = () => {
+      stopped = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", attempt);
+      window.removeEventListener("focus", attempt);
+    };
+    async function attempt() {
+      if (stopped || busy || document.visibilityState !== "visible") return;
+      if (Date.now() - startedAt > 15 * 60_000) return stop();
+      busy = true;
+      try {
+        const sb = await getSupabase();
+        if (!sb || stopped) return;
+        const { data, error: err } = await sb.auth.signInWithPassword({ email: address, password });
+        if (stopped) return;
+        if (data.session) {
+          stop();
+          navigate(next, { replace: true });
+          return;
+        }
+        const code = (err as { code?: string; status?: number } | null)?.code;
+        const httpStatus = (err as { status?: number } | null)?.status;
+        if (err && code !== "email_not_confirmed" && httpStatus !== 429) stop();
+      } catch {
+        /* network hiccup: the next tick retries */
+      } finally {
+        busy = false;
+      }
+    }
+    timer = window.setInterval(attempt, 6000);
+    document.addEventListener("visibilitychange", attempt);
+    window.addEventListener("focus", attempt);
+    return stop;
+  }, [done, status, password, next, navigate]);
 
   if (status === "signed_in" && !done) return <Navigate to={next} replace />;
 
@@ -189,6 +241,9 @@ export default function SignupPage() {
             <li><span>3</span> Meet Zev in your new workspace</li>
           </ol>
         </motion.div>
+        <p className="text-caption mt-4 text-muted" aria-live="polite">
+          Keep this tab open. It continues on its own once you confirm.
+        </p>
         <p className="text-caption mt-6 text-muted">
           Already confirmed?{" "}
           <Link to="/login" className="text-ink underline underline-offset-4">
