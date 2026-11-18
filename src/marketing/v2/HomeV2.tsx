@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useRef, type CSSProperties, type PointerEvent } from 'react';
 import { Link } from 'react-router';
-import { AnimatePresence, motion, useInView, useMotionValue, useReducedMotion, useSpring, useTransform } from 'motion/react';
+import { motion, useInView, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform, type MotionValue } from 'motion/react';
 import { ArrowDown, ArrowRight, ArrowUpRight, Check, Eye, FlaskConical, GitBranch, KeyRound, ShieldCheck, UserCheck, X } from 'lucide-react';
 import { DimensionalZ } from '@/brand/DimensionalZ';
 import { Zev } from '@/brand/Zev';
@@ -120,243 +120,249 @@ export function AskZevV2() {
 
 /* ─────────────────────────── 3. The loop ─────────────────────────── */
 
-const STEPS: Array<{ n: string; title: string; body: string; Icon: typeof Eye }> = [
-  { n: '01', title: 'Observe', body: 'See the model calls, tool steps, retries and context behind one AI workflow — the real baseline.', Icon: Eye },
-  { n: '02', title: 'Challenge', body: 'Propose a lighter path: a smaller model, a shorter context, a cache — each one a candidate, never a promise.', Icon: FlaskConical },
-  { n: '03', title: 'Verify', body: 'Replay the candidate on recorded cases against the quality floor you set in advance. Gates decide, not opinions.', Icon: ShieldCheck },
-  { n: '04', title: 'Review', body: 'Read the evidence and decide. VERIFIED does not mean deployed — shipping stays a human decision.', Icon: UserCheck },
+const LOOP: Array<{ n: string; label: string; title: string; body: string; Icon: typeof Eye; wide?: boolean }> = [
+  { n: '01', label: 'Observe', title: 'See where the money goes.', body: 'The model calls, tool steps, retries and context behind one AI workflow — the real baseline.', Icon: Eye, wide: true },
+  { n: '02', label: 'Challenge', title: 'Propose a lighter path.', body: 'A smaller model, a shorter context, a cache. Each one is a candidate, never a promise.', Icon: FlaskConical },
+  { n: '03', label: 'Verify', title: 'Let the gates decide.', body: 'Replay every candidate on recorded cases against the quality floor you set in advance.', Icon: ShieldCheck },
+  { n: '04', label: 'Review', title: 'You decide what ships.', body: 'Read the patch and the evidence. VERIFIED does not mean deployed.', Icon: UserCheck, wide: true },
 ];
 
-/** How long each step stays on screen before the loop advances on its own. */
-const STEP_MS = 6500;
+const once = { once: true, margin: '-10% 0px' } as const;
 
-/** A width that grows from zero the first time it is on screen. */
-const grow = (width: string, delay = 0, duration = 0.9) => ({
-  initial: { width: 0 },
-  whileInView: { width },
-  viewport: { once: true },
-  transition: { duration, ease: EASE, delay },
-});
+/** Adds `is-in` the first time the element is on screen; the CSS choreography keys off it. */
+function useOnScreen<T extends Element>() {
+  const ref = useRef<T>(null);
+  const seen = useInView(ref, once);
+  return [ref, seen ? ' is-in' : ''] as const;
+}
 
-function StepVisual({ i }: { i: number }) {
-  if (i === 0)
-    return (
-      <div className="zv-vis">
-        <p className="zv-vis-title">Support agent · one request</p>
-        {[
-          ['Retrieval', 18, ''],
-          ['Large model call', 72, 'is-hot'],
-          ['Order lookup tool', 24, ''],
-          ['Retry', 46, 'is-warm'],
-        ].map(([label, w, tone], k) => (
-          <div className="zv-vis-row" key={label as string}>
-            <span>{label}</span>
-            <span className="zv-vis-track"><motion.i className={tone as string} {...grow(`${w}%`, 0.1 + k * 0.08)} /></span>
-          </div>
-        ))}
-        <p className="zv-vis-foot">Illustrative. The highlighted call is where this example spends most.</p>
-      </div>
-    );
-  if (i === 1)
-    return (
-      <div className="zv-vis">
-        <p className="zv-vis-title">Candidates</p>
-        {['A · smaller model on simple tickets', 'B · trim retrieved context', 'C · cache policy answers', 'D · cheapest model everywhere'].map((t, k) => (
-          <motion.div className="zv-vis-cand" key={t} initial={{ opacity: 0, x: 16 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, ease: EASE, delay: k * 0.08 }}>
-            <GitBranch size={14} aria-hidden /> {t}
-          </motion.div>
-        ))}
-        <p className="zv-vis-foot">Illustrative. Each candidate still has to earn a verdict.</p>
-      </div>
-    );
-  if (i === 2)
-    return (
-      <div className="zv-vis">
-        <p className="zv-vis-title">Quality vs. the floor</p>
-        <div className="zv-gauge">
-          <motion.span className="zv-gauge-fill" {...grow('87%', 0, 1.1)} />
-          <span className="zv-gauge-floor" style={{ left: '95%' }}><em>floor 0.95</em></span>
-        </div>
-        <div className="zv-gauge-legend">
-          <span>Candidate D · 0.87</span>
-          <span className="zv-verdict is-rejected"><X size={12} /> REJECTED</span>
-        </div>
-        <div className="zv-gauge is-pass">
-          <motion.span className="zv-gauge-fill" {...grow('97%', 0.15, 1.1)} />
-          <span className="zv-gauge-floor" style={{ left: '95%' }} />
-        </div>
-        <div className="zv-gauge-legend">
-          <span>Candidate A · 0.97</span>
-          <span className="zv-verdict is-verified"><Check size={12} /> VERIFIED</span>
-        </div>
-        <p className="zv-vis-foot">Internal 50-case benchmark. Not customer evidence.</p>
-      </div>
-    );
+/** Observe: one request as a trace waterfall, with a playhead scanning it. */
+function Waterfall() {
+  const [ref, inCls] = useOnScreen<HTMLDivElement>();
+  const spans: Array<[string, number, number, string]> = [
+    ['Request', 0, 100, 'is-total'],
+    ['Retrieval', 3, 14, ''],
+    ['Large model call', 17, 44, 'is-hot'],
+    ['Order lookup', 62, 11, ''],
+    ['Retry', 74, 24, 'is-warm'],
+  ];
   return (
-    <div className="zv-vis">
-      <p className="zv-vis-title">Your decision</p>
-      <div className="zv-review">
-        <p><b>Candidate A</b> passed every gate on recorded cases.</p>
-        <p className="zv-vis-foot">Review the patch and the evidence before anything ships.</p>
-        <div className="zv-review-actions">
-          <span className="zv-btn is-primary is-sm" role="presentation">Approve for review</span>
-          <span className="zv-btn is-ghost is-sm" role="presentation">Not now</span>
+    <div ref={ref} className={`zv-bv-water${inCls}`}>
+      {spans.map(([label, x, w, tone], k) => (
+        <div className="zv-bv-wrow" key={label}>
+          <span>{label}</span>
+          <span className="zv-bv-lane">
+            <motion.i className={tone} style={{ left: `${x}%` }} initial={{ width: 0 }} whileInView={{ width: `${w}%` }} viewport={once} transition={{ duration: 0.9, ease: EASE, delay: 0.3 + k * 0.12 }} />
+            {tone === 'is-hot' && <b className="zv-bv-tag">most spend</b>}
+          </span>
         </div>
+      ))}
+      <span className="zv-bv-scan" aria-hidden>
+        <i />
+      </span>
+      <div className="zv-bv-axis" aria-hidden>
+        <span>request</span>
+        <span>answer</span>
       </div>
     </div>
   );
 }
 
-/** True while the viewport matches the media query (false where matchMedia is unavailable). */
-function useMedia(query: string) {
-  const read = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(query).matches;
-  const [match, setMatch] = useState(read);
-  useEffect(() => {
-    if (typeof window.matchMedia !== 'function') return;
-    const mq = window.matchMedia(query);
-    const on = () => setMatch(mq.matches);
-    on();
-    mq.addEventListener('change', on);
-    return () => mq.removeEventListener('change', on);
-  }, [query]);
-  return match;
-}
-
-function LoopIntro() {
+/** Challenge: candidates branch off the baseline; the risky one is flagged for Verify. */
+function CandidateTree() {
+  const [ref, inCls] = useOnScreen<HTMLUListElement>();
   return (
-    <>
-      <p className="zv-kicker">The work · measure, replay, verify, review</p>
-      <h2 id="zv-loop-title" className="zv-h2">
-        Cheaper AI means nothing if <span className="zv-accent">the answer gets worse.</span>
-      </h2>
-      <p className="zv-sub">ZEVQORA measures one workload, tests a lighter alternative against quality you set in advance, and shows whether it deserves to ship.</p>
-    </>
+    <ul ref={ref} className={`zv-bv-tree${inCls}`}>
+      {['Smaller model on simple tickets', 'Trim retrieved context', 'Cache policy answers', 'Cheapest model everywhere'].map((t, k) => (
+        <li key={t} style={{ '--k': k } as CSSProperties}>
+          <b>{'ABCD'[k]}</b>
+          <span>{t}</span>
+          {k === 3 && <em className="zv-bv-flag">risky</em>}
+        </li>
+      ))}
+    </ul>
   );
 }
 
-function CardHead({ step }: { step: (typeof STEPS)[number] }) {
+/** Verify: quality as a ring that fills and counts up, with the floor marked at 0.95. */
+function QualityRing({ name, q, ok, delay }: { name: string; q: number; ok: boolean; delay: number }) {
+  const r = 34;
+  const a = 0.95 * 2 * Math.PI - Math.PI / 2;
+  const tick = (d: number) => [42 + d * Math.cos(a), 42 + d * Math.sin(a)];
+  const [x1, y1] = tick(26);
+  const [x2, y2] = tick(42);
   return (
-    <div className="zv-loop-card-head">
-      <step.Icon size={16} aria-hidden />
-      <span>{step.n} · {step.title}</span>
-      <span className="zv-sample">Sample data</span>
+    <div className={`zv-bv-ring ${ok ? 'is-pass' : 'is-fail'}`}>
+      <div className="zv-bv-dial">
+        <svg viewBox="0 0 84 84" aria-hidden>
+          <circle cx="42" cy="42" r={r} className="zv-bv-ring-track" />
+          <motion.circle cx="42" cy="42" r={r} className="zv-bv-ring-fill" transform="rotate(-90 42 42)" initial={{ pathLength: 0 }} whileInView={{ pathLength: q }} viewport={once} transition={{ duration: 1.6, ease: EASE, delay }} />
+          <line x1={x1} y1={y1} x2={x2} y2={y2} className="zv-bv-floor" />
+        </svg>
+        <strong>
+          <Count to={q} decimals={2} duration={1.6} />
+        </strong>
+      </div>
+      <p>Candidate {name}</p>
+      <motion.span className={`zv-verdict ${ok ? 'is-verified' : 'is-rejected'}`} initial={{ opacity: 0, scale: 0.6 }} whileInView={{ opacity: 1, scale: 1 }} viewport={once} transition={{ type: 'spring', stiffness: 320, damping: 16, delay: delay + 1.4 }}>
+        {ok ? <Check size={11} /> : <X size={11} />} {ok ? 'VERIFIED' : 'REJECTED'}
+      </motion.span>
     </div>
+  );
+}
+
+function Gates() {
+  return (
+    <div>
+      <div className="zv-bv-rings">
+        <QualityRing name="D" q={0.87} ok={false} delay={0.2} />
+        <QualityRing name="A" q={0.97} ok delay={0.45} />
+      </div>
+      <p className="zv-bv-floor-note">White tick = the 0.95 quality floor</p>
+    </div>
+  );
+}
+
+/** Review: the request lands, the checks tick in, and a person approves it (a looping demo). */
+function ReviewRequest() {
+  const [ref, inCls] = useOnScreen<HTMLDivElement>();
+  const checks: Array<[string, boolean]> = [
+    ['Quality 0.97, above the 0.95 floor', true],
+    ['Patch and evidence ready to read', true],
+    ['Waiting for your decision', false],
+  ];
+  return (
+    <div ref={ref} className={`zv-bv-review${inCls}`}>
+      <div className="zv-bv-review-head">
+        <span><GitBranch size={14} aria-hidden /> Candidate A · smaller model on simple tickets</span>
+        <span className="zv-verdict is-verified"><Check size={11} /> VERIFIED</span>
+      </div>
+      <ul>
+        {checks.map(([t, done], k) => (
+          <li key={t} className={done ? '' : 'is-wait'} style={{ '--k': k } as CSSProperties}>
+            {done ? <Check size={14} aria-hidden /> : <UserCheck size={14} aria-hidden />} {t}
+          </li>
+        ))}
+      </ul>
+      <div className="zv-bv-actions">
+        <span className="zv-bv-btn is-primary zv-bv-approve">
+          <span className="is-a">Approve for review</span>
+          <span className="is-b" aria-hidden>
+            <Check size={13} /> Sent to review
+          </span>
+          <svg className="zv-bv-cursor" viewBox="0 0 24 24" aria-hidden>
+            <path d="M4 2.5 19.5 12l-6.6 1.6L9.6 20 4 2.5Z" />
+          </svg>
+        </span>
+        <span className="zv-bv-btn">Not now</span>
+        <em>Nothing deploys on its own.</em>
+      </div>
+    </div>
+  );
+}
+
+const VISUALS = [Waterfall, CandidateTree, Gates, ReviewRequest];
+
+/** A card that tilts toward the pointer (mouse only, never with reduced motion). */
+function TiltCard({ s, numY }: { s: (typeof LOOP)[number]; numY: MotionValue<number> }) {
+  const reduced = useReducedMotion();
+  const rx = useSpring(0, { stiffness: 160, damping: 18 });
+  const ry = useSpring(0, { stiffness: 160, damping: 18 });
+  const Visual = VISUALS[Number(s.n) - 1];
+  const onMove = (e: PointerEvent<HTMLElement>) => {
+    spot(e);
+    if (reduced || e.pointerType !== 'mouse') return;
+    const r = e.currentTarget.getBoundingClientRect();
+    ry.set(((e.clientX - r.left) / r.width - 0.5) * 7);
+    rx.set(-((e.clientY - r.top) / r.height - 0.5) * 7);
+  };
+  return (
+    <motion.article
+      className="zv-bento-card zv-spot"
+      style={{ rotateX: rx, rotateY: ry, transformPerspective: 1200, '--d': `${Number(s.n) * -1.5}s` } as never}
+      onPointerMove={onMove}
+      onPointerLeave={() => (rx.set(0), ry.set(0))}
+      whileHover={reduced ? undefined : { y: -6 }}
+      transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+      aria-labelledby={`zv-bento-${s.n}`}
+    >
+      <motion.span className="zv-bento-n" style={{ y: numY }} aria-hidden>
+        {s.n}
+      </motion.span>
+      <p className="zv-bento-label">
+        <s.Icon size={14} aria-hidden /> {s.n} · {s.label}
+      </p>
+      <h3 id={`zv-bento-${s.n}`}>{s.title}</h3>
+      <p className="zv-bento-body">{s.body}</p>
+      <div className="zv-bento-vis">
+        <Visual />
+      </div>
+    </motion.article>
   );
 }
 
 /**
- * Wide screens: the four steps are tabs. The loop advances on its own while it
- * is on screen, and stops for good once the visitor picks a step. No scroll
- * hijacking: the section is as tall as its content.
+ * The loop, full screen like the hero: an ink field with drifting light, a
+ * pointer glow and parallax, and four cards (a bento) that rise in, tilt
+ * toward the pointer and play their own small scenes.
  */
-function LoopTabs() {
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { amount: 0.45 });
-  const reduced = useReducedMotion();
-  const [active, setActive] = useState(0);
-  const [picked, setPicked] = useState(false);
-  const auto = inView && !picked && !reduced;
-  useEffect(() => {
-    if (!auto) return;
-    const t = window.setTimeout(() => setActive((a) => (a + 1) % STEPS.length), STEP_MS);
-    return () => window.clearTimeout(t);
-  }, [auto, active]);
-
-  const choose = (i: number, focus = false) => {
-    setPicked(true);
-    setActive(i);
-    if (focus) document.getElementById(`zv-step-tab-${i}`)?.focus();
-  };
-  const onKey = (e: KeyboardEvent<HTMLButtonElement>) => {
-    const keys: Record<string, number> = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 };
-    if (e.key === 'Home') choose(0, true);
-    else if (e.key === 'End') choose(STEPS.length - 1, true);
-    else if (e.key in keys) choose((active + keys[e.key] + STEPS.length) % STEPS.length, true);
-    else return;
-    e.preventDefault();
-  };
-  const step = STEPS[active];
-
-  return (
-    <div className="zv-loop-grid" ref={ref}>
-      <div>
-        <LoopIntro />
-        <div className="zv-steps" role="tablist" aria-orientation="vertical" aria-label="The loop">
-          {STEPS.map((s, i) => {
-            const on = i === active;
-            return (
-              <div key={s.n} className={`zv-step${on ? ' is-active' : i < active ? ' is-done' : ''}`}>
-                <button
-                  type="button"
-                  role="tab"
-                  id={`zv-step-tab-${i}`}
-                  aria-selected={on}
-                  aria-controls="zv-step-panel"
-                  tabIndex={on ? 0 : -1}
-                  onClick={() => choose(i)}
-                  onKeyDown={onKey}
-                >
-                  <span className="zv-step-n">{s.n}</span>
-                  <span className="zv-step-t">{s.title}</span>
-                </button>
-                <AnimatePresence initial={false}>
-                  {on && (
-                    <motion.p key="body" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.45, ease: EASE }}>
-                      {s.body}
-                    </motion.p>
-                  )}
-                </AnimatePresence>
-                {on && (
-                  <span className="zv-step-timer" aria-hidden>
-                    <i key={`${active}-${auto}`} className={auto ? 'is-running' : ''} style={{ animationDuration: `${STEP_MS}ms` }} />
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      <div className="zv-loop-card" id="zv-step-panel" role="tabpanel" aria-labelledby={`zv-step-tab-${active}`} aria-live="polite">
-        <CardHead step={step} />
-        <AnimatePresence mode="wait">
-          <motion.div key={active} initial={{ opacity: 0, y: 18, filter: 'blur(4px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} exit={{ opacity: 0, y: -12, filter: 'blur(4px)' }} transition={{ duration: 0.4, ease: EASE }}>
-            <StepVisual i={active} />
-          </motion.div>
-        </AnimatePresence>
-      </div>
-    </div>
-  );
-}
-
-/** Phones and tablets: every step is its own card, read top to bottom. */
-function LoopStack() {
-  return (
-    <>
-      <Reveal>
-        <LoopIntro />
-      </Reveal>
-      <ol className="zv-loop-stack">
-        {STEPS.map((s, i) => (
-          <li key={s.n}>
-            <Reveal>
-              <article className="zv-loop-card is-stacked" aria-label={`${s.n} ${s.title}`}>
-                <CardHead step={s} />
-                <p className="zv-loop-stack-body">{s.body}</p>
-                <StepVisual i={i} />
-              </article>
-            </Reveal>
-          </li>
-        ))}
-      </ol>
-    </>
-  );
-}
-
 export function LoopV2() {
-  const narrow = useMedia('(max-width: 1000px)');
+  const ref = useRef<HTMLElement>(null);
+  const reduced = useReducedMotion();
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] });
+  const bgY = useTransform(scrollYProgress, [0, 1], ['-8%', '8%']);
+  const numY = useTransform(scrollYProgress, [0, 1], [70, -70]);
+  const onMove = (e: PointerEvent<HTMLElement>) => {
+    if (reduced || e.pointerType !== 'mouse') return;
+    const r = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty('--gx', `${e.clientX - r.left}px`);
+    e.currentTarget.style.setProperty('--gy', `${e.clientY - r.top}px`);
+  };
   return (
-    <section className="zv-loop" id="workbench" aria-labelledby="zv-loop-title">
-      <div className="zv-wrap">{narrow ? <LoopStack /> : <LoopTabs />}</div>
+    <section ref={ref} className="zv-loop" id="workbench" aria-labelledby="zv-loop-title" onPointerMove={onMove}>
+      <motion.div className="zv-loop-bg" style={{ y: bgY }} aria-hidden>
+        <span className="zv-loop-blob is-a" />
+        <span className="zv-loop-blob is-b" />
+        <span className="zv-loop-blob is-c" />
+      </motion.div>
+      <span className="zv-loop-grid-lines" aria-hidden />
+      <span className="zv-loop-glow" aria-hidden />
+
+      <div className="zv-wrap">
+        <div className="zv-loop-head">
+          <div>
+            <motion.p className="zv-kicker" initial={reduced ? false : { opacity: 0, x: -16 }} whileInView={{ opacity: 1, x: 0 }} viewport={once} transition={{ duration: 0.8, ease: EASE }}>
+              The work · measure, replay, verify, review
+            </motion.p>
+            <h2 id="zv-loop-title" className="zv-h2">
+              <Words text="Cheaper AI means nothing if" inView />{' '}
+              <span className="zv-accent">
+                <Words text="the answer gets worse." inView delay={0.35} />
+              </span>
+            </h2>
+          </div>
+          <Reveal delay={0.3}>
+            <p className="zv-sub">ZEVQORA measures one workload, tests a lighter alternative against quality you set in advance, and shows whether it deserves to ship.</p>
+          </Reveal>
+        </div>
+
+        <ol className="zv-bento">
+          {LOOP.map((s, i) => (
+            <motion.li
+              key={s.n}
+              className={`zv-bento-cell${s.wide ? ' is-wide' : ''}`}
+              initial={reduced ? false : { opacity: 0, y: 80, rotateX: 16, scale: 0.94, filter: 'blur(10px)' }}
+              whileInView={{ opacity: 1, y: 0, rotateX: 0, scale: 1, filter: 'blur(0px)' }}
+              viewport={{ once: true, margin: '-6% 0px' }}
+              transition={{ duration: 1.1, ease: EASE, delay: 0.1 * i }}
+              style={{ transformPerspective: 1400 }}
+            >
+              <TiltCard s={s} numY={numY} />
+            </motion.li>
+          ))}
+        </ol>
+        <p className="zv-bento-note">Illustrative sample data. The quality figures come from an internal 50-case benchmark, not customer evidence.</p>
+      </div>
     </section>
   );
 }
