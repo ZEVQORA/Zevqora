@@ -1,6 +1,6 @@
-import { type PointerEvent } from 'react';
+import { useRef, type CSSProperties, type PointerEvent } from 'react';
 import { Link } from 'react-router';
-import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from 'motion/react';
+import { motion, useInView, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform, type MotionValue } from 'motion/react';
 import { ArrowDown, ArrowRight, ArrowUpRight, Check, Eye, FlaskConical, GitBranch, KeyRound, ShieldCheck, UserCheck, X } from 'lucide-react';
 import { DimensionalZ } from '@/brand/DimensionalZ';
 import { Zev } from '@/brand/Zev';
@@ -129,8 +129,16 @@ const LOOP: Array<{ n: string; label: string; title: string; body: string; Icon:
 
 const once = { once: true, margin: '-10% 0px' } as const;
 
-/** Observe: one request as a trace waterfall; the hot span is where this example spends most. */
+/** Adds `is-in` the first time the element is on screen; the CSS choreography keys off it. */
+function useOnScreen<T extends Element>() {
+  const ref = useRef<T>(null);
+  const seen = useInView(ref, once);
+  return [ref, seen ? ' is-in' : ''] as const;
+}
+
+/** Observe: one request as a trace waterfall, with a playhead scanning it. */
 function Waterfall() {
+  const [ref, inCls] = useOnScreen<HTMLDivElement>();
   const spans: Array<[string, number, number, string]> = [
     ['Request', 0, 100, 'is-total'],
     ['Retrieval', 3, 14, ''],
@@ -139,16 +147,19 @@ function Waterfall() {
     ['Retry', 74, 24, 'is-warm'],
   ];
   return (
-    <div className="zv-bv-water">
+    <div ref={ref} className={`zv-bv-water${inCls}`}>
       {spans.map(([label, x, w, tone], k) => (
         <div className="zv-bv-wrow" key={label}>
           <span>{label}</span>
           <span className="zv-bv-lane">
-            <motion.i className={tone} style={{ left: `${x}%` }} initial={{ width: 0 }} whileInView={{ width: `${w}%` }} viewport={once} transition={{ duration: 0.9, ease: EASE, delay: 0.25 + k * 0.12 }} />
+            <motion.i className={tone} style={{ left: `${x}%` }} initial={{ width: 0 }} whileInView={{ width: `${w}%` }} viewport={once} transition={{ duration: 0.9, ease: EASE, delay: 0.3 + k * 0.12 }} />
             {tone === 'is-hot' && <b className="zv-bv-tag">most spend</b>}
           </span>
         </div>
       ))}
+      <span className="zv-bv-scan" aria-hidden>
+        <i />
+      </span>
       <div className="zv-bv-axis" aria-hidden>
         <span>request</span>
         <span>answer</span>
@@ -157,21 +168,23 @@ function Waterfall() {
   );
 }
 
-/** Challenge: candidates branch off the baseline. */
+/** Challenge: candidates branch off the baseline; the risky one is flagged for Verify. */
 function CandidateTree() {
+  const [ref, inCls] = useOnScreen<HTMLUListElement>();
   return (
-    <ul className="zv-bv-tree">
+    <ul ref={ref} className={`zv-bv-tree${inCls}`}>
       {['Smaller model on simple tickets', 'Trim retrieved context', 'Cache policy answers', 'Cheapest model everywhere'].map((t, k) => (
-        <motion.li key={t} initial={{ opacity: 0, x: -10 }} whileInView={{ opacity: 1, x: 0 }} viewport={once} transition={{ duration: 0.6, ease: EASE, delay: 0.25 + k * 0.1 }}>
+        <li key={t} style={{ '--k': k } as CSSProperties}>
           <b>{'ABCD'[k]}</b>
           <span>{t}</span>
-        </motion.li>
+          {k === 3 && <em className="zv-bv-flag">risky</em>}
+        </li>
       ))}
     </ul>
   );
 }
 
-/** Verify: quality as a ring, with the floor marked at 0.95. */
+/** Verify: quality as a ring that fills and counts up, with the floor marked at 0.95. */
 function QualityRing({ name, q, ok, delay }: { name: string; q: number; ok: boolean; delay: number }) {
   const r = 34;
   const a = 0.95 * 2 * Math.PI - Math.PI / 2;
@@ -183,15 +196,17 @@ function QualityRing({ name, q, ok, delay }: { name: string; q: number; ok: bool
       <div className="zv-bv-dial">
         <svg viewBox="0 0 84 84" aria-hidden>
           <circle cx="42" cy="42" r={r} className="zv-bv-ring-track" />
-          <motion.circle cx="42" cy="42" r={r} className="zv-bv-ring-fill" transform="rotate(-90 42 42)" initial={{ pathLength: 0 }} whileInView={{ pathLength: q }} viewport={once} transition={{ duration: 1.3, ease: EASE, delay }} />
+          <motion.circle cx="42" cy="42" r={r} className="zv-bv-ring-fill" transform="rotate(-90 42 42)" initial={{ pathLength: 0 }} whileInView={{ pathLength: q }} viewport={once} transition={{ duration: 1.6, ease: EASE, delay }} />
           <line x1={x1} y1={y1} x2={x2} y2={y2} className="zv-bv-floor" />
         </svg>
-        <strong>{q.toFixed(2)}</strong>
+        <strong>
+          <Count to={q} decimals={2} duration={1.6} />
+        </strong>
       </div>
       <p>Candidate {name}</p>
-      <span className={`zv-verdict ${ok ? 'is-verified' : 'is-rejected'}`}>
+      <motion.span className={`zv-verdict ${ok ? 'is-verified' : 'is-rejected'}`} initial={{ opacity: 0, scale: 0.6 }} whileInView={{ opacity: 1, scale: 1 }} viewport={once} transition={{ type: 'spring', stiffness: 320, damping: 16, delay: delay + 1.4 }}>
         {ok ? <Check size={11} /> : <X size={11} />} {ok ? 'VERIFIED' : 'REJECTED'}
-      </span>
+      </motion.span>
     </div>
   );
 }
@@ -201,28 +216,44 @@ function Gates() {
     <div>
       <div className="zv-bv-rings">
         <QualityRing name="D" q={0.87} ok={false} delay={0.2} />
-        <QualityRing name="A" q={0.97} ok delay={0.4} />
+        <QualityRing name="A" q={0.97} ok delay={0.45} />
       </div>
       <p className="zv-bv-floor-note">White tick = the 0.95 quality floor</p>
     </div>
   );
 }
 
-/** Review: what lands on a person's desk. */
+/** Review: the request lands, the checks tick in, and a person approves it (a looping demo). */
 function ReviewRequest() {
+  const [ref, inCls] = useOnScreen<HTMLDivElement>();
+  const checks: Array<[string, boolean]> = [
+    ['Quality 0.97, above the 0.95 floor', true],
+    ['Patch and evidence ready to read', true],
+    ['Waiting for your decision', false],
+  ];
   return (
-    <div className="zv-bv-review">
+    <div ref={ref} className={`zv-bv-review${inCls}`}>
       <div className="zv-bv-review-head">
         <span><GitBranch size={14} aria-hidden /> Candidate A · smaller model on simple tickets</span>
         <span className="zv-verdict is-verified"><Check size={11} /> VERIFIED</span>
       </div>
       <ul>
-        <li><Check size={14} aria-hidden /> Quality 0.97, above the 0.95 floor</li>
-        <li><Check size={14} aria-hidden /> Patch and evidence ready to read</li>
-        <li className="is-wait"><UserCheck size={14} aria-hidden /> Waiting for your decision</li>
+        {checks.map(([t, done], k) => (
+          <li key={t} className={done ? '' : 'is-wait'} style={{ '--k': k } as CSSProperties}>
+            {done ? <Check size={14} aria-hidden /> : <UserCheck size={14} aria-hidden />} {t}
+          </li>
+        ))}
       </ul>
       <div className="zv-bv-actions">
-        <span className="zv-bv-btn is-primary">Approve for review</span>
+        <span className="zv-bv-btn is-primary zv-bv-approve">
+          <span className="is-a">Approve for review</span>
+          <span className="is-b" aria-hidden>
+            <Check size={13} /> Sent to review
+          </span>
+          <svg className="zv-bv-cursor" viewBox="0 0 24 24" aria-hidden>
+            <path d="M4 2.5 19.5 12l-6.6 1.6L9.6 20 4 2.5Z" />
+          </svg>
+        </span>
         <span className="zv-bv-btn">Not now</span>
         <em>Nothing deploys on its own.</em>
       </div>
@@ -232,51 +263,105 @@ function ReviewRequest() {
 
 const VISUALS = [Waterfall, CandidateTree, Gates, ReviewRequest];
 
+/** A card that tilts toward the pointer (mouse only, never with reduced motion). */
+function TiltCard({ s, numY }: { s: (typeof LOOP)[number]; numY: MotionValue<number> }) {
+  const reduced = useReducedMotion();
+  const rx = useSpring(0, { stiffness: 160, damping: 18 });
+  const ry = useSpring(0, { stiffness: 160, damping: 18 });
+  const Visual = VISUALS[Number(s.n) - 1];
+  const onMove = (e: PointerEvent<HTMLElement>) => {
+    spot(e);
+    if (reduced || e.pointerType !== 'mouse') return;
+    const r = e.currentTarget.getBoundingClientRect();
+    ry.set(((e.clientX - r.left) / r.width - 0.5) * 7);
+    rx.set(-((e.clientY - r.top) / r.height - 0.5) * 7);
+  };
+  return (
+    <motion.article
+      className="zv-bento-card zv-spot"
+      style={{ rotateX: rx, rotateY: ry, transformPerspective: 1200, '--d': `${Number(s.n) * -1.5}s` } as never}
+      onPointerMove={onMove}
+      onPointerLeave={() => (rx.set(0), ry.set(0))}
+      whileHover={reduced ? undefined : { y: -6 }}
+      transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+      aria-labelledby={`zv-bento-${s.n}`}
+    >
+      <motion.span className="zv-bento-n" style={{ y: numY }} aria-hidden>
+        {s.n}
+      </motion.span>
+      <p className="zv-bento-label">
+        <s.Icon size={14} aria-hidden /> {s.n} · {s.label}
+      </p>
+      <h3 id={`zv-bento-${s.n}`}>{s.title}</h3>
+      <p className="zv-bento-body">{s.body}</p>
+      <div className="zv-bento-vis">
+        <Visual />
+      </div>
+    </motion.article>
+  );
+}
+
 /**
- * The loop as a dark bento: four cards of alternating width inside a rounded
- * ink panel that echoes the hero. Everything is visible at once; on phones
- * the cards simply stack.
+ * The loop, full screen like the hero: an ink field with drifting light, a
+ * pointer glow and parallax, and four cards (a bento) that rise in, tilt
+ * toward the pointer and play their own small scenes.
  */
 export function LoopV2() {
+  const ref = useRef<HTMLElement>(null);
+  const reduced = useReducedMotion();
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] });
+  const bgY = useTransform(scrollYProgress, [0, 1], ['-8%', '8%']);
+  const numY = useTransform(scrollYProgress, [0, 1], [70, -70]);
+  const onMove = (e: PointerEvent<HTMLElement>) => {
+    if (reduced || e.pointerType !== 'mouse') return;
+    const r = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty('--gx', `${e.clientX - r.left}px`);
+    e.currentTarget.style.setProperty('--gy', `${e.clientY - r.top}px`);
+  };
   return (
-    <section className="zv-loop" id="workbench" aria-labelledby="zv-loop-title">
-      <div className="zv-loop-panel">
-        <span className="zv-loop-grid-lines" aria-hidden />
-        <div className="zv-wrap">
-          <Reveal className="zv-loop-head">
-            <div>
-              <p className="zv-kicker">The work · measure, replay, verify, review</p>
-              <h2 id="zv-loop-title" className="zv-h2">
-                Cheaper AI means nothing if <span className="zv-accent">the answer gets worse.</span>
-              </h2>
-            </div>
+    <section ref={ref} className="zv-loop" id="workbench" aria-labelledby="zv-loop-title" onPointerMove={onMove}>
+      <motion.div className="zv-loop-bg" style={{ y: bgY }} aria-hidden>
+        <span className="zv-loop-blob is-a" />
+        <span className="zv-loop-blob is-b" />
+        <span className="zv-loop-blob is-c" />
+      </motion.div>
+      <span className="zv-loop-grid-lines" aria-hidden />
+      <span className="zv-loop-glow" aria-hidden />
+
+      <div className="zv-wrap">
+        <div className="zv-loop-head">
+          <div>
+            <motion.p className="zv-kicker" initial={reduced ? false : { opacity: 0, x: -16 }} whileInView={{ opacity: 1, x: 0 }} viewport={once} transition={{ duration: 0.8, ease: EASE }}>
+              The work · measure, replay, verify, review
+            </motion.p>
+            <h2 id="zv-loop-title" className="zv-h2">
+              <Words text="Cheaper AI means nothing if" inView />{' '}
+              <span className="zv-accent">
+                <Words text="the answer gets worse." inView delay={0.35} />
+              </span>
+            </h2>
+          </div>
+          <Reveal delay={0.3}>
             <p className="zv-sub">ZEVQORA measures one workload, tests a lighter alternative against quality you set in advance, and shows whether it deserves to ship.</p>
           </Reveal>
-
-          <ol className="zv-bento">
-            {LOOP.map((s, i) => {
-              const Visual = VISUALS[i];
-              return (
-                <li key={s.n} className={`zv-bento-cell${s.wide ? ' is-wide' : ''}`}>
-                  <Reveal delay={0.06 * i} className="zv-bento-reveal">
-                    <article className="zv-bento-card zv-spot" onPointerMove={spot} aria-labelledby={`zv-bento-${s.n}`}>
-                      <span className="zv-bento-n" aria-hidden>{s.n}</span>
-                      <p className="zv-bento-label">
-                        <s.Icon size={14} aria-hidden /> {s.n} · {s.label}
-                      </p>
-                      <h3 id={`zv-bento-${s.n}`}>{s.title}</h3>
-                      <p className="zv-bento-body">{s.body}</p>
-                      <div className="zv-bento-vis">
-                        <Visual />
-                      </div>
-                    </article>
-                  </Reveal>
-                </li>
-              );
-            })}
-          </ol>
-          <p className="zv-bento-note">Illustrative sample data. The quality figures come from an internal 50-case benchmark, not customer evidence.</p>
         </div>
+
+        <ol className="zv-bento">
+          {LOOP.map((s, i) => (
+            <motion.li
+              key={s.n}
+              className={`zv-bento-cell${s.wide ? ' is-wide' : ''}`}
+              initial={reduced ? false : { opacity: 0, y: 80, rotateX: 16, scale: 0.94, filter: 'blur(10px)' }}
+              whileInView={{ opacity: 1, y: 0, rotateX: 0, scale: 1, filter: 'blur(0px)' }}
+              viewport={{ once: true, margin: '-6% 0px' }}
+              transition={{ duration: 1.1, ease: EASE, delay: 0.1 * i }}
+              style={{ transformPerspective: 1400 }}
+            >
+              <TiltCard s={s} numY={numY} />
+            </motion.li>
+          ))}
+        </ol>
+        <p className="zv-bento-note">Illustrative sample data. The quality figures come from an internal 50-case benchmark, not customer evidence.</p>
       </div>
     </section>
   );
