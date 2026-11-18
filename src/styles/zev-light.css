@@ -965,10 +965,28 @@
 }
 
 /* Ask Zev */
+/* Ask Zev sits between two ink sections. It gets a full screen of its own and
+   reads as one light sheet laid over them: rounded corners that overlap the
+   hero above and the loop below, with soft shadows at both edges. */
 .zv-ask {
+  --zv-sheet: clamp(28px, 4vw, 56px);
   position: relative;
-  padding: 120px 0 90px;
-  background: linear-gradient(180deg, var(--zv-cloud), #fff 40%, var(--zv-cloud));
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  min-height: 100svh;
+  margin: calc(-1 * var(--zv-sheet)) 0;
+  padding: calc(var(--zv-sheet) + 80px) 0 calc(var(--zv-sheet) + 64px);
+  border-radius: var(--zv-sheet);
+  background:
+    radial-gradient(900px 520px at 50% 34%, rgb(70 139 255 / 0.07), transparent 70%),
+    linear-gradient(180deg, var(--zv-cloud), #fff 45%, var(--zv-cloud));
+  box-shadow:
+    0 -24px 60px -30px rgb(0 0 0 / 0.55),
+    0 24px 60px -30px rgb(0 0 0 / 0.55);
+}
+.zv-ask > .zv-wrap {
+  width: 100%;
 }
 .zv-ask-inner {
   display: flex;
