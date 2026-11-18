@@ -1038,15 +1038,8 @@
 /* The loop (scroll-driven) */
 .zv-loop {
   position: relative;
-  height: 380vh;
+  padding: clamp(88px, 12vh, 140px) 0;
   background: var(--zv-cloud);
-}
-.zv-loop-sticky {
-  position: sticky;
-  top: 0;
-  height: 100svh;
-  display: flex;
-  align-items: center;
 }
 .zv-loop-grid {
   display: grid;
@@ -1061,13 +1054,75 @@
   display: grid;
   gap: 4px;
 }
-.zv-steps li {
+.zv-step {
+  position: relative;
   border-radius: 14px;
-  transition: background 0.4s;
+  overflow: hidden;
+  transition:
+    background 0.4s,
+    box-shadow 0.4s;
 }
-.zv-steps li.is-active {
+.zv-step.is-active {
   background: #fff;
   box-shadow: var(--zv-shadow-sm), inset 0 0 0 1px rgb(15 17 21 / 0.04);
+}
+.zv-step:not(.is-active) button:hover {
+  color: var(--zv-ink-2);
+}
+.zv-steps button:focus-visible {
+  outline: 2px solid var(--zv-blue);
+  outline-offset: -2px;
+  border-radius: 14px;
+}
+/* The active step's countdown to the next one. */
+.zv-step-timer {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--zv-stone);
+  overflow: hidden;
+}
+.zv-step-timer i {
+  display: block;
+  height: 100%;
+  background: var(--zv-blue);
+  transform-origin: left;
+}
+.zv-step-timer i.is-running {
+  animation: zv-step-timer linear both;
+}
+@keyframes zv-step-timer {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+/* Phones and tablets: one card per step. */
+.zv-loop-stack {
+  display: grid;
+  gap: 16px;
+  margin: 32px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.zv-loop-card.is-stacked {
+  min-height: 0;
+  padding: 20px;
+}
+.zv-loop-card.is-stacked .zv-loop-card-head {
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+}
+.zv-loop-stack-body {
+  margin: 0 0 18px;
+  color: var(--zv-muted);
+  line-height: 1.6;
+  font-size: 15px;
 }
 .zv-steps button {
   display: flex;
@@ -1082,10 +1137,10 @@
   letter-spacing: -0.02em;
   transition: color 0.3s;
 }
-.zv-steps li.is-done button {
+.zv-step.is-done button {
   color: var(--zv-muted);
 }
-.zv-steps li.is-active button {
+.zv-step.is-active button {
   color: var(--zv-ink);
 }
 .zv-step-n {
@@ -1102,11 +1157,11 @@
     background 0.3s,
     color 0.3s;
 }
-.zv-steps li.is-active .zv-step-n {
+.zv-step.is-active .zv-step-n {
   background: var(--zv-blue);
   color: #fff;
 }
-.zv-steps li.is-done .zv-step-n {
+.zv-step.is-done .zv-step-n {
   background: var(--zv-blue-100);
   color: var(--zv-blue-600);
 }
@@ -1116,19 +1171,6 @@
   overflow: hidden;
   color: var(--zv-muted);
   line-height: 1.6;
-}
-.zv-loop-bar {
-  height: 3px;
-  margin-top: 22px;
-  border-radius: 3px;
-  background: var(--zv-stone);
-  overflow: hidden;
-}
-.zv-loop-bar span {
-  display: block;
-  height: 100%;
-  background: var(--zv-blue);
-  transform-origin: left;
 }
 .zv-loop-card {
   position: relative;
@@ -1368,32 +1410,6 @@
   color: var(--zv-subtle);
 }
 
-.zv-principles {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 28px;
-  margin-top: 48px;
-}
-.zv-principles h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-.zv-principles p {
-  margin: 8px 0 0;
-  color: var(--zv-muted);
-  line-height: 1.6;
-}
-.zv-status-note {
-  margin: 36px 0 0;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: var(--zv-amber-bg);
-  color: var(--zv-amber);
-  font-size: 13px;
-}
-
 /* Boundaries + audience */
 .zv-bounds {
   padding: 130px 0;
@@ -1474,39 +1490,6 @@
 }
 .zv-aud .zv-link {
   margin-top: 20px;
-}
-
-/* Pricing (existing PricingGrid, re-skinned) */
-.zv-pricing {
-  padding: 120px 0;
-  background: var(--zv-cloud);
-}
-.engine-world .zv-pricing .pricing-surface .plan-card {
-  border-radius: var(--zv-r-lg);
-  background: #fff;
-  border: 0;
-  box-shadow: var(--zv-shadow-sm), inset 0 0 0 1px var(--zv-stone);
-  transition:
-    transform 0.5s var(--zv-ease),
-    box-shadow 0.5s var(--zv-ease);
-}
-.engine-world .zv-pricing .pricing-surface .plan-card:hover {
-  transform: translateY(-6px);
-  box-shadow: var(--zv-shadow), inset 0 0 0 1px rgb(70 139 255 / 0.3);
-}
-.engine-world .zv-pricing .pricing-surface .plan-card.popular {
-  background: var(--zv-ink);
-  box-shadow: 0 30px 60px -30px rgb(70 139 255 / 0.6), inset 0 0 0 1.5px var(--zv-blue);
-}
-.engine-world .zv-pricing .pricing-surface .plan-card .z-button {
-  border-radius: 999px;
-}
-.engine-world .zv-pricing .pricing-surface .billing-toggle {
-  border-radius: 999px;
-  overflow: hidden;
-}
-.engine-world .zv-pricing .pricing-surface .billing-toggle button {
-  border-radius: 999px;
 }
 
 /* Ask Zev composer re-skin inside the home slot */
@@ -1612,14 +1595,8 @@
     height: 340px;
   }
   .zv-loop {
-    height: auto;
+    padding: 80px 0;
   }
-  .zv-loop-sticky {
-    position: relative;
-    height: auto;
-    padding: 100px 0;
-  }
-  .zv-principles,
   .zv-cards3,
   .zv-audience {
     grid-template-columns: 1fr;
@@ -1638,13 +1615,6 @@
   .zv-bubble {
     top: 10px;
     right: 0;
-  }
-  .zv-graph {
-    height: 520px;
-  }
-  .zv-node {
-    min-width: 96px;
-    font-size: 11px;
   }
   .zv-vis {
     padding-right: 0;
@@ -1668,11 +1638,8 @@
   .zv-blob,
   .zv-halo,
   .zv-marquee-track,
-  .zv-graph line,
-  .zv-graph path,
   .zv-replay-bars i,
   .zv-chip-dot::after,
-  .zv-node.is-hot::after,
   .zv-shadow {
     animation: none !important;
   }

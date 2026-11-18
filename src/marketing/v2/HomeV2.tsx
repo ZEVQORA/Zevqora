@@ -1,12 +1,11 @@
-import { useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { Link } from 'react-router';
-import { AnimatePresence, motion, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform, useMotionValueEvent } from 'motion/react';
+import { AnimatePresence, motion, useInView, useMotionValue, useReducedMotion, useSpring, useTransform } from 'motion/react';
 import { ArrowDown, ArrowRight, ArrowUpRight, Check, Eye, FlaskConical, GitBranch, KeyRound, ShieldCheck, UserCheck, X } from 'lucide-react';
 import { DimensionalZ } from '@/brand/DimensionalZ';
-import { Zev, type ZevView } from '@/brand/Zev';
+import { Zev } from '@/brand/Zev';
 import { useSiteContent } from '@/lib/site';
 import { AskZev } from '../askzev/AskZev';
-import { PricingGrid } from '../Pricing';
 import { Count, EASE, Magnetic, Reveal, spot, Words } from './motion';
 import { PremiumCta } from './PremiumCta';
 export { PremiumCta };
@@ -86,17 +85,6 @@ export function HeroV2() {
           </motion.div>
         </div>
       </div>
-
-      <div className="zv-wrap zv-hero-foot">
-        <ol className="zv-hero-chapters" aria-label="The loop">
-          {['Observe', 'Challenge', 'Verify', 'Review'].map((w, i) => (
-            <li key={w}>
-              <b>0{i + 1}</b>
-              {w}
-            </li>
-          ))}
-        </ol>
-      </div>
     </section>
   );
 }
@@ -132,12 +120,23 @@ export function AskZevV2() {
 
 /* ─────────────────────────── 3. The loop ─────────────────────────── */
 
-const STEPS: Array<{ n: string; title: string; body: string; pose: ZevView; Icon: typeof Eye }> = [
-  { n: '01', title: 'Observe', body: 'See the model calls, tool steps, retries and context behind one AI workflow — the real baseline.', pose: 'pose-sitting', Icon: Eye },
-  { n: '02', title: 'Challenge', body: 'Propose a lighter path: a smaller model, a shorter context, a cache — each one a candidate, never a promise.', pose: 'pose-playful', Icon: FlaskConical },
-  { n: '03', title: 'Verify', body: 'Replay the candidate on recorded cases against the quality floor you set in advance. Gates decide, not opinions.', pose: 'pose-thinking', Icon: ShieldCheck },
-  { n: '04', title: 'Review', body: 'Read the evidence and decide. VERIFIED does not mean deployed — shipping stays a human decision.', pose: 'pose-waving', Icon: UserCheck },
+const STEPS: Array<{ n: string; title: string; body: string; Icon: typeof Eye }> = [
+  { n: '01', title: 'Observe', body: 'See the model calls, tool steps, retries and context behind one AI workflow — the real baseline.', Icon: Eye },
+  { n: '02', title: 'Challenge', body: 'Propose a lighter path: a smaller model, a shorter context, a cache — each one a candidate, never a promise.', Icon: FlaskConical },
+  { n: '03', title: 'Verify', body: 'Replay the candidate on recorded cases against the quality floor you set in advance. Gates decide, not opinions.', Icon: ShieldCheck },
+  { n: '04', title: 'Review', body: 'Read the evidence and decide. VERIFIED does not mean deployed — shipping stays a human decision.', Icon: UserCheck },
 ];
+
+/** How long each step stays on screen before the loop advances on its own. */
+const STEP_MS = 6500;
+
+/** A width that grows from zero the first time it is on screen. */
+const grow = (width: string, delay = 0, duration = 0.9) => ({
+  initial: { width: 0 },
+  whileInView: { width },
+  viewport: { once: true },
+  transition: { duration, ease: EASE, delay },
+});
 
 function StepVisual({ i }: { i: number }) {
   if (i === 0)
@@ -152,7 +151,7 @@ function StepVisual({ i }: { i: number }) {
         ].map(([label, w, tone], k) => (
           <div className="zv-vis-row" key={label as string}>
             <span>{label}</span>
-            <span className="zv-vis-track"><motion.i className={tone as string} initial={{ width: 0 }} animate={{ width: `${w}%` }} transition={{ duration: 0.9, ease: EASE, delay: 0.1 + k * 0.08 }} /></span>
+            <span className="zv-vis-track"><motion.i className={tone as string} {...grow(`${w}%`, 0.1 + k * 0.08)} /></span>
           </div>
         ))}
         <p className="zv-vis-foot">Illustrative. The highlighted call is where this example spends most.</p>
@@ -162,13 +161,8 @@ function StepVisual({ i }: { i: number }) {
     return (
       <div className="zv-vis">
         <p className="zv-vis-title">Candidates</p>
-        {[
-          ['A · smaller model on simple tickets', 'candidate'],
-          ['B · trim retrieved context', 'candidate'],
-          ['C · cache policy answers', 'candidate'],
-          ['D · cheapest model everywhere', 'candidate'],
-        ].map(([t], k) => (
-          <motion.div className="zv-vis-cand" key={t} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, ease: EASE, delay: k * 0.08 }}>
+        {['A · smaller model on simple tickets', 'B · trim retrieved context', 'C · cache policy answers', 'D · cheapest model everywhere'].map((t, k) => (
+          <motion.div className="zv-vis-cand" key={t} initial={{ opacity: 0, x: 16 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, ease: EASE, delay: k * 0.08 }}>
             <GitBranch size={14} aria-hidden /> {t}
           </motion.div>
         ))}
@@ -180,7 +174,7 @@ function StepVisual({ i }: { i: number }) {
       <div className="zv-vis">
         <p className="zv-vis-title">Quality vs. the floor</p>
         <div className="zv-gauge">
-          <motion.span className="zv-gauge-fill" initial={{ width: 0 }} animate={{ width: '87%' }} transition={{ duration: 1.1, ease: EASE }} />
+          <motion.span className="zv-gauge-fill" {...grow('87%', 0, 1.1)} />
           <span className="zv-gauge-floor" style={{ left: '95%' }}><em>floor 0.95</em></span>
         </div>
         <div className="zv-gauge-legend">
@@ -188,7 +182,7 @@ function StepVisual({ i }: { i: number }) {
           <span className="zv-verdict is-rejected"><X size={12} /> REJECTED</span>
         </div>
         <div className="zv-gauge is-pass">
-          <motion.span className="zv-gauge-fill" initial={{ width: 0 }} animate={{ width: '97%' }} transition={{ duration: 1.1, ease: EASE, delay: 0.15 }} />
+          <motion.span className="zv-gauge-fill" {...grow('97%', 0.15, 1.1)} />
           <span className="zv-gauge-floor" style={{ left: '95%' }} />
         </div>
         <div className="zv-gauge-legend">
@@ -213,63 +207,156 @@ function StepVisual({ i }: { i: number }) {
   );
 }
 
-export function LoopV2() {
-  const ref = useRef<HTMLDivElement>(null);
-  const [active, setActive] = useState(0);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] });
-  useMotionValueEvent(scrollYProgress, 'change', (v) => setActive(Math.min(STEPS.length - 1, Math.max(0, Math.floor(v * STEPS.length)))));
-  const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 24 });
-  const step = STEPS[active];
+/** True while the viewport matches the media query (false where matchMedia is unavailable). */
+function useMedia(query: string) {
+  const read = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(query).matches;
+  const [match, setMatch] = useState(read);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia(query);
+    const on = () => setMatch(mq.matches);
+    on();
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, [query]);
+  return match;
+}
+
+function LoopIntro() {
   return (
-    <section className="zv-loop" id="workbench" aria-labelledby="zv-loop-title" ref={ref}>
-      <div className="zv-loop-sticky">
-        <div className="zv-wrap zv-loop-grid">
-          <div>
-            <p className="zv-kicker">The work · measure, replay, verify, review</p>
-            <h2 id="zv-loop-title" className="zv-h2">
-              Cheaper AI means nothing if <span className="zv-accent">the answer gets worse.</span>
-            </h2>
-            <p className="zv-sub">ZEVQORA measures one workload, tests a lighter alternative against quality you set in advance, and shows whether it deserves to ship.</p>
-            <ol className="zv-steps">
-              {STEPS.map((s, i) => (
-                <li key={s.n} className={i === active ? 'is-active' : i < active ? 'is-done' : ''}>
-                  <button
-                    type="button"
-                    aria-current={i === active ? 'step' : undefined}
-                    onClick={() => {
-                      const el = ref.current;
-                      if (!el) return;
-                      const top = el.getBoundingClientRect().top + window.scrollY;
-                      window.scrollTo({ top: top + ((el.offsetHeight - window.innerHeight) * (i + 0.5)) / STEPS.length, behavior: 'smooth' });
-                    }}
-                  >
-                    <span className="zv-step-n">{s.n}</span>
-                    <span className="zv-step-t">{s.title}</span>
-                  </button>
-                  {i === active && (
-                    <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} transition={{ duration: 0.5, ease: EASE }}>
+    <>
+      <p className="zv-kicker">The work · measure, replay, verify, review</p>
+      <h2 id="zv-loop-title" className="zv-h2">
+        Cheaper AI means nothing if <span className="zv-accent">the answer gets worse.</span>
+      </h2>
+      <p className="zv-sub">ZEVQORA measures one workload, tests a lighter alternative against quality you set in advance, and shows whether it deserves to ship.</p>
+    </>
+  );
+}
+
+function CardHead({ step }: { step: (typeof STEPS)[number] }) {
+  return (
+    <div className="zv-loop-card-head">
+      <step.Icon size={16} aria-hidden />
+      <span>{step.n} · {step.title}</span>
+      <span className="zv-sample">Sample data</span>
+    </div>
+  );
+}
+
+/**
+ * Wide screens: the four steps are tabs. The loop advances on its own while it
+ * is on screen, and stops for good once the visitor picks a step. No scroll
+ * hijacking: the section is as tall as its content.
+ */
+function LoopTabs() {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { amount: 0.45 });
+  const reduced = useReducedMotion();
+  const [active, setActive] = useState(0);
+  const [picked, setPicked] = useState(false);
+  const auto = inView && !picked && !reduced;
+  useEffect(() => {
+    if (!auto) return;
+    const t = window.setTimeout(() => setActive((a) => (a + 1) % STEPS.length), STEP_MS);
+    return () => window.clearTimeout(t);
+  }, [auto, active]);
+
+  const choose = (i: number, focus = false) => {
+    setPicked(true);
+    setActive(i);
+    if (focus) document.getElementById(`zv-step-tab-${i}`)?.focus();
+  };
+  const onKey = (e: KeyboardEvent<HTMLButtonElement>) => {
+    const keys: Record<string, number> = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 };
+    if (e.key === 'Home') choose(0, true);
+    else if (e.key === 'End') choose(STEPS.length - 1, true);
+    else if (e.key in keys) choose((active + keys[e.key] + STEPS.length) % STEPS.length, true);
+    else return;
+    e.preventDefault();
+  };
+  const step = STEPS[active];
+
+  return (
+    <div className="zv-loop-grid" ref={ref}>
+      <div>
+        <LoopIntro />
+        <div className="zv-steps" role="tablist" aria-orientation="vertical" aria-label="The loop">
+          {STEPS.map((s, i) => {
+            const on = i === active;
+            return (
+              <div key={s.n} className={`zv-step${on ? ' is-active' : i < active ? ' is-done' : ''}`}>
+                <button
+                  type="button"
+                  role="tab"
+                  id={`zv-step-tab-${i}`}
+                  aria-selected={on}
+                  aria-controls="zv-step-panel"
+                  tabIndex={on ? 0 : -1}
+                  onClick={() => choose(i)}
+                  onKeyDown={onKey}
+                >
+                  <span className="zv-step-n">{s.n}</span>
+                  <span className="zv-step-t">{s.title}</span>
+                </button>
+                <AnimatePresence initial={false}>
+                  {on && (
+                    <motion.p key="body" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.45, ease: EASE }}>
                       {s.body}
                     </motion.p>
                   )}
-                </li>
-              ))}
-            </ol>
-            <div className="zv-loop-bar" aria-hidden><motion.span style={{ scaleX: progress }} /></div>
-          </div>
-          <div className="zv-loop-card" aria-live="polite">
-            <div className="zv-loop-card-head">
-              <step.Icon size={16} aria-hidden />
-              <span>{step.n} · {step.title}</span>
-              <span className="zv-sample">Sample data</span>
-            </div>
-            <AnimatePresence mode="wait">
-              <motion.div key={active} initial={{ opacity: 0, y: 18, filter: 'blur(4px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} exit={{ opacity: 0, y: -12, filter: 'blur(4px)' }} transition={{ duration: 0.45, ease: EASE }}>
-                <StepVisual i={active} />
-              </motion.div>
-            </AnimatePresence>
-          </div>
+                </AnimatePresence>
+                {on && (
+                  <span className="zv-step-timer" aria-hidden>
+                    <i key={`${active}-${auto}`} className={auto ? 'is-running' : ''} style={{ animationDuration: `${STEP_MS}ms` }} />
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
+      <div className="zv-loop-card" id="zv-step-panel" role="tabpanel" aria-labelledby={`zv-step-tab-${active}`} aria-live="polite">
+        <CardHead step={step} />
+        <AnimatePresence mode="wait">
+          <motion.div key={active} initial={{ opacity: 0, y: 18, filter: 'blur(4px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} exit={{ opacity: 0, y: -12, filter: 'blur(4px)' }} transition={{ duration: 0.4, ease: EASE }}>
+            <StepVisual i={active} />
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+/** Phones and tablets: every step is its own card, read top to bottom. */
+function LoopStack() {
+  return (
+    <>
+      <Reveal>
+        <LoopIntro />
+      </Reveal>
+      <ol className="zv-loop-stack">
+        {STEPS.map((s, i) => (
+          <li key={s.n}>
+            <Reveal>
+              <article className="zv-loop-card is-stacked" aria-label={`${s.n} ${s.title}`}>
+                <CardHead step={s} />
+                <p className="zv-loop-stack-body">{s.body}</p>
+                <StepVisual i={i} />
+              </article>
+            </Reveal>
+          </li>
+        ))}
+      </ol>
+    </>
+  );
+}
+
+export function LoopV2() {
+  const narrow = useMedia('(max-width: 1000px)');
+  return (
+    <section className="zv-loop" id="workbench" aria-labelledby="zv-loop-title">
+      <div className="zv-wrap">{narrow ? <LoopStack /> : <LoopTabs />}</div>
     </section>
   );
 }
@@ -325,103 +412,7 @@ export function EvidenceV2() {
   );
 }
 
-/* ─────────────────────────── 5. ZevIR ─────────────────────────── */
-
-/** Graph in one coordinate system (1000 × 360): node boxes and edges share it, so lines always meet the nodes. */
-const GW = 1000;
-const GH = 360;
-const NW = 164;
-const NH = 66;
-const NODES = [
-  { k: 'Task', t: 'Answer a support ticket', x: 92, y: 180 },
-  { k: 'Agent', t: 'Support agent', x: 290, y: 180 },
-  { k: 'Retrieval', t: 'Policy search', x: 500, y: 74 },
-  { k: 'ModelCall', t: 'Large model · 3.1k tokens', x: 500, y: 286, hot: true },
-  { k: 'ToolCall', t: 'Order lookup', x: 710, y: 180 },
-  { k: 'Outcome', t: 'Resolved · quality 0.96', x: 908, y: 180 },
-];
-const EDGES: Array<[number, number]> = [[0, 1], [1, 2], [1, 3], [2, 4], [3, 4], [4, 5]];
-const edgePath = (a: (typeof NODES)[number], b: (typeof NODES)[number]) => {
-  const x1 = a.x + NW / 2;
-  const x2 = b.x - NW / 2;
-  const mx = (x1 + x2) / 2;
-  return `M ${x1} ${a.y} C ${mx} ${a.y}, ${mx} ${b.y}, ${x2} ${b.y}`;
-};
-// The retry: from the tool call back to the expensive model call.
-const RETRY = `M ${NODES[4].x} ${NODES[4].y + NH / 2} C ${NODES[4].x} ${GH - 8}, ${NODES[3].x + 120} ${GH - 4}, ${NODES[3].x + NW / 2} ${NODES[3].y + 10}`;
-
-export function ZevIRV2() {
-  return (
-    <section className="zv-zevir" aria-labelledby="zv-zevir-title">
-      <div className="zv-wrap">
-        <Reveal className="zv-center">
-          <p className="zv-kicker">Under the hood · ZevIR execution graph</p>
-          <h2 id="zv-zevir-title" className="zv-h2">One map of how your AI actually runs.</h2>
-          <p className="zv-sub">ZevIR turns each request into a graph of the steps behind the answer. Optimization starts from that map, not from a price list.</p>
-        </Reveal>
-        <Reveal delay={0.1}>
-          <figure className="zv-graph" aria-label="Illustrative execution graph">
-            <div className="zv-graph-head" aria-hidden>
-              <span><i /> zevir.v0.1 · support-ticket</span>
-              <span className="zv-sample">Illustrative</span>
-            </div>
-            <div className="zv-graph-canvas">
-              <svg viewBox={`0 0 ${GW} ${GH}`} aria-hidden>
-                <defs>
-                  <linearGradient id="zv-edge" x1="0" x2="1">
-                    <stop offset="0" stopColor="#9cc0ff" />
-                    <stop offset="1" stopColor="#468bff" />
-                  </linearGradient>
-                </defs>
-                {EDGES.map(([a, b]) => (
-                  <g key={`${a}-${b}`}>
-                    <path d={edgePath(NODES[a], NODES[b])} className="zv-edge-base" />
-                    <path d={edgePath(NODES[a], NODES[b])} className="zv-edge-flow" />
-                  </g>
-                ))}
-                <path d={RETRY} className="zv-edge-retry" />
-                <text x={NODES[4].x - 40} y={GH - 14} className="zv-edge-label">retry</text>
-                <circle r="4.5" className="zv-pulse-dot">
-                  <animateMotion dur="3.2s" repeatCount="indefinite" path={`${edgePath(NODES[0], NODES[1])} ${edgePath(NODES[1], NODES[3]).replace('M', 'L')} ${edgePath(NODES[3], NODES[4]).replace('M', 'L')} ${edgePath(NODES[4], NODES[5]).replace('M', 'L')}`} />
-                </circle>
-              </svg>
-              {NODES.map((n, i) => (
-                <motion.div
-                  key={n.k}
-                  className={`zv-node${n.hot ? ' is-hot' : ''}`}
-                  style={{ left: `${((n.x - NW / 2) / GW) * 100}%`, top: `${((n.y - NH / 2) / GH) * 100}%`, width: `${(NW / GW) * 100}%`, height: `${(NH / GH) * 100}%` }}
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.6, ease: EASE, delay: 0.1 + i * 0.08 }}
-                >
-                  <small>{n.k}</small>
-                  <span>{n.t}</span>
-                </motion.div>
-              ))}
-            </div>
-            <figcaption>Illustrative graph. The highlighted model call is where this example spends most; the dashed amber loop is a retry.</figcaption>
-          </figure>
-        </Reveal>
-        <div className="zv-principles">
-          {[
-            ['Unknown stays unknown.', 'A missing cost or latency is shown as missing — never as zero.'],
-            ['Structure, not secrets.', 'Prompt and output content are not captured by default; the graph keeps hashes, sizes and timings.'],
-            ['Real paths, including loops.', 'Retries and back-edges are kept, because that is often where the cost hides.'],
-          ].map(([t, b], i) => (
-            <Reveal key={t} delay={i * 0.08}>
-              <h3>{t}</h3>
-              <p>{b}</p>
-            </Reveal>
-          ))}
-        </div>
-        <p className="zv-status-note">In controlled preview behind a per-workspace feature flag. It informs analysis; it never changes a verdict.</p>
-      </div>
-    </section>
-  );
-}
-
-/* ─────────────────────────── 6. Boundaries + audience ─────────────────────────── */
+/* ─────────────────────────── 5. Boundaries + audience ─────────────────────────── */
 
 export function BoundariesV2() {
   const items = [
@@ -472,15 +463,7 @@ export function BoundariesV2() {
   );
 }
 
-/* ─────────────────────────── 7. Pricing + close ─────────────────────────── */
-
-export function PricingV2() {
-  return (
-    <section className="zv-pricing" id="pricing">
-      <PricingGrid />
-    </section>
-  );
-}
+/* ─────────────────────────── 6. Close ─────────────────────────── */
 
 export function CloseV2() {
   return <PremiumCta />;

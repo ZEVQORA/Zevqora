@@ -1,5 +1,5 @@
 import { PageTitle } from "./Editorial";
-import { AskZevV2, BoundariesV2, CloseV2, EvidenceV2, HeroV2, LoopV2, PricingV2, ZevIRV2 } from "./v2/HomeV2";
+import { AskZevV2, BoundariesV2, CloseV2, EvidenceV2, HeroV2, LoopV2 } from "./v2/HomeV2";
 import { SITE_URL } from "@/lib/seo";
 
 const DESCRIPTION =
@@ -17,11 +17,11 @@ const JSON_LD = {
  * The homepage (Zev Light, 2026-11): one calm journey led by Zev.
  *   1. Hero — what ZEVQORA is, with Zev and the verdict vocabulary.
  *   2. Ask Zev — the only Ask Zev instance on the page.
- *   3. The loop — observe, challenge, verify, review (scroll-driven).
+ *   3. The loop — observe, challenge, verify, review (tabs; stacked cards on phones).
  *   4. The evidence — an honest REJECTED decision from an internal benchmark.
- *   5. ZevIR — the execution graph in plain language.
- *   6. Boundaries and who it is for.
- *   7. Pricing and one closing call to action.
+ *   5. Boundaries and who it is for.
+ *   6. One closing call to action.
+ * Pricing lives only on /pricing (the menu link), not on the homepage.
  */
 export default function HomePage() {
   return (
@@ -31,9 +31,7 @@ export default function HomePage() {
       <AskZevV2 />
       <LoopV2 />
       <EvidenceV2 />
-      <ZevIRV2 />
       <BoundariesV2 />
-      <PricingV2 />
       <CloseV2 />
     </div>
   );

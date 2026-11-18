@@ -252,9 +252,10 @@ function Canvas({ loaded, overlay, kinds, query, selected, onSelect, onSelectEdg
       proOptions={{ hideAttribution: true }}
       ariaLabelConfig={{ 'node.a11yDescription.default': 'Press Enter or Space to inspect this node.' }}
     >
-      <Background gap={22} size={1} color="rgb(15 17 21 / 0.08)" />
+      {/* Theme-aware colours: the --zq-graph-* tokens are set for the dark workspace in workspace-dark.css. */}
+      <Background gap={22} size={1} color="var(--zq-graph-dot, rgb(15 17 21 / 0.08))" />
       <Controls showInteractive={false} position="bottom-left" />
-      {nodes.length > 12 && showMap && <MiniMap pannable zoomable position="bottom-right" style={{ width: 150, height: 96 }} nodeColor={(n) => ((n.data as NodeData).node.id === selected ? 'var(--zq-accent)' : 'var(--zq-stone-300)')} maskColor="rgb(247 248 250 / 0.7)" />}
+      {nodes.length > 12 && showMap && <MiniMap pannable zoomable position="bottom-right" style={{ width: 150, height: 96 }} nodeColor={(n) => ((n.data as NodeData).node.id === selected ? 'var(--zq-accent)' : 'var(--zq-border-strong)')} maskColor="var(--zq-graph-mask, rgb(247 248 250 / 0.7))" />}
     </ReactFlow>
   );
 }
