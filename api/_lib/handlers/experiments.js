@@ -1,5 +1,5 @@
 import { on } from '../router.js';
-import { ApiError, json, readJson, num, uuid } from '../http.js';
+import { ApiError, csvCell, json, readJson, num, uuid } from '../http.js';
 import { requireUser, requireProjectAccess, rateLimit } from '../auth.js';
 import { loadPricing, estimateCost } from '../pricing.js';
 import { chatCompletion, openRouterConfigured } from '../openrouter.js';
@@ -388,8 +388,7 @@ on('GET', '/api/experiments/:id/report.csv', async ({ request, params }) => {
   const { user, admin } = await requireUser(request);
   const { experiment, cases } = await loadReport(admin, user, uuid(params.id, 'experiment'));
   const header = ['case_index', 'grader', 'score', 'passed', 'baseline_model', 'candidate_model', 'baseline_cost_usd', 'candidate_cost_usd', 'baseline_latency_ms', 'candidate_latency_ms', 'baseline_output_hash', 'candidate_output_hash', 'error'];
-  const esc = (v) => (v === null || v === undefined ? '' : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
-  const lines = [header.join(','), ...cases.map((c) => header.map((h) => esc(c[h])).join(','))];
+  const lines = [header.join(','), ...cases.map((c) => header.map((h) => csvCell(c[h])).join(','))];
   return new Response(lines.join('\n'), {
     status: 200,
     headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="zevqora-experiment-${experiment.id.slice(0, 8)}.csv"`, 'cache-control': 'no-store' },

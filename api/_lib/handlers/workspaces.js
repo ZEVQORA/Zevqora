@@ -1,5 +1,5 @@
 import { on } from '../router.js';
-import { ApiError, readJson, str, num, uuid, slugify } from '../http.js';
+import { ApiError, likeLiteral, readJson, str, num, uuid, slugify } from '../http.js';
 import { loadPlan } from '../supabase.js';
 import { requireUser, requireWorkspaceRole, roleRank, rateLimit } from '../auth.js';
 import { generateInviteToken } from '../tokens.js';
@@ -242,7 +242,8 @@ on('POST', '/api/workspaces/:id/invites', async ({ request, params }) => {
     throw new ApiError(402, `The ${plan.name} plan includes ${seatLimit} seat${seatLimit === 1 ? '' : 's'}. Upgrade to invite more people.`, 'PLAN_LIMIT', { limit: 'team_members', plan: plan.id });
   }
 
-  const { data: existing } = await admin.from('profiles').select('id').ilike('email', email).maybeSingle();
+  // SEC-05: exact address only; `%` and `_` must not turn the invite into a search.
+  const { data: existing } = await admin.from('profiles').select('id').ilike('email', likeLiteral(email)).maybeSingle();
   if (existing) {
     const { data: already } = await admin.from('workspace_members').select('role').eq('workspace_id', workspaceId).eq('user_id', existing.id).maybeSingle();
     if (already) throw new ApiError(409, 'That person is already a member of this workspace.', 'ALREADY_MEMBER');

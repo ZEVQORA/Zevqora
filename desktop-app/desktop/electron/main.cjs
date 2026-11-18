@@ -3,6 +3,7 @@ const path = require('path')
 const fs = require('fs')
 const crypto = require('crypto')
 const { spawn } = require('child_process')
+const { isAllowedPlatformPath, resolveOpenablePath } = require('./bridge-guards.cjs')
 
 const PROTOCOL = 'zevqora'
 const DEFAULT_WEB_APP_URL = 'https://zevqora.vercel.app'
@@ -416,14 +417,14 @@ function findDeepLink(argv) {
 // Only account/workspace/project routes on the configured ZEVQORA origin are
 // reachable, so the renderer cannot turn this into a general HTTP client.
 // ---------------------------------------------------------------------------
-const PLATFORM_PATH_RE = /^\/api\/(me|platform|workspaces|projects|connections|opportunities|experiments|invites)(\/[A-Za-z0-9_.\-]+)*(\?[A-Za-z0-9_.\-=&%]*)?$/
+// The route allowlist lives in bridge-guards.cjs (dot segments refused).
 const PLATFORM_METHODS = new Set(['GET', 'POST', 'PATCH', 'DELETE'])
 
 async function platformRequest(method, requestPath, body) {
   const verb = String(method || 'GET').toUpperCase()
   const target = String(requestPath || '')
   if (!PLATFORM_METHODS.has(verb)) return { status: 405, body: { error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' } }
-  if (!PLATFORM_PATH_RE.test(target)) return { status: 400, body: { error: 'That platform route is not available from Desktop.', code: 'ROUTE_NOT_ALLOWED' } }
+  if (!isAllowedPlatformPath(target)) return { status: 400, body: { error: 'That platform route is not available from Desktop.', code: 'ROUTE_NOT_ALLOWED' } }
   let session = loadSession()
   if (!session?.accessToken) return { status: 401, body: { error: 'Sign in first.', code: 'AUTH_REQUIRED' } }
 
@@ -713,8 +714,8 @@ handle('zevqora:save-text-file', async (_event, payload) => {
 })
 
 handle('zevqora:open-path', async (_event, target) => {
-  const resolved = path.resolve(String(target || ''))
-  if (!fs.existsSync(resolved)) throw new Error('That folder no longer exists.')
+  // Folders only, never UNC/device paths: openPath on a file runs it (SEC-06).
+  const resolved = resolveOpenablePath(target)
   const error = await shell.openPath(resolved)
   if (error) throw new Error(error)
   return true

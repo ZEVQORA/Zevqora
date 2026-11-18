@@ -22,7 +22,14 @@ export function match(method, pathname) {
     let ok = true;
     for (let i = 0; i < route.parts.length; i += 1) {
       const key = route.keys[i];
-      if (key) params[key] = decodeURIComponent(segments[i]);
+      if (key) {
+        // SEC-08: a malformed escape (`/api/projects/%E0%A4%A`) is a client error, not an uncaught crash.
+        try {
+          params[key] = decodeURIComponent(segments[i]);
+        } catch {
+          throw new ApiError(400, 'The request path is not valid.', 'BAD_PATH');
+        }
+      }
       else if (route.parts[i] !== segments[i]) {
         ok = false;
         break;
@@ -46,8 +53,8 @@ export async function dispatch(request) {
     url.searchParams.delete('__path');
   }
   const method = request.method.toUpperCase();
-  const found = match(method, url.pathname);
   try {
+    const found = match(method, url.pathname);
     if (!found) throw new ApiError(404, 'Not found.', 'NOT_FOUND');
     if (found.allowed) {
       if (method === 'OPTIONS') return new Response(null, { status: 204, headers: { allow: found.allowed.join(', ') } });
