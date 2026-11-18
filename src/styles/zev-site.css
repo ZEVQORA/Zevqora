@@ -189,11 +189,6 @@
   }
 }
 
-/* The loop card no longer carries a mascot: give the visuals the full width. */
-.zv-vis {
-  padding-right: 0;
-}
-
 /* ─────────────────────────── shared closing CTA ─────────────────────────── */
 .zv-close {
   padding: 40px 0 120px;

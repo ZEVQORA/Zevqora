@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useRef, type CSSProperties, type PointerEvent } from 'react';
 import { Link } from 'react-router';
-import { AnimatePresence, motion, useInView, useMotionValue, useReducedMotion, useSpring, useTransform } from 'motion/react';
+import { motion, useInView, useMotionValue, useReducedMotion, useSpring, useTransform } from 'motion/react';
 import { ArrowDown, ArrowRight, ArrowUpRight, Check, Eye, FlaskConical, GitBranch, KeyRound, ShieldCheck, UserCheck, X } from 'lucide-react';
 import { DimensionalZ } from '@/brand/DimensionalZ';
 import { Zev } from '@/brand/Zev';
@@ -121,242 +121,126 @@ export function AskZevV2() {
 /* ─────────────────────────── 3. The loop ─────────────────────────── */
 
 const STEPS: Array<{ n: string; title: string; body: string; Icon: typeof Eye }> = [
-  { n: '01', title: 'Observe', body: 'See the model calls, tool steps, retries and context behind one AI workflow — the real baseline.', Icon: Eye },
-  { n: '02', title: 'Challenge', body: 'Propose a lighter path: a smaller model, a shorter context, a cache — each one a candidate, never a promise.', Icon: FlaskConical },
-  { n: '03', title: 'Verify', body: 'Replay the candidate on recorded cases against the quality floor you set in advance. Gates decide, not opinions.', Icon: ShieldCheck },
-  { n: '04', title: 'Review', body: 'Read the evidence and decide. VERIFIED does not mean deployed — shipping stays a human decision.', Icon: UserCheck },
+  { n: '01', title: 'Observe', body: 'See the model calls, tool steps, retries and context behind one AI workflow.', Icon: Eye },
+  { n: '02', title: 'Challenge', body: 'Propose lighter paths: a smaller model, a shorter context, a cache.', Icon: FlaskConical },
+  { n: '03', title: 'Verify', body: 'Replay each candidate on recorded cases against the quality floor you set first.', Icon: ShieldCheck },
+  { n: '04', title: 'Review', body: 'Read the evidence and decide. VERIFIED does not mean deployed.', Icon: UserCheck },
 ];
 
-/** How long each step stays on screen before the loop advances on its own. */
-const STEP_MS = 6500;
-
 /** A width that grows from zero the first time it is on screen. */
-const grow = (width: string, delay = 0, duration = 0.9) => ({
+const grow = (width: string, delay = 0) => ({
   initial: { width: 0 },
   whileInView: { width },
   viewport: { once: true },
-  transition: { duration, ease: EASE, delay },
+  transition: { duration: 1, ease: EASE, delay },
 });
 
-function StepVisual({ i }: { i: number }) {
+/** One small, honest illustration per step (sample data, labelled under the section). */
+function FlowVisual({ i }: { i: number }) {
   if (i === 0)
     return (
-      <div className="zv-vis">
-        <p className="zv-vis-title">Support agent · one request</p>
+      <div className="zv-fv-bars">
         {[
-          ['Retrieval', 18, ''],
-          ['Large model call', 72, 'is-hot'],
-          ['Order lookup tool', 24, ''],
-          ['Retry', 46, 'is-warm'],
+          ['Retrieval', 22, ''],
+          ['Large model', 78, 'is-hot'],
+          ['Tool call', 30, ''],
+          ['Retry', 52, 'is-warm'],
         ].map(([label, w, tone], k) => (
-          <div className="zv-vis-row" key={label as string}>
+          <div key={label as string}>
             <span>{label}</span>
-            <span className="zv-vis-track"><motion.i className={tone as string} {...grow(`${w}%`, 0.1 + k * 0.08)} /></span>
+            <span className="zv-fv-track"><motion.i className={tone as string} {...grow(`${w}%`, 0.3 + k * 0.08)} /></span>
           </div>
         ))}
-        <p className="zv-vis-foot">Illustrative. The highlighted call is where this example spends most.</p>
       </div>
     );
   if (i === 1)
     return (
-      <div className="zv-vis">
-        <p className="zv-vis-title">Candidates</p>
-        {['A · smaller model on simple tickets', 'B · trim retrieved context', 'C · cache policy answers', 'D · cheapest model everywhere'].map((t, k) => (
-          <motion.div className="zv-vis-cand" key={t} initial={{ opacity: 0, x: 16 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, ease: EASE, delay: k * 0.08 }}>
-            <GitBranch size={14} aria-hidden /> {t}
-          </motion.div>
+      <ul className="zv-fv-cands">
+        {['Smaller model', 'Trim context', 'Cache answers', 'Cheapest model'].map((t, k) => (
+          <li key={t}>
+            <GitBranch size={12} aria-hidden />
+            <b>{String.fromCharCode(65 + k)}</b> {t}
+          </li>
         ))}
-        <p className="zv-vis-foot">Illustrative. Each candidate still has to earn a verdict.</p>
-      </div>
+      </ul>
     );
   if (i === 2)
     return (
-      <div className="zv-vis">
-        <p className="zv-vis-title">Quality vs. the floor</p>
-        <div className="zv-gauge">
-          <motion.span className="zv-gauge-fill" {...grow('87%', 0, 1.1)} />
-          <span className="zv-gauge-floor" style={{ left: '95%' }}><em>floor 0.95</em></span>
-        </div>
-        <div className="zv-gauge-legend">
-          <span>Candidate D · 0.87</span>
-          <span className="zv-verdict is-rejected"><X size={12} /> REJECTED</span>
-        </div>
-        <div className="zv-gauge is-pass">
-          <motion.span className="zv-gauge-fill" {...grow('97%', 0.15, 1.1)} />
-          <span className="zv-gauge-floor" style={{ left: '95%' }} />
-        </div>
-        <div className="zv-gauge-legend">
-          <span>Candidate A · 0.97</span>
-          <span className="zv-verdict is-verified"><Check size={12} /> VERIFIED</span>
-        </div>
-        <p className="zv-vis-foot">Internal 50-case benchmark. Not customer evidence.</p>
+      <div className="zv-fv-gates">
+        {[
+          ['D', 0.87, false],
+          ['A', 0.97, true],
+        ].map(([name, q, ok], k) => (
+          <div key={name as string} className={ok ? 'is-pass' : 'is-fail'}>
+            <div className="zv-fv-gate-row">
+              <span>Candidate {name as string} · {(q as number).toFixed(2)}</span>
+              <span className={`zv-verdict ${ok ? 'is-verified' : 'is-rejected'}`}>{ok ? <Check size={11} /> : <X size={11} />} {ok ? 'VERIFIED' : 'REJECTED'}</span>
+            </div>
+            <span className="zv-fv-gauge">
+              <motion.i {...grow(`${(q as number) * 100}%`, 0.3 + k * 0.15)} />
+              <em style={{ left: '95%' }} />
+            </span>
+          </div>
+        ))}
+        <small>floor 0.95</small>
       </div>
     );
   return (
-    <div className="zv-vis">
-      <p className="zv-vis-title">Your decision</p>
-      <div className="zv-review">
-        <p><b>Candidate A</b> passed every gate on recorded cases.</p>
-        <p className="zv-vis-foot">Review the patch and the evidence before anything ships.</p>
-        <div className="zv-review-actions">
-          <span className="zv-btn is-primary is-sm" role="presentation">Approve for review</span>
-          <span className="zv-btn is-ghost is-sm" role="presentation">Not now</span>
-        </div>
+    <div className="zv-fv-decision">
+      <p><b>Candidate A</b> passed every gate.</p>
+      <div>
+        <span className="zv-fv-btn is-primary">Approve</span>
+        <span className="zv-fv-btn">Not now</span>
       </div>
-    </div>
-  );
-}
-
-/** True while the viewport matches the media query (false where matchMedia is unavailable). */
-function useMedia(query: string) {
-  const read = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(query).matches;
-  const [match, setMatch] = useState(read);
-  useEffect(() => {
-    if (typeof window.matchMedia !== 'function') return;
-    const mq = window.matchMedia(query);
-    const on = () => setMatch(mq.matches);
-    on();
-    mq.addEventListener('change', on);
-    return () => mq.removeEventListener('change', on);
-  }, [query]);
-  return match;
-}
-
-function LoopIntro() {
-  return (
-    <>
-      <p className="zv-kicker">The work · measure, replay, verify, review</p>
-      <h2 id="zv-loop-title" className="zv-h2">
-        Cheaper AI means nothing if <span className="zv-accent">the answer gets worse.</span>
-      </h2>
-      <p className="zv-sub">ZEVQORA measures one workload, tests a lighter alternative against quality you set in advance, and shows whether it deserves to ship.</p>
-    </>
-  );
-}
-
-function CardHead({ step }: { step: (typeof STEPS)[number] }) {
-  return (
-    <div className="zv-loop-card-head">
-      <step.Icon size={16} aria-hidden />
-      <span>{step.n} · {step.title}</span>
-      <span className="zv-sample">Sample data</span>
     </div>
   );
 }
 
 /**
- * Wide screens: the four steps are tabs. The loop advances on its own while it
- * is on screen, and stops for good once the visitor picks a step. No scroll
- * hijacking: the section is as tall as its content.
+ * The loop as one pipeline: four connected steps, all visible at once. The rail
+ * fills and the step nodes light up in order the first time the section is on
+ * screen. A row on wide screens, a vertical timeline on phones.
  */
-function LoopTabs() {
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { amount: 0.45 });
-  const reduced = useReducedMotion();
-  const [active, setActive] = useState(0);
-  const [picked, setPicked] = useState(false);
-  const auto = inView && !picked && !reduced;
-  useEffect(() => {
-    if (!auto) return;
-    const t = window.setTimeout(() => setActive((a) => (a + 1) % STEPS.length), STEP_MS);
-    return () => window.clearTimeout(t);
-  }, [auto, active]);
-
-  const choose = (i: number, focus = false) => {
-    setPicked(true);
-    setActive(i);
-    if (focus) document.getElementById(`zv-step-tab-${i}`)?.focus();
-  };
-  const onKey = (e: KeyboardEvent<HTMLButtonElement>) => {
-    const keys: Record<string, number> = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 };
-    if (e.key === 'Home') choose(0, true);
-    else if (e.key === 'End') choose(STEPS.length - 1, true);
-    else if (e.key in keys) choose((active + keys[e.key] + STEPS.length) % STEPS.length, true);
-    else return;
-    e.preventDefault();
-  };
-  const step = STEPS[active];
-
-  return (
-    <div className="zv-loop-grid" ref={ref}>
-      <div>
-        <LoopIntro />
-        <div className="zv-steps" role="tablist" aria-orientation="vertical" aria-label="The loop">
-          {STEPS.map((s, i) => {
-            const on = i === active;
-            return (
-              <div key={s.n} className={`zv-step${on ? ' is-active' : i < active ? ' is-done' : ''}`}>
-                <button
-                  type="button"
-                  role="tab"
-                  id={`zv-step-tab-${i}`}
-                  aria-selected={on}
-                  aria-controls="zv-step-panel"
-                  tabIndex={on ? 0 : -1}
-                  onClick={() => choose(i)}
-                  onKeyDown={onKey}
-                >
-                  <span className="zv-step-n">{s.n}</span>
-                  <span className="zv-step-t">{s.title}</span>
-                </button>
-                <AnimatePresence initial={false}>
-                  {on && (
-                    <motion.p key="body" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.45, ease: EASE }}>
-                      {s.body}
-                    </motion.p>
-                  )}
-                </AnimatePresence>
-                {on && (
-                  <span className="zv-step-timer" aria-hidden>
-                    <i key={`${active}-${auto}`} className={auto ? 'is-running' : ''} style={{ animationDuration: `${STEP_MS}ms` }} />
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      <div className="zv-loop-card" id="zv-step-panel" role="tabpanel" aria-labelledby={`zv-step-tab-${active}`} aria-live="polite">
-        <CardHead step={step} />
-        <AnimatePresence mode="wait">
-          <motion.div key={active} initial={{ opacity: 0, y: 18, filter: 'blur(4px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} exit={{ opacity: 0, y: -12, filter: 'blur(4px)' }} transition={{ duration: 0.4, ease: EASE }}>
-            <StepVisual i={active} />
-          </motion.div>
-        </AnimatePresence>
-      </div>
-    </div>
-  );
-}
-
-/** Phones and tablets: every step is its own card, read top to bottom. */
-function LoopStack() {
-  return (
-    <>
-      <Reveal>
-        <LoopIntro />
-      </Reveal>
-      <ol className="zv-loop-stack">
-        {STEPS.map((s, i) => (
-          <li key={s.n}>
-            <Reveal>
-              <article className="zv-loop-card is-stacked" aria-label={`${s.n} ${s.title}`}>
-                <CardHead step={s} />
-                <p className="zv-loop-stack-body">{s.body}</p>
-                <StepVisual i={i} />
-              </article>
-            </Reveal>
-          </li>
-        ))}
-      </ol>
-    </>
-  );
-}
-
 export function LoopV2() {
-  const narrow = useMedia('(max-width: 1000px)');
+  const ref = useRef<HTMLOListElement>(null);
+  const seen = useInView(ref, { once: true, margin: '0px 0px -20% 0px' });
   return (
     <section className="zv-loop" id="workbench" aria-labelledby="zv-loop-title">
-      <div className="zv-wrap">{narrow ? <LoopStack /> : <LoopTabs />}</div>
+      <div className="zv-wrap">
+        <Reveal className="zv-loop-head">
+          <div>
+            <p className="zv-kicker">The work · measure, replay, verify, review</p>
+            <h2 id="zv-loop-title" className="zv-h2">
+              Cheaper AI means nothing if <span className="zv-accent">the answer gets worse.</span>
+            </h2>
+          </div>
+          <p className="zv-sub">ZEVQORA measures one workload, tests a lighter alternative against quality you set in advance, and shows whether it deserves to ship.</p>
+        </Reveal>
+
+        <ol ref={ref} className={`zv-flow${seen ? ' is-in' : ''}`}>
+          <li className="zv-flow-rail" aria-hidden>
+            <i />
+          </li>
+          {STEPS.map((s, i) => (
+            <li key={s.n} className="zv-flow-step" style={{ '--i': i } as CSSProperties}>
+              <span className="zv-flow-node" aria-hidden>
+                {s.n}
+              </span>
+              <article className="zv-flow-card zv-spot" onPointerMove={spot} aria-label={`Step ${s.n}: ${s.title}`}>
+                <header>
+                  <span className="zv-flow-icon"><s.Icon size={17} aria-hidden /></span>
+                  <h3>{s.title}</h3>
+                </header>
+                <p>{s.body}</p>
+                <div className="zv-flow-vis">
+                  <FlowVisual i={i} />
+                </div>
+              </article>
+            </li>
+          ))}
+        </ol>
+        <p className="zv-flow-note">Sample data. Verify uses an internal 50-case benchmark, not customer evidence.</p>
+      </div>
     </section>
   );
 }
