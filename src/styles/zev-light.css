@@ -1035,11 +1035,37 @@
   }
 }
 
-/* The loop: one four-step pipeline, all steps visible at once */
+/* The loop: a dark bento inside a rounded ink panel (echoes the hero) */
 .zv-loop {
   position: relative;
-  padding: clamp(96px, 13vh, 150px) 0;
+  padding: clamp(24px, 4vw, 48px) clamp(10px, 2vw, 24px);
   background: var(--zv-cloud);
+}
+.zv-loop-panel {
+  position: relative;
+  isolation: isolate;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: clamp(64px, 9vw, 112px) 0 clamp(48px, 6vw, 80px);
+  overflow: hidden;
+  border-radius: clamp(28px, 3.4vw, 44px);
+  color: #fff;
+  background:
+    radial-gradient(620px 380px at 12% 0%, rgb(70 139 255 / 0.2), transparent 70%),
+    radial-gradient(560px 380px at 100% 100%, rgb(70 139 255 / 0.12), transparent 70%),
+    #07080c;
+}
+.zv-loop-grid-lines {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 55% at 30% 10%, #000, transparent 75%);
+  mask-image: radial-gradient(ellipse 70% 55% at 30% 10%, #000, transparent 75%);
+  pointer-events: none;
 }
 .zv-loop-head {
   display: grid;
@@ -1047,392 +1073,430 @@
   gap: 20px 64px;
   align-items: end;
 }
-.zv-loop-head .zv-sub {
+.zv-loop-panel .zv-kicker {
+  color: #8cb6ff;
+}
+.zv-loop-panel .zv-h2 {
+  color: #fff;
+}
+.zv-loop-panel .zv-accent {
+  color: #6aa2ff;
+}
+.zv-loop-panel .zv-sub {
   max-width: 34rem;
   margin: 0 0 6px;
+  color: #9aa4b5;
 }
-.zv-flow {
-  --gap: 20px;
-  --node: 44px;
-  position: relative;
+
+/* Grid: wide/narrow, then narrow/wide. */
+.zv-bento {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--gap);
-  margin: 64px 0 0;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+  margin: 56px 0 0;
   padding: 0;
   list-style: none;
 }
-/* The rail runs from the first node's centre to the last one's. */
-.zv-flow-rail {
-  position: absolute;
-  top: calc(var(--node) / 2 - 1px);
-  left: calc(var(--node) / 2);
-  right: calc((100% - 3 * var(--gap)) / 4 - var(--node) / 2);
-  height: 2px;
-  border-radius: 2px;
-  background: var(--zv-stone-2);
-  overflow: hidden;
-}
-.zv-flow-rail i {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--zv-blue), #8fb8ff);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 1.6s var(--zv-ease) 0.2s;
-}
-.zv-flow.is-in .zv-flow-rail i {
-  transform: scaleX(1);
-}
-.zv-flow-rail::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 80px;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.95), transparent);
-  opacity: 0;
-}
-.zv-flow.is-in .zv-flow-rail::after {
-  animation: zv-flow-pulse 3.8s ease-in-out 2s infinite;
-}
-@keyframes zv-flow-pulse {
-  0% {
-    left: -80px;
-    opacity: 0;
-  }
-  15%,
-  85% {
-    opacity: 1;
-  }
-  100% {
-    left: 100%;
-    opacity: 0;
-  }
-}
-.zv-flow-step {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
+.zv-bento-cell {
+  grid-column: span 5;
   min-width: 0;
 }
-.zv-flow-node {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: var(--node);
-  height: var(--node);
-  border-radius: 50%;
-  font: 600 12.5px/1 var(--font-mono);
-  color: var(--zv-subtle);
-  background: var(--zv-cloud);
-  box-shadow: inset 0 0 0 1.5px var(--zv-stone-2);
-  transition:
-    color 0.5s,
-    background 0.5s,
-    box-shadow 0.5s;
-  transition-delay: calc(0.35s + var(--i) * 0.4s);
+.zv-bento-cell.is-wide {
+  grid-column: span 7;
 }
-.zv-flow.is-in .zv-flow-node {
-  color: #fff;
-  background: var(--zv-blue);
-  box-shadow:
-    0 0 0 6px rgb(70 139 255 / 0.13),
-    var(--zv-shadow-blue);
+.zv-bento-reveal {
+  height: 100%;
 }
-/* Entry uses `translate`, hover uses `transform`: they never fight. */
-.zv-flow-card {
+.zv-bento-card {
   position: relative;
   display: flex;
-  flex: 1;
   flex-direction: column;
-  padding: 22px;
-  border-radius: var(--zv-r-lg);
-  background: #fff;
+  height: 100%;
+  padding: 28px;
+  overflow: hidden;
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.055), rgb(255 255 255 / 0.02));
   box-shadow:
-    var(--zv-shadow-sm),
-    inset 0 0 0 1px rgb(15 17 21 / 0.05);
-  opacity: 0;
-  translate: 0 26px;
+    inset 0 0 0 1px rgb(255 255 255 / 0.08),
+    inset 0 1px 0 rgb(255 255 255 / 0.06);
   transition:
     transform 0.45s var(--zv-ease),
     box-shadow 0.45s var(--zv-ease);
 }
-.zv-flow.is-in .zv-flow-card {
-  animation: zv-flow-in 0.9s var(--zv-ease) both;
-  animation-delay: calc(0.15s + var(--i) * 0.12s);
-}
-@keyframes zv-flow-in {
-  from {
-    opacity: 0;
-    translate: 0 26px;
-  }
-  to {
-    opacity: 1;
-    translate: 0 0;
-  }
-}
-.zv-flow-card:hover {
-  transform: translateY(-6px);
+.zv-bento-card:hover {
+  transform: translateY(-4px);
   box-shadow:
-    var(--zv-shadow),
-    inset 0 0 0 1px rgb(70 139 255 / 0.28);
+    inset 0 0 0 1px rgb(70 139 255 / 0.35),
+    0 30px 60px -30px rgb(70 139 255 / 0.45);
 }
-.zv-flow-step:hover .zv-flow-node {
-  transition-delay: 0s;
-  box-shadow:
-    0 0 0 9px rgb(70 139 255 / 0.16),
-    var(--zv-shadow-blue);
+.zv-bento-card.zv-spot::before {
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 0%), rgb(70 139 255 / 0.16), transparent 60%);
 }
-.zv-flow-card header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.zv-flow-icon {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  color: var(--zv-blue-600);
-  background: var(--zv-blue-050);
-}
-.zv-flow-card h3 {
-  margin: 0;
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--zv-ink);
-}
-.zv-flow-card > p {
-  margin: 12px 0 0;
-  font-size: 14.5px;
-  line-height: 1.55;
-  color: var(--zv-muted);
-}
-.zv-flow-vis {
-  margin-top: auto;
-  padding-top: 20px;
-}
-.zv-flow-vis > * {
-  box-sizing: border-box;
-  min-height: 150px;
-  margin: 0;
-  padding: 14px;
-  border-radius: 14px;
-  background: var(--zv-cloud);
-  box-shadow: inset 0 0 0 1px var(--zv-stone);
-}
-.zv-flow-note {
-  margin: 28px 0 0;
-  font-size: 12px;
-  color: var(--zv-subtle);
-}
-
-/* Step visuals */
-.zv-fv-bars {
-  display: grid;
-  align-content: center;
-  gap: 11px;
-}
-.zv-fv-bars > div {
-  display: grid;
-  grid-template-columns: 76px 1fr;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  color: var(--zv-ink-2);
-}
-.zv-fv-track {
-  display: block;
-  height: 8px;
-  border-radius: 99px;
-  background: var(--zv-stone);
-  overflow: hidden;
-}
-.zv-fv-track i {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: #9db5d8;
-}
-.zv-fv-track i.is-hot {
-  background: linear-gradient(90deg, #ff9b8f, #e0574a);
-}
-.zv-fv-track i.is-warm {
-  background: linear-gradient(90deg, #ffd38a, #e5a33a);
-}
-.zv-fv-cands {
-  display: grid;
-  align-content: center;
-  gap: 6px;
-  list-style: none;
-}
-.zv-fv-cands li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 9px;
-  font-size: 12.5px;
-  color: var(--zv-ink-2);
-  background: #fff;
-  box-shadow: inset 0 0 0 1px var(--zv-stone);
-}
-.zv-fv-cands svg {
-  flex: none;
-  color: var(--zv-blue);
-}
-.zv-fv-cands b {
-  font: 600 11px/1 var(--font-mono);
-  color: var(--zv-subtle);
-}
-.zv-fv-gates {
-  display: grid;
-  align-content: center;
-  gap: 14px;
-}
-.zv-fv-gate-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-  font-size: 12px;
-  color: var(--zv-ink-2);
-}
-.zv-fv-gate-row .zv-verdict {
-  padding: 3px 7px;
-  font-size: 9.5px;
-}
-.zv-fv-gauge {
-  position: relative;
-  display: block;
-  height: 8px;
-  border-radius: 99px;
-  background: var(--zv-stone);
-}
-.zv-fv-gauge i {
+.zv-bento-n {
   position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: inherit;
+  top: 10px;
+  right: 22px;
+  font: 700 96px/1 var(--font-sans);
+  letter-spacing: -0.06em;
+  color: transparent;
+  -webkit-text-stroke: 1px rgb(255 255 255 / 0.1);
+  pointer-events: none;
+  user-select: none;
 }
-.zv-fv-gates .is-fail i {
-  background: linear-gradient(90deg, #ffb0a6, #e0574a);
-}
-.zv-fv-gates .is-pass i {
-  background: linear-gradient(90deg, #8fdcc0, #19a07a);
-}
-.zv-fv-gauge em {
-  position: absolute;
-  top: -4px;
-  bottom: -4px;
-  width: 2px;
-  margin-left: -1px;
-  border-radius: 2px;
-  background: var(--zv-ink);
-}
-.zv-fv-gates small {
-  justify-self: end;
-  margin-top: -8px;
-  font: 500 10.5px/1 var(--font-mono);
-  color: var(--zv-subtle);
-}
-.zv-fv-decision {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 14px;
-}
-.zv-fv-decision p {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--zv-ink-2);
-}
-.zv-fv-decision div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.zv-fv-btn {
+.zv-bento-label {
   display: inline-flex;
   align-items: center;
-  height: 32px;
-  padding: 0 14px;
-  border-radius: 999px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--zv-ink-2);
-  background: #fff;
-  box-shadow: inset 0 0 0 1px var(--zv-stone-2);
+  gap: 8px;
+  margin: 0;
+  font: 600 11.5px/1 var(--font-sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8cb6ff;
 }
-.zv-fv-btn.is-primary {
+.zv-bento-card h3 {
+  margin: 14px 0 0;
+  font-size: clamp(22px, 2.2vw, 28px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
   color: #fff;
-  background: var(--zv-blue);
-  box-shadow: var(--zv-shadow-blue);
+}
+.zv-bento-body {
+  max-width: 34rem;
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #9aa4b5;
+}
+.zv-bento-vis {
+  margin-top: auto;
+  padding-top: 28px;
+}
+.zv-bento-note {
+  margin: 24px 0 0;
+  font-size: 12px;
+  color: #6b7588;
+}
+.zv-loop-panel .zv-verdict.is-rejected {
+  color: #ff9d92;
+  background: rgb(224 87 74 / 0.16);
+}
+.zv-loop-panel .zv-verdict.is-verified {
+  color: #5fe0b0;
+  background: rgb(25 160 122 / 0.16);
 }
 
-/* Tablets: two by two, no rail. */
-@media (max-width: 1100px) {
-  .zv-flow {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    row-gap: 36px;
-  }
-  .zv-flow-rail {
-    display: none;
-  }
+/* 01 Observe: trace waterfall */
+.zv-bv-water {
+  display: grid;
+  gap: 9px;
 }
+.zv-bv-wrow {
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  align-items: center;
+  gap: 14px;
+  font-size: 12.5px;
+  color: #c4ccd8;
+}
+.zv-bv-lane {
+  position: relative;
+  height: 24px;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.03);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.05);
+}
+.zv-bv-lane i {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  border-radius: 5px;
+  background: #5d7fb8;
+}
+.zv-bv-lane i.is-total {
+  background: rgb(255 255 255 / 0.13);
+}
+.zv-bv-lane i.is-hot {
+  background: linear-gradient(90deg, #ff9b8f, #e0574a);
+  box-shadow: 0 0 20px rgb(224 87 74 / 0.45);
+}
+.zv-bv-lane i.is-warm {
+  background: linear-gradient(90deg, #ffd38a, #e5a33a);
+}
+.zv-bv-tag {
+  position: absolute;
+  top: 50%;
+  left: calc(61% + 10px);
+  padding: 4px 8px;
+  border-radius: 99px;
+  font: 600 10.5px/1 var(--font-sans);
+  white-space: nowrap;
+  color: #ffb3aa;
+  background: rgb(224 87 74 / 0.16);
+  transform: translateY(-50%);
+}
+.zv-bv-axis {
+  display: flex;
+  justify-content: space-between;
+  margin: 2px 0 0 142px;
+  font: 500 10.5px/1 var(--font-mono);
+  color: #6b7588;
+}
+
+/* 02 Challenge: candidate tree */
+.zv-bv-tree {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 14px 0 0 24px;
+  list-style: none;
+}
+.zv-bv-tree::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 20px;
+  left: 6px;
+  width: 1.5px;
+  background: linear-gradient(#468bff, rgb(70 139 255 / 0.2));
+}
+.zv-bv-tree::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #468bff;
+  box-shadow: 0 0 0 4px rgb(70 139 255 / 0.2);
+}
+.zv-bv-tree li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  color: #d2d9e5;
+  background: rgb(255 255 255 / 0.04);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.07);
+}
+.zv-bv-tree li::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -18px;
+  width: 18px;
+  height: 1.5px;
+  background: rgb(70 139 255 / 0.5);
+}
+.zv-bv-tree b {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  font: 600 11px/1 var(--font-mono);
+  color: #8cb6ff;
+  background: rgb(70 139 255 / 0.14);
+}
+
+/* 03 Verify: quality rings */
+.zv-bv-rings {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.zv-bv-ring {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 18px 10px 16px;
+  border-radius: 18px;
+  text-align: center;
+  background: rgb(255 255 255 / 0.03);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06);
+}
+.zv-bv-ring p {
+  margin: 0;
+  font-size: 12.5px;
+  color: #9aa4b5;
+}
+.zv-bv-dial {
+  position: relative;
+  width: 96px;
+  height: 96px;
+}
+.zv-bv-dial svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.zv-bv-dial strong {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+.zv-bv-ring-track,
+.zv-bv-ring-fill {
+  fill: none;
+  stroke-width: 7;
+}
+.zv-bv-ring-track {
+  stroke: rgb(255 255 255 / 0.08);
+}
+.zv-bv-ring-fill {
+  stroke-linecap: round;
+}
+.zv-bv-ring.is-fail .zv-bv-ring-fill {
+  stroke: #e0574a;
+}
+.zv-bv-ring.is-pass .zv-bv-ring-fill {
+  stroke: #2fbf8f;
+}
+.zv-bv-floor {
+  stroke: #fff;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.zv-bv-floor-note {
+  margin: 10px 0 0;
+  text-align: center;
+  font: 500 11px/1.3 var(--font-mono);
+  color: #6b7588;
+}
+
+/* 04 Review: the review request */
+.zv-bv-review {
+  padding: 18px;
+  border-radius: 18px;
+  background: rgb(255 255 255 / 0.03);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.07);
+}
+.zv-bv-review-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.07);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #fff;
+}
+.zv-bv-review-head > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.zv-bv-review-head svg {
+  color: #8cb6ff;
+}
+.zv-bv-review ul {
+  display: grid;
+  gap: 9px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.zv-bv-review li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #c4ccd8;
+}
+.zv-bv-review li svg {
+  flex: none;
+  color: #5fe0b0;
+}
+.zv-bv-review li.is-wait svg {
+  color: #8cb6ff;
+}
+.zv-bv-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+}
+.zv-bv-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e8ebf0;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.16);
+}
+.zv-bv-btn.is-primary {
+  color: #fff;
+  background: #468bff;
+  box-shadow: 0 10px 30px -10px rgb(70 139 255 / 0.65);
+}
+.zv-bv-actions em {
+  margin-left: auto;
+  font-size: 12px;
+  font-style: normal;
+  color: #7a8597;
+}
+
 @media (max-width: 1000px) {
-  .zv-loop {
-    padding: 80px 0;
-  }
   .zv-loop-head {
     grid-template-columns: 1fr;
   }
+  .zv-bento-cell,
+  .zv-bento-cell.is-wide {
+    grid-column: 1 / -1;
+  }
 }
-/* Phones: a vertical timeline, each node joined to the next. */
 @media (max-width: 640px) {
-  .zv-flow {
-    --gap: 16px;
-    --node: 36px;
-    grid-template-columns: 1fr;
-    row-gap: var(--gap);
+  .zv-bento {
+    gap: 12px;
     margin-top: 40px;
   }
-  .zv-flow-step {
-    flex-direction: row;
-    gap: 14px;
+  .zv-bento-card {
+    padding: 22px 18px;
+    border-radius: 22px;
   }
-  .zv-flow-step:not(:last-child)::before {
-    content: "";
-    position: absolute;
-    top: calc(var(--node) + 6px);
-    bottom: calc(-1 * var(--gap) + 6px);
-    left: calc(var(--node) / 2 - 1px);
-    width: 2px;
-    border-radius: 2px;
-    background: linear-gradient(180deg, var(--zv-blue), var(--zv-stone-2));
-    transform: scaleY(0);
-    transform-origin: top;
-    transition: transform 0.8s var(--zv-ease);
-    transition-delay: calc(0.5s + var(--i) * 0.4s);
+  .zv-bento-n {
+    top: 8px;
+    right: 14px;
+    font-size: 64px;
   }
-  .zv-flow.is-in .zv-flow-step::before {
-    transform: scaleY(1);
+  .zv-bv-wrow {
+    grid-template-columns: 92px 1fr;
+    gap: 10px;
+    font-size: 12px;
   }
-  .zv-flow-card {
-    min-width: 0;
-    padding: 18px;
+  .zv-bv-axis {
+    margin-left: 102px;
   }
-  .zv-flow-vis > * {
-    min-height: 0;
+  .zv-bv-tag {
+    display: none;
+  }
+  .zv-bv-rings {
+    gap: 8px;
+  }
+  .zv-bv-dial {
+    width: 84px;
+    height: 84px;
+  }
+  .zv-bv-actions em {
+    flex-basis: 100%;
+    margin-left: 0;
   }
 }
 

@@ -1,6 +1,6 @@
-import { useRef, type CSSProperties, type PointerEvent } from 'react';
+import { type PointerEvent } from 'react';
 import { Link } from 'react-router';
-import { motion, useInView, useMotionValue, useReducedMotion, useSpring, useTransform } from 'motion/react';
+import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from 'motion/react';
 import { ArrowDown, ArrowRight, ArrowUpRight, Check, Eye, FlaskConical, GitBranch, KeyRound, ShieldCheck, UserCheck, X } from 'lucide-react';
 import { DimensionalZ } from '@/brand/DimensionalZ';
 import { Zev } from '@/brand/Zev';
@@ -120,126 +120,163 @@ export function AskZevV2() {
 
 /* ─────────────────────────── 3. The loop ─────────────────────────── */
 
-const STEPS: Array<{ n: string; title: string; body: string; Icon: typeof Eye }> = [
-  { n: '01', title: 'Observe', body: 'See the model calls, tool steps, retries and context behind one AI workflow.', Icon: Eye },
-  { n: '02', title: 'Challenge', body: 'Propose lighter paths: a smaller model, a shorter context, a cache.', Icon: FlaskConical },
-  { n: '03', title: 'Verify', body: 'Replay each candidate on recorded cases against the quality floor you set first.', Icon: ShieldCheck },
-  { n: '04', title: 'Review', body: 'Read the evidence and decide. VERIFIED does not mean deployed.', Icon: UserCheck },
+const LOOP: Array<{ n: string; label: string; title: string; body: string; Icon: typeof Eye; wide?: boolean }> = [
+  { n: '01', label: 'Observe', title: 'See where the money goes.', body: 'The model calls, tool steps, retries and context behind one AI workflow — the real baseline.', Icon: Eye, wide: true },
+  { n: '02', label: 'Challenge', title: 'Propose a lighter path.', body: 'A smaller model, a shorter context, a cache. Each one is a candidate, never a promise.', Icon: FlaskConical },
+  { n: '03', label: 'Verify', title: 'Let the gates decide.', body: 'Replay every candidate on recorded cases against the quality floor you set in advance.', Icon: ShieldCheck },
+  { n: '04', label: 'Review', title: 'You decide what ships.', body: 'Read the patch and the evidence. VERIFIED does not mean deployed.', Icon: UserCheck, wide: true },
 ];
 
-/** A width that grows from zero the first time it is on screen. */
-const grow = (width: string, delay = 0) => ({
-  initial: { width: 0 },
-  whileInView: { width },
-  viewport: { once: true },
-  transition: { duration: 1, ease: EASE, delay },
-});
+const once = { once: true, margin: '-10% 0px' } as const;
 
-/** One small, honest illustration per step (sample data, labelled under the section). */
-function FlowVisual({ i }: { i: number }) {
-  if (i === 0)
-    return (
-      <div className="zv-fv-bars">
-        {[
-          ['Retrieval', 22, ''],
-          ['Large model', 78, 'is-hot'],
-          ['Tool call', 30, ''],
-          ['Retry', 52, 'is-warm'],
-        ].map(([label, w, tone], k) => (
-          <div key={label as string}>
-            <span>{label}</span>
-            <span className="zv-fv-track"><motion.i className={tone as string} {...grow(`${w}%`, 0.3 + k * 0.08)} /></span>
-          </div>
-        ))}
-      </div>
-    );
-  if (i === 1)
-    return (
-      <ul className="zv-fv-cands">
-        {['Smaller model', 'Trim context', 'Cache answers', 'Cheapest model'].map((t, k) => (
-          <li key={t}>
-            <GitBranch size={12} aria-hidden />
-            <b>{String.fromCharCode(65 + k)}</b> {t}
-          </li>
-        ))}
-      </ul>
-    );
-  if (i === 2)
-    return (
-      <div className="zv-fv-gates">
-        {[
-          ['D', 0.87, false],
-          ['A', 0.97, true],
-        ].map(([name, q, ok], k) => (
-          <div key={name as string} className={ok ? 'is-pass' : 'is-fail'}>
-            <div className="zv-fv-gate-row">
-              <span>Candidate {name as string} · {(q as number).toFixed(2)}</span>
-              <span className={`zv-verdict ${ok ? 'is-verified' : 'is-rejected'}`}>{ok ? <Check size={11} /> : <X size={11} />} {ok ? 'VERIFIED' : 'REJECTED'}</span>
-            </div>
-            <span className="zv-fv-gauge">
-              <motion.i {...grow(`${(q as number) * 100}%`, 0.3 + k * 0.15)} />
-              <em style={{ left: '95%' }} />
-            </span>
-          </div>
-        ))}
-        <small>floor 0.95</small>
-      </div>
-    );
+/** Observe: one request as a trace waterfall; the hot span is where this example spends most. */
+function Waterfall() {
+  const spans: Array<[string, number, number, string]> = [
+    ['Request', 0, 100, 'is-total'],
+    ['Retrieval', 3, 14, ''],
+    ['Large model call', 17, 44, 'is-hot'],
+    ['Order lookup', 62, 11, ''],
+    ['Retry', 74, 24, 'is-warm'],
+  ];
   return (
-    <div className="zv-fv-decision">
-      <p><b>Candidate A</b> passed every gate.</p>
-      <div>
-        <span className="zv-fv-btn is-primary">Approve</span>
-        <span className="zv-fv-btn">Not now</span>
+    <div className="zv-bv-water">
+      {spans.map(([label, x, w, tone], k) => (
+        <div className="zv-bv-wrow" key={label}>
+          <span>{label}</span>
+          <span className="zv-bv-lane">
+            <motion.i className={tone} style={{ left: `${x}%` }} initial={{ width: 0 }} whileInView={{ width: `${w}%` }} viewport={once} transition={{ duration: 0.9, ease: EASE, delay: 0.25 + k * 0.12 }} />
+            {tone === 'is-hot' && <b className="zv-bv-tag">most spend</b>}
+          </span>
+        </div>
+      ))}
+      <div className="zv-bv-axis" aria-hidden>
+        <span>request</span>
+        <span>answer</span>
       </div>
     </div>
   );
 }
 
+/** Challenge: candidates branch off the baseline. */
+function CandidateTree() {
+  return (
+    <ul className="zv-bv-tree">
+      {['Smaller model on simple tickets', 'Trim retrieved context', 'Cache policy answers', 'Cheapest model everywhere'].map((t, k) => (
+        <motion.li key={t} initial={{ opacity: 0, x: -10 }} whileInView={{ opacity: 1, x: 0 }} viewport={once} transition={{ duration: 0.6, ease: EASE, delay: 0.25 + k * 0.1 }}>
+          <b>{'ABCD'[k]}</b>
+          <span>{t}</span>
+        </motion.li>
+      ))}
+    </ul>
+  );
+}
+
+/** Verify: quality as a ring, with the floor marked at 0.95. */
+function QualityRing({ name, q, ok, delay }: { name: string; q: number; ok: boolean; delay: number }) {
+  const r = 34;
+  const a = 0.95 * 2 * Math.PI - Math.PI / 2;
+  const tick = (d: number) => [42 + d * Math.cos(a), 42 + d * Math.sin(a)];
+  const [x1, y1] = tick(26);
+  const [x2, y2] = tick(42);
+  return (
+    <div className={`zv-bv-ring ${ok ? 'is-pass' : 'is-fail'}`}>
+      <div className="zv-bv-dial">
+        <svg viewBox="0 0 84 84" aria-hidden>
+          <circle cx="42" cy="42" r={r} className="zv-bv-ring-track" />
+          <motion.circle cx="42" cy="42" r={r} className="zv-bv-ring-fill" transform="rotate(-90 42 42)" initial={{ pathLength: 0 }} whileInView={{ pathLength: q }} viewport={once} transition={{ duration: 1.3, ease: EASE, delay }} />
+          <line x1={x1} y1={y1} x2={x2} y2={y2} className="zv-bv-floor" />
+        </svg>
+        <strong>{q.toFixed(2)}</strong>
+      </div>
+      <p>Candidate {name}</p>
+      <span className={`zv-verdict ${ok ? 'is-verified' : 'is-rejected'}`}>
+        {ok ? <Check size={11} /> : <X size={11} />} {ok ? 'VERIFIED' : 'REJECTED'}
+      </span>
+    </div>
+  );
+}
+
+function Gates() {
+  return (
+    <div>
+      <div className="zv-bv-rings">
+        <QualityRing name="D" q={0.87} ok={false} delay={0.2} />
+        <QualityRing name="A" q={0.97} ok delay={0.4} />
+      </div>
+      <p className="zv-bv-floor-note">White tick = the 0.95 quality floor</p>
+    </div>
+  );
+}
+
+/** Review: what lands on a person's desk. */
+function ReviewRequest() {
+  return (
+    <div className="zv-bv-review">
+      <div className="zv-bv-review-head">
+        <span><GitBranch size={14} aria-hidden /> Candidate A · smaller model on simple tickets</span>
+        <span className="zv-verdict is-verified"><Check size={11} /> VERIFIED</span>
+      </div>
+      <ul>
+        <li><Check size={14} aria-hidden /> Quality 0.97, above the 0.95 floor</li>
+        <li><Check size={14} aria-hidden /> Patch and evidence ready to read</li>
+        <li className="is-wait"><UserCheck size={14} aria-hidden /> Waiting for your decision</li>
+      </ul>
+      <div className="zv-bv-actions">
+        <span className="zv-bv-btn is-primary">Approve for review</span>
+        <span className="zv-bv-btn">Not now</span>
+        <em>Nothing deploys on its own.</em>
+      </div>
+    </div>
+  );
+}
+
+const VISUALS = [Waterfall, CandidateTree, Gates, ReviewRequest];
+
 /**
- * The loop as one pipeline: four connected steps, all visible at once. The rail
- * fills and the step nodes light up in order the first time the section is on
- * screen. A row on wide screens, a vertical timeline on phones.
+ * The loop as a dark bento: four cards of alternating width inside a rounded
+ * ink panel that echoes the hero. Everything is visible at once; on phones
+ * the cards simply stack.
  */
 export function LoopV2() {
-  const ref = useRef<HTMLOListElement>(null);
-  const seen = useInView(ref, { once: true, margin: '0px 0px -20% 0px' });
   return (
     <section className="zv-loop" id="workbench" aria-labelledby="zv-loop-title">
-      <div className="zv-wrap">
-        <Reveal className="zv-loop-head">
-          <div>
-            <p className="zv-kicker">The work · measure, replay, verify, review</p>
-            <h2 id="zv-loop-title" className="zv-h2">
-              Cheaper AI means nothing if <span className="zv-accent">the answer gets worse.</span>
-            </h2>
-          </div>
-          <p className="zv-sub">ZEVQORA measures one workload, tests a lighter alternative against quality you set in advance, and shows whether it deserves to ship.</p>
-        </Reveal>
+      <div className="zv-loop-panel">
+        <span className="zv-loop-grid-lines" aria-hidden />
+        <div className="zv-wrap">
+          <Reveal className="zv-loop-head">
+            <div>
+              <p className="zv-kicker">The work · measure, replay, verify, review</p>
+              <h2 id="zv-loop-title" className="zv-h2">
+                Cheaper AI means nothing if <span className="zv-accent">the answer gets worse.</span>
+              </h2>
+            </div>
+            <p className="zv-sub">ZEVQORA measures one workload, tests a lighter alternative against quality you set in advance, and shows whether it deserves to ship.</p>
+          </Reveal>
 
-        <ol ref={ref} className={`zv-flow${seen ? ' is-in' : ''}`}>
-          <li className="zv-flow-rail" aria-hidden>
-            <i />
-          </li>
-          {STEPS.map((s, i) => (
-            <li key={s.n} className="zv-flow-step" style={{ '--i': i } as CSSProperties}>
-              <span className="zv-flow-node" aria-hidden>
-                {s.n}
-              </span>
-              <article className="zv-flow-card zv-spot" onPointerMove={spot} aria-label={`Step ${s.n}: ${s.title}`}>
-                <header>
-                  <span className="zv-flow-icon"><s.Icon size={17} aria-hidden /></span>
-                  <h3>{s.title}</h3>
-                </header>
-                <p>{s.body}</p>
-                <div className="zv-flow-vis">
-                  <FlowVisual i={i} />
-                </div>
-              </article>
-            </li>
-          ))}
-        </ol>
-        <p className="zv-flow-note">Sample data. Verify uses an internal 50-case benchmark, not customer evidence.</p>
+          <ol className="zv-bento">
+            {LOOP.map((s, i) => {
+              const Visual = VISUALS[i];
+              return (
+                <li key={s.n} className={`zv-bento-cell${s.wide ? ' is-wide' : ''}`}>
+                  <Reveal delay={0.06 * i} className="zv-bento-reveal">
+                    <article className="zv-bento-card zv-spot" onPointerMove={spot} aria-labelledby={`zv-bento-${s.n}`}>
+                      <span className="zv-bento-n" aria-hidden>{s.n}</span>
+                      <p className="zv-bento-label">
+                        <s.Icon size={14} aria-hidden /> {s.n} · {s.label}
+                      </p>
+                      <h3 id={`zv-bento-${s.n}`}>{s.title}</h3>
+                      <p className="zv-bento-body">{s.body}</p>
+                      <div className="zv-bento-vis">
+                        <Visual />
+                      </div>
+                    </article>
+                  </Reveal>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="zv-bento-note">Illustrative sample data. The quality figures come from an internal 50-case benchmark, not customer evidence.</p>
+        </div>
       </div>
     </section>
   );
