@@ -11,8 +11,59 @@ import { ApiError } from './http.js';
 import { accountStateForUser, loadPlan } from './supabase.js';
 import { requireWorkspaceRole, requireProjectAccess, rateLimit } from './auth.js';
 import { forwardChatCompletion, openRouterConfigured } from './openrouter.js';
-import { loadPricing, normalizeModel, estimateCost } from './pricing.js';
+import { loadPricing, estimateCost } from './pricing.js';
 import { validateCompletionRequest, rpmForPlan } from './platform-guard.js';
+
+export const DEFAULT_PLATFORM_MODEL = 'openai/gpt-4o-mini';
+
+/**
+ * Model ids the desktop engine has always sent that are priced under another
+ * id in model_pricing (same model on OpenRouter). Used for budgeting only; the
+ * request is forwarded with the id the caller sent.
+ */
+const PRICE_ALIASES = {
+  'deepseek/deepseek-chat': 'deepseek/deepseek-chat-v3',
+  'mistralai/mistral-small': 'mistralai/mistral-small-3.1',
+};
+
+/**
+ * The model_pricing key a forwarded model is budgeted at, or null when it has
+ * no price on record (SEC-04). Exact ids only: no prefix or family matching,
+ * so a pricier variant cannot borrow a cheaper sibling's price.
+ */
+export function pricedModelKey(pricing, model) {
+  const id = String(model || '').trim().toLowerCase();
+  const key = pricing.has(id) ? id : PRICE_ALIASES[id] && pricing.has(PRICE_ALIASES[id]) ? PRICE_ALIASES[id] : null;
+  if (!key || pricing.get(key)?.tier === 'embedding') return null;
+  return key;
+}
+
+const HOLD_WINDOW_SECONDS = 900;
+const holdBucket = (billingUserId) => `credit:hold:${billingUserId}`;
+const micro = (usd) => Math.max(0, Math.ceil(Number(usd) * 1e6));
+
+/**
+ * Reserves `amountUsd` against what is left of the billing owner's credit in
+ * the durable counter (migration 022). true = held, false = other in-flight
+ * calls already hold the balance, null = the counter could not answer.
+ */
+export async function holdCredit(admin, billingUserId, amountUsd, remainingUsd) {
+  try {
+    const { data, error } = await admin.rpc('usage_budget_reserve', { p_bucket: holdBucket(billingUserId), p_amount_micro_usd: Math.max(1, micro(amountUsd)), p_limit_micro_usd: micro(remainingUsd), p_window_seconds: HOLD_WINDOW_SECONDS });
+    return error || typeof data !== 'boolean' ? null : data;
+  } catch {
+    return null;
+  }
+}
+
+/** Releases a hold. A failed release only keeps the hold until the window ends (conservative). */
+export async function releaseCredit(admin, billingUserId, amountUsd) {
+  try {
+    await admin.rpc('usage_budget_reserve', { p_bucket: holdBucket(billingUserId), p_amount_micro_usd: -Math.max(1, micro(amountUsd)), p_limit_micro_usd: 0, p_window_seconds: HOLD_WINDOW_SECONDS });
+  } catch {
+    // best effort
+  }
+}
 
 /**
  * Resolves who is billed and under which plan. A workspace bills its owner under
@@ -87,19 +138,39 @@ export async function completeForUser({ admin, user, workspaceId = null, project
   if (!openRouterConfigured()) throw new ApiError(503, 'Platform compute is not configured on this deployment yet.', 'PROVIDER_NOT_CONFIGURED');
 
   const { payload: clean, totalChars } = validateCompletionRequest(payload);
+  // SEC-04: `openrouter/auto` may route to any model at any price, so it runs on the default model instead.
+  if (clean.model.toLowerCase() === 'openrouter/auto') clean.model = DEFAULT_PLATFORM_MODEL;
   const credits = await creditState(admin, billing.billingUserId, billing.plan);
   if (credits.remaining <= 0) {
     throw new ApiError(402, 'Zev credit for this billing period is used up. Upgrade the plan or wait for the reset.', 'INSUFFICIENT_CREDITS', { remaining_usd: credits.remaining, included_usd: credits.included, plan: billing.planId, billing_owner: billing.billingUserId === user.id ? 'you' : 'workspace owner' });
   }
   const pricing = await loadPricing(admin);
-  const estimate = estimateCost(pricing, normalizeModel(null, clean.model).key, { input: Math.ceil(totalChars / 4), output: clean.max_tokens });
-  if (estimate && estimate.cost > credits.remaining) {
+  // SEC-04: only models with a price on record can be budgeted, so only those are forwarded.
+  const priceKey = pricedModelKey(pricing, clean.model);
+  if (!priceKey) throw new ApiError(400, `The model ${clean.model} is not available through platform compute. Choose a model listed in /api/platform/pricing.`, 'MODEL_NOT_ALLOWED', { model: clean.model });
+  const estimate = estimateCost(pricing, priceKey, { input: Math.ceil(totalChars / 4), output: clean.max_tokens });
+  if (estimate.cost > credits.remaining) {
     throw new ApiError(402, 'This request could exceed the remaining Zev credit.', 'INSUFFICIENT_CREDITS', { estimated_usd: estimate.cost, remaining_usd: credits.remaining, plan: billing.planId });
   }
 
-  const { body, latencyMs, attempt } = await forwardChatCompletion(clean, { timeoutMs });
+  // SEC-04: hold the worst case while the call is in flight, so concurrent calls cannot all pass the same balance check.
+  const hold = await holdCredit(admin, billing.billingUserId, estimate.cost, credits.remaining);
+  if (hold === null) throw new ApiError(503, 'Credit checks are unavailable right now, so no request was sent to the provider.', 'BUDGET_UNAVAILABLE');
+  if (hold === false) throw new ApiError(402, 'Other requests in flight already hold the remaining Zev credit. Retry when they finish.', 'INSUFFICIENT_CREDITS', { estimated_usd: estimate.cost, remaining_usd: credits.remaining, plan: billing.planId });
+
+  let forwarded;
+  try {
+    forwarded = await forwardChatCompletion(clean, { timeoutMs });
+  } finally {
+    await releaseCredit(admin, billing.billingUserId, estimate.cost);
+  }
+  const { body, latencyMs, attempt } = forwarded;
   const usage = body.usage || {};
-  const cost = Number.isFinite(usage.cost) ? Number(usage.cost) : null;
+  const reported = Number.isFinite(usage.cost) ? Number(usage.cost) : null;
+  // SEC-04: a response without a provider cost is charged at the list-price estimate of its actual usage, never at zero.
+  const estimatedCost = reported === null ? estimateCost(pricing, priceKey, { input: Number(usage.prompt_tokens) || Math.ceil(totalChars / 4), output: Number(usage.completion_tokens) || clean.max_tokens }).cost : null;
+  const cost = reported ?? estimatedCost;
+  const costSource = reported !== null ? 'provider_reported' : 'pricing_snapshot_estimate';
   const requestId = `platform:${body.id || randomUUID()}`;
   const metadata = {
     provider: 'openrouter',
@@ -110,10 +181,10 @@ export async function completeForUser({ admin, user, workspaceId = null, project
     latency_ms: latencyMs,
     caller_user_id: user.id,
     source: operation,
-    cost_source: cost === null ? 'unavailable' : 'provider_reported',
+    cost_source: costSource,
     ...extraMeta,
   };
-  const amount = cost === null ? 0 : Number(cost.toFixed(6));
+  const amount = Number(cost.toFixed(6));
   let remainingAfter = credits.remaining;
   const { data: left, error: creditError } = await admin.rpc('consume_credits', {
     p_user: billing.billingUserId,
@@ -152,7 +223,7 @@ export async function completeForUser({ admin, user, workspaceId = null, project
       cost: cost ?? undefined,
     },
     system_fingerprint: body.system_fingerprint || undefined,
-    zevqora: { cost_usd: cost, cost_source: cost === null ? 'unavailable' : 'provider_reported', credits_remaining_usd: remainingAfter, plan: billing.planId, workspace_id: billing.workspace?.id || null, project_id: billing.project?.id || null, billing_user_id: billing.billingUserId, latency_ms: latencyMs, attempt, request_id: requestId },
+    zevqora: { cost_usd: cost, cost_source: costSource, credits_remaining_usd: remainingAfter, plan: billing.planId, workspace_id: billing.workspace?.id || null, project_id: billing.project?.id || null, billing_user_id: billing.billingUserId, latency_ms: latencyMs, attempt, request_id: requestId },
   };
 }
 

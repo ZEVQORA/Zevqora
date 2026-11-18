@@ -1,6 +1,7 @@
 import { on } from '../router.js';
 import { ApiError } from '../http.js';
 import { adminClient } from '../supabase.js';
+import { safeEqual } from '../tokens.js';
 import { SECURITY_RETENTION_DAYS } from '../analytics/security.js';
 import { effectiveRetentionDays, retentionCeiling } from '../plan-limits.js';
 
@@ -14,7 +15,8 @@ import { effectiveRetentionDays, retentionCeiling } from '../plan-limits.js';
  */
 on('GET', '/api/cron/daily', async ({ request }) => {
   const expected = process.env.CRON_SECRET;
-  if (!expected || request.headers.get('authorization') !== `Bearer ${expected}`) throw new ApiError(401, 'Unauthorized.', 'UNAUTHORIZED');
+  // Constant-time comparison: the secret is never checked byte by byte against a timing oracle.
+  if (!expected || !safeEqual(request.headers.get('authorization') || '', `Bearer ${expected}`)) throw new ApiError(401, 'Unauthorized.', 'UNAUTHORIZED');
   const admin = adminClient();
   const now = new Date();
   const next = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();

@@ -4,6 +4,8 @@ import { adminClient, publicServerClient } from '../supabase.js';
 import { rateLimitRequest } from '../auth.js';
 import { openRouterConfigured } from '../openrouter.js';
 import { isolationStatus } from '../env-isolation.js';
+import { durableHit, visitorKey } from '../support/limits.js';
+import { createHash } from 'node:crypto';
 
 const VERSION = '2.0.0';
 
@@ -53,12 +55,32 @@ on('GET', '/api/health', async () => {
 
 const USERNAME = /^[A-Za-z0-9._-]{3,30}$/;
 
+export const LOGIN_LIMITS = { perVisitor: 30, visitorWindowSeconds: 600, perIdentifier: 20, identifierWindowSeconds: 900 };
+
+/**
+ * SEC-11: password attempts counted across every serverless instance. This
+ * route signs in from the server's own address, so Supabase Auth's per-IP
+ * limits cannot tell callers apart; these buckets can. Keys are keyed hashes,
+ * never the address or the identifier. If the counter cannot answer, the
+ * per-instance limit above still applies (sign-in is not blocked by an outage).
+ */
+async function assertLoginBudget(request, identifier) {
+  const visitor = visitorKey(request);
+  const account = createHash('sha256').update(`login:${identifier.toLowerCase()}`).digest('hex').slice(0, 24);
+  const [byVisitor, byAccount] = await Promise.all([
+    durableHit(`login:ip:${visitor}`, LOGIN_LIMITS.perVisitor, LOGIN_LIMITS.visitorWindowSeconds),
+    durableHit(`login:id:${account}`, LOGIN_LIMITS.perIdentifier, LOGIN_LIMITS.identifierWindowSeconds),
+  ]);
+  if (byVisitor === false || byAccount === false) throw new ApiError(429, 'Too many sign-in attempts. Wait a few minutes and try again, or reset your password.', 'RATE_LIMITED');
+}
+
 on('POST', '/api/auth/password-login', async ({ request }) => {
   rateLimitRequest(request, 'password-login', { limit: 12, windowMs: 60_000 });
   const body = await readJson(request);
   const identifier = str(body?.identifier, { name: 'identifier', max: 200 });
   const password = typeof body?.password === 'string' ? body.password : '';
   if (!identifier || password.length < 8) throw new ApiError(400, 'Invalid username/email or password.', 'INVALID_CREDENTIALS');
+  await assertLoginBudget(request, identifier);
 
   let email = identifier;
   const admin = adminClient();

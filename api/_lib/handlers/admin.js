@@ -3,7 +3,7 @@
  * the caller (server-enforced), and every mutation writes admin_audit_log.
  */
 import { on } from '../router.js';
-import { ApiError, readJson, str, num, uuid } from '../http.js';
+import { ApiError, likeLiteral, readJson, str, num, uuid } from '../http.js';
 import { requireUser, requireAdmin, auditAdmin, rateLimit } from '../auth.js';
 import { invalidatePricingCache } from '../pricing.js';
 import { openRouterConfigured } from '../openrouter.js';
@@ -444,7 +444,8 @@ on('POST', '/api/admin/admins', async ({ request }) => {
   const body = await readJson(request);
   const email = str(body?.email, { name: 'Email', required: true, max: 200 }).toLowerCase();
   const role = body?.role === 'superadmin' ? 'superadmin' : 'admin';
-  const { data: profile } = await admin.from('profiles').select('id').ilike('email', email).maybeSingle();
+  // SEC-05: exact address only, so a superadmin cannot grant the role through a wildcard match.
+  const { data: profile } = await admin.from('profiles').select('id').ilike('email', likeLiteral(email)).maybeSingle();
   if (!profile) throw new ApiError(404, 'No account exists for that email. The person must sign up first.', 'NOT_FOUND');
   const { error } = await admin.from('admin_roles').upsert({ user_id: profile.id, role, granted_by: user.id }, { onConflict: 'user_id' });
   if (error) throw error;

@@ -1,5 +1,5 @@
 import { on } from '../router.js';
-import { ApiError, readJson, str } from '../http.js';
+import { ApiError, likeLiteral, readJson, str } from '../http.js';
 import { accountStateForUser, loadPlan } from '../supabase.js';
 import { retentionCeiling, effectiveRetentionDays } from '../plan-limits.js';
 import { requireUser } from '../auth.js';
@@ -9,17 +9,21 @@ import { WORKSPACE_FLAGS as FLAG_KEYS, workspaceFlags } from '../flags.js';
 
 const USERNAME = /^[A-Za-z0-9._-]{3,30}$/;
 
-/** Pending invites addressed to the user's email are accepted automatically on sign-in. */
-async function acceptPendingInvites(admin, user) {
-  if (!user.email) return 0;
+/**
+ * Pending invites addressed to the user's email are accepted automatically on sign-in.
+ * SEC-05: the address must match exactly (case-insensitive, wildcards escaped) and be confirmed.
+ */
+export async function acceptPendingInvites(admin, user) {
+  if (!user.email || !user.email_confirmed_at) return 0;
   const { data: invites } = await admin
     .from('workspace_invites')
-    .select('id,workspace_id,role,invited_by')
-    .ilike('email', user.email)
+    .select('id,workspace_id,role,invited_by,email')
+    .ilike('email', likeLiteral(user.email))
     .is('accepted_at', null)
     .gt('expires_at', new Date().toISOString());
   let accepted = 0;
   for (const invite of invites || []) {
+    if (String(invite.email || '').toLowerCase() !== user.email.toLowerCase()) continue;
     const { error } = await admin
       .from('workspace_members')
       .upsert({ workspace_id: invite.workspace_id, user_id: user.id, role: invite.role, invited_by: invite.invited_by }, { onConflict: 'workspace_id,user_id', ignoreDuplicates: true });

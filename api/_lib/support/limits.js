@@ -55,7 +55,7 @@ export function visitorKey(request) {
 }
 
 /** One durable hit. Resolves true/false, or null when the durable layer cannot answer. */
-async function durableHit(bucket, limit, windowSeconds) {
+export async function durableHit(bucket, limit, windowSeconds) {
   try {
     const { data, error } = await limiterClient().rpc('public_rate_limit_hit', { p_bucket: bucket, p_limit: limit, p_window_seconds: windowSeconds });
     if (error || typeof data !== 'boolean') return null;

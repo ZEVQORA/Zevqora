@@ -99,6 +99,27 @@ export function bool(value, fallback = false) {
   return Boolean(value);
 }
 
+/**
+ * A LIKE/ILIKE pattern that matches `value` literally (SEC-05). `%` and `_`
+ * are wildcards in Postgres LIKE, so an address such as `j_hn@x.com` would
+ * otherwise also match `john@x.com`. Backslash is the default escape.
+ */
+export function likeLiteral(value) {
+  return String(value ?? '').replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
+/**
+ * One CSV cell. Text that a spreadsheet would run as a formula (=, +, -, @,
+ * tab, CR) is prefixed with an apostrophe (SEC-07); numbers stay numbers.
+ * Model names and error text in exports come from customer telemetry.
+ */
+export function csvCell(value) {
+  if (value === null || value === undefined) return '';
+  let text = String(value);
+  if (typeof value !== 'number' && /^[=+\-@\t\r]/.test(text) && !/^-?\d+(\.\d+)?(e-?\d+)?$/i.test(text)) text = `'${text}`;
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function uuid(value, name = 'id') {
