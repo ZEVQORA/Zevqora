@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Link,
   NavLink,
@@ -6,7 +6,7 @@ import {
   useLocation,
   useNavigationType,
 } from "react-router";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, animate, motion, useReducedMotion } from "motion/react";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 import { ZevqoraLogo } from "@/brand/ZevqoraLogo";
 import { ZevqoraWordmark } from "@/brand/ZevqoraWordmark";
@@ -20,6 +20,27 @@ const NAV = [
   ["Pricing", "/pricing"],
   ["Security", "/security"],
 ];
+/**
+ * The ZEVQORA logo always takes the visitor to the top of the homepage: it
+ * shows the site even for a signed-in visitor (state `site`), and on the
+ * homepage itself it scrolls back to the hero.
+ */
+function HomeLink({ className, children }: { className?: string; children: ReactNode }) {
+  const { pathname } = useLocation();
+  const reduced = useReducedMotion();
+  const toTop = () => {
+    if (pathname !== "/" || window.scrollY === 0) return;
+    // Driven by Motion rather than `behavior: "smooth"`, which some browsers and embedded views ignore.
+    if (reduced) window.scrollTo(0, 0);
+    else animate(window.scrollY, 0, { duration: 0.9, ease: [0.16, 1, 0.3, 1], onUpdate: (y) => window.scrollTo(0, y) });
+  };
+  return (
+    <Link className={className} to="/" state={{ site: true }} aria-label="ZEVQORA home" onClick={toTop}>
+      {children}
+    </Link>
+  );
+}
+
 export function SiteHeader() {
   const [open, setOpen] = useState(false),
     { status } = useSession(),
@@ -58,9 +79,9 @@ export function SiteHeader() {
         </div>
       )}
       <div className="engine-header-inner">
-        <Link className="engine-header-logo" to="/" aria-label="ZEVQORA home">
+        <HomeLink className="engine-header-logo">
           <ZevqoraLogo variant={light ? "default" : "inverse"} size={24} />
-        </Link>
+        </HomeLink>
         <nav aria-label="Primary">
           {NAV.map(([label, to]) => (
             <NavLink key={to} to={to}>
@@ -122,7 +143,7 @@ export function SiteHeader() {
   );
 }
 export function SiteFooter() {
-  const { contact, footer, status } = useSiteContent();
+  const { contact, footer } = useSiteContent();
   const groups = [
     {
       name: "Product",
@@ -153,16 +174,15 @@ export function SiteFooter() {
       ],
     },
   ];
-  const operational = (status.public_status || "operational") === "operational";
   return (
     <footer className="engine-footer zv-foot">
       <div className="zv-foot-glow" aria-hidden />
       <div className="zv-foot-inner">
         <div className="zv-foot-top">
           <div className="zv-foot-brand">
-            <Link to="/" aria-label="ZEVQORA home">
+            <HomeLink>
               <ZevqoraLogo variant="inverse" size={26} />
-            </Link>
+            </HomeLink>
             <p className="zv-foot-claim">
               Intelligence, unburdened.
               <br />
@@ -176,9 +196,6 @@ export function SiteFooter() {
                 GitHub <ArrowUpRight size={15} aria-hidden />
               </a>
             </div>
-            <p className={`zv-foot-status${operational ? "" : " is-degraded"}`}>
-              <i aria-hidden /> {operational ? "All systems operational" : "Some systems degraded"}
-            </p>
           </div>
           <div className="zv-foot-cols">
             {groups.map((g) => (
