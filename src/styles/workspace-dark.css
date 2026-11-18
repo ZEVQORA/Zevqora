@@ -1,0 +1,338 @@
+/* ==========================================================================
+   ZEVQORA — dark workspace (2026-11-18)
+   A neutral dark: grey surfaces with no blue cast. Blue stays only as the
+   accent (primary buttons, links, focus, the active step).
+   Loaded last. Older layers (experience.css, engine.css, product/styles.css)
+   hardcode light colours for .workspace-experience; every one of them that
+   shows in the signed-in app is answered here, scoped to the dark theme, so
+   the light workspace is untouched.
+   ========================================================================== */
+
+/* Tokens. Literal values on purpose: a token derived from --zq-cloud or
+   --zq-ink would resolve against the light palette. */
+.app-env[data-theme="dark"],
+html[data-app-theme="dark"] .ztour-card,
+html[data-app-theme="dark"] .ztour-welcome,
+html[data-app-theme="dark"] .zpal,
+html[data-app-theme="dark"] [role="dialog"].glass-pop,
+html[data-app-theme="dark"] .pmodal-backdrop,
+html[data-app-theme="dark"] .ptoast-stack {
+  --zq-canvas: #0b0b0b;
+  --zq-surface: #151515;
+  --zq-sunken: #080808;
+  --zq-raised: #181818;
+  --zq-fg: #ededed;
+  --zq-fg-muted: #a3a3a3;
+  --zq-fg-subtle: #7d7d7d;
+  --zq-border: #262626;
+  --zq-border-strong: #333333;
+  --zq-border-control: #4a4a4a;
+  --zq-accent: #6ba1ff;
+  --zq-accent-hover: #8cb6ff;
+  --zq-accent-subtle: rgb(70 139 255 / 0.12);
+  --zq-accent-text: #8cb6ff;
+  --zq-cta: #6ba1ff;
+  --zq-cta-hover: #8cb6ff;
+  --zq-cta-active: #a8c8ff;
+  --zq-cta-fg: #0b0b0b;
+  --zq-focus: #6ba1ff;
+  --zq-verified: #4cc79c;
+  --zq-verified-bg: #10231b;
+  --zq-rejected: #e8837a;
+  --zq-rejected-bg: #2a1614;
+  --zq-warning: #d6a94a;
+  --zq-warning-bg: #241d0e;
+  --zq-inset-highlight: inset 0 1px 0 rgb(255 255 255 / 0.04);
+
+  --zv-ink: #ededed;
+  --zv-ink-2: #d4d4d4;
+  --zv-muted: #a3a3a3;
+  --zv-subtle: #7d7d7d;
+  --zv-cloud: #0b0b0b;
+  --zv-card: #151515;
+  --zv-glass: rgb(21 21 21 / 0.88);
+  --zv-stone: #262626;
+  --zv-stone-2: #333333;
+  --zv-blue-050: rgb(70 139 255 / 0.1);
+  --zv-blue-100: rgb(70 139 255 / 0.18);
+  --zv-blue-600: #8cb6ff;
+  --zv-green-bg: #10231b;
+  --zv-red-bg: #2a1614;
+  --zv-amber-bg: #241d0e;
+  --zv-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --zv-shadow: 0 18px 48px -22px rgb(0 0 0 / 0.8);
+  --shadow-lift: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-glass: 0 1px 2px rgb(0 0 0 / 0.4), 0 18px 40px -24px rgb(0 0 0 / 0.8);
+  --shadow-pop: 0 0 0 1px #262626, 0 30px 70px -20px rgb(0 0 0 / 0.85);
+  color-scheme: dark;
+}
+
+/* ─────────── canvas, header, chat ─────────── */
+.app-env[data-theme="dark"] {
+  background: var(--zq-canvas);
+  color: var(--zq-fg);
+}
+.app-env[data-theme="dark"] .zhome.zchat {
+  background: var(--zq-canvas);
+}
+.app-env[data-theme="dark"] .zchat-dock {
+  background: linear-gradient(180deg, transparent, var(--zq-canvas) 30%);
+}
+.app-env[data-theme="dark"] .zchat-dock::before {
+  background: linear-gradient(180deg, transparent, var(--zq-canvas));
+}
+.app-env[data-theme="dark"] .zchat-rich pre {
+  background: #050505;
+  box-shadow: inset 0 0 0 1px var(--zq-border);
+}
+.app-env[data-theme="dark"] .zshell-header,
+.app-env[data-theme="dark"].workspace-experience > div > header.glass-strong,
+.app-env[data-theme="dark"] header.glass-strong {
+  background: rgb(11 11 11 / 0.85) !important;
+  border-color: var(--zq-border) !important;
+}
+.app-env[data-theme="dark"] .zexplain button[aria-checked="true"],
+.app-env[data-theme="dark"] .zchat .zexplain button[aria-checked="true"] {
+  background: #2a2a2a;
+  color: var(--zq-fg);
+}
+
+/* ─────────── sidebar: neutral, no blue glow ─────────── */
+.app-env[data-theme="dark"] .zshell.zv-ink-side,
+.app-env[data-theme="dark"] .glass-sidebar {
+  background: #080808;
+  border-color: #1f1f1f;
+}
+.app-env[data-theme="dark"] .zshell.zv-ink-side .zshell-ws {
+  background: rgb(255 255 255 / 0.04);
+}
+.app-env[data-theme="dark"] .zshell.zv-ink-side nav[aria-label="Application"] a.zshell-link[aria-current="page"],
+.app-env[data-theme="dark"] .zshell.zv-ink-side nav[aria-label="Application"] a.zshell-link.is-active {
+  color: #fff;
+  background: rgb(255 255 255 / 0.08);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+.app-env[data-theme="dark"] .zshell.zv-ink-side nav[aria-label="Application"] a.zshell-link[aria-current="page"] svg {
+  color: #8cb6ff;
+}
+
+/* ─────────── glass + panels ─────────── */
+.app-env[data-theme="dark"] .glass,
+.app-env[data-theme="dark"] .glass-strong {
+  background: rgb(21 21 21 / 0.82);
+  border-color: var(--zq-border);
+}
+html[data-app-theme="dark"] .glass-pop,
+html[data-app-theme="dark"] [role="dialog"].glass-pop {
+  color: var(--zq-fg);
+  background: rgb(21 21 21 / 0.97);
+  border-color: var(--zq-border);
+  box-shadow: 0 0 0 1px var(--zq-border), 0 30px 70px -20px rgb(0 0 0 / 0.85);
+}
+html[data-app-theme="dark"] .ztour-card,
+html[data-app-theme="dark"] .ztour-welcome {
+  color: var(--zq-fg);
+  background: var(--zv-card);
+}
+html[data-app-theme="dark"] .ztour-welcome-list {
+  background: #101010;
+}
+.app-env[data-theme="dark"] .plane,
+.app-env[data-theme="dark"] .plane-instrument,
+.app-env[data-theme="dark"] .ui-panel {
+  background: var(--zq-surface);
+  border-color: var(--zq-border);
+}
+.app-env[data-theme="dark"] .studio {
+  background-image: none;
+}
+.app-env[data-theme="dark"] .pcard,
+.app-env[data-theme="dark"] .pcard-glass {
+  background: var(--zq-surface);
+  border-color: var(--zq-border);
+  box-shadow: none;
+}
+.app-env[data-theme="dark"] .plede {
+  color: var(--zq-fg-muted);
+}
+
+/* ─────────── tables ─────────── */
+.app-env[data-theme="dark"] table th,
+.app-env[data-theme="dark"] .ptable th {
+  background: var(--zq-raised);
+  color: var(--zq-fg-subtle);
+  border-color: var(--zq-border);
+}
+.app-env[data-theme="dark"] table td,
+.app-env[data-theme="dark"] .ptable td {
+  border-color: var(--zq-border);
+}
+.app-env[data-theme="dark"] .ptable tbody tr.is-clickable:hover {
+  background: rgb(255 255 255 / 0.03);
+}
+
+/* ─────────── inspector rail, empty states, steps ─────────── */
+.app-env[data-theme="dark"] .pinspector {
+  background: #0e0e0e;
+  border-left-color: var(--zq-border);
+}
+.app-env[data-theme="dark"] .pinspector-head {
+  border-bottom-color: var(--zq-border);
+}
+.app-env[data-theme="dark"] .pinspector-block {
+  background: var(--zq-surface);
+  border-color: var(--zq-border);
+  box-shadow: none;
+}
+.app-env[data-theme="dark"] .pempty {
+  background: rgb(255 255 255 / 0.02);
+  border-color: var(--zq-border-strong);
+}
+.app-env[data-theme="dark"] .pstep {
+  background: var(--zq-surface);
+  border-color: var(--zq-border);
+}
+.app-env[data-theme="dark"] .pstep.is-done {
+  background: var(--zq-verified-bg);
+  border-color: rgb(76 199 156 / 0.3);
+}
+
+/* ─────────── buttons, chips, inputs ─────────── */
+.app-env[data-theme="dark"] .pbtn-primary,
+.app-env[data-theme="dark"].workspace-experience .pbtn-primary {
+  background: #2f6fdc;
+  color: #fff;
+}
+.app-env[data-theme="dark"] .pbtn-primary:hover {
+  background: #3d7be6;
+}
+.app-env[data-theme="dark"] .pbtn-ghost:hover {
+  background: rgb(255 255 255 / 0.06);
+}
+.app-env[data-theme="dark"] .pbtn-danger {
+  border-color: rgb(232 131 122 / 0.35);
+}
+.app-env[data-theme="dark"] .pchip-neutral {
+  background: rgb(255 255 255 / 0.08);
+}
+.app-env[data-theme="dark"] .pcomposer {
+  border-color: var(--zq-border-strong);
+  box-shadow: 0 10px 40px -20px rgb(0 0 0 / 0.8);
+}
+.app-env[data-theme="dark"] .ptool-event {
+  border-color: var(--zq-border);
+}
+.app-env[data-theme="dark"] .pcredit-track {
+  background: rgb(255 255 255 / 0.08);
+}
+.app-env[data-theme="dark"] .pnote-info {
+  color: var(--zq-accent-text);
+}
+.app-env[data-theme="dark"] .pselect {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23A3A3A3' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+.app-env[data-theme="dark"] .pinput:hover,
+.app-env[data-theme="dark"] .pselect:hover,
+.app-env[data-theme="dark"] .ptextarea:hover {
+  border-color: #6b6b6b;
+}
+
+/* ─────────── diffs ─────────── */
+.app-env[data-theme="dark"] .pdiff-line > span:first-child {
+  background: rgb(255 255 255 / 0.02);
+  border-right-color: var(--zq-border);
+}
+.app-env[data-theme="dark"] .pdiff-line.is-add {
+  color: var(--zq-verified);
+}
+.app-env[data-theme="dark"] .pdiff-line.is-del {
+  color: var(--zq-rejected);
+}
+
+/* ─────────── modals and toasts (portalled) ─────────── */
+html[data-app-theme="dark"] .pmodal-backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+html[data-app-theme="dark"] .pmodal-foot {
+  border-top-color: var(--zq-border);
+}
+
+/* ─────────── inverse blocks ───────────
+   `bg-ink` is the light theme's inverse block (dark fill, light text). Its text
+   colour (text-cloud / text-white) is a fixed light value, so in the dark theme
+   the fill becomes a raised grey instead of flipping to white. */
+.app-env[data-theme="dark"] .bg-ink,
+html[data-app-theme="dark"] .bg-ink {
+  background-color: #2a2a2a;
+}
+.app-env[data-theme="dark"] .bg-ink:hover {
+  background-color: #333333;
+}
+.app-env[data-theme="dark"] .bg-cloud,
+html[data-app-theme="dark"] .bg-cloud {
+  background-color: var(--zq-sunken);
+}
+/* Always-dark blocks (enterprise banner, ink panels, tooltips) would melt into
+   the dark canvas: lift them one step and outline them. */
+.app-env[data-theme="dark"] :is(.bg-brand-ink, .bg-\[\#0F1115\]) {
+  background-color: #161616;
+  box-shadow: inset 0 0 0 1px #2a2a2a;
+}
+
+/* ─────────── light-blue utilities used as accents ─────────── */
+.app-env[data-theme="dark"] :is(.bg-blue-50, .bg-blue-050) {
+  background-color: var(--zq-accent-subtle);
+}
+.app-env[data-theme="dark"] .text-blue-700 {
+  color: var(--zq-accent-text);
+}
+.app-env[data-theme="dark"] [class*="border-blue-700"] {
+  border-color: rgb(107 161 255 / 0.3);
+}
+
+/* ─────────── execution graph (React Flow) ─────────── */
+.app-env[data-theme="dark"] {
+  --zq-graph-dot: rgb(255 255 255 / 0.07);
+  --zq-graph-mask: rgb(11 11 11 / 0.72);
+}
+.app-env[data-theme="dark"] .react-flow {
+  --xy-background-color: transparent;
+  --xy-edge-stroke: #4a4a4a;
+  --xy-edge-stroke-selected: #8cb6ff;
+  --xy-edge-label-background-color: #151515;
+  --xy-edge-label-color: #d4d4d4;
+  --xy-controls-button-background-color: #181818;
+  --xy-controls-button-background-color-hover: #222222;
+  --xy-controls-button-color: #d4d4d4;
+  --xy-controls-button-color-hover: #ededed;
+  --xy-controls-button-border-color: #262626;
+  --xy-controls-box-shadow: 0 0 0 1px #262626;
+  --xy-minimap-background-color: #121212;
+  --xy-attribution-background-color: rgb(21 21 21 / 0.7);
+}
+/* Heatmap levels (cost / latency / tokens overlays): blue by intensity, readable with light text. */
+.app-env[data-theme="dark"] .react-flow .bg-blue-50 {
+  background-color: rgb(70 139 255 / 0.14);
+}
+.app-env[data-theme="dark"] .react-flow .bg-\[\#cfe0ff\] {
+  background-color: rgb(70 139 255 / 0.24);
+}
+.app-env[data-theme="dark"] .react-flow .bg-\[\#a9c8ff\] {
+  background-color: rgb(70 139 255 / 0.36);
+}
+.app-env[data-theme="dark"] .react-flow .bg-\[\#7fb0ff\] {
+  background-color: rgb(70 139 255 / 0.5);
+}
+
+/* Scrollbars and skeletons follow the dark surface. */
+.app-env[data-theme="dark"] .scrollbar-thin {
+  scrollbar-color: rgb(255 255 255 / 0.16) transparent;
+}
+.app-env[data-theme="dark"] .skeleton {
+  background: linear-gradient(90deg, rgb(255 255 255 / 0.04) 25%, rgb(255 255 255 / 0.08) 37%, rgb(255 255 255 / 0.04) 63%);
+  background-size: 400% 100%;
+}
+.app-env[data-theme="dark"] .dotgrid {
+  background-image: radial-gradient(rgb(255 255 255 / 0.06) 1px, transparent 1px);
+}

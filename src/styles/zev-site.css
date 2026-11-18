@@ -1,22 +1,17 @@
 /* ==========================================================================
    ZEVQORA — site layer (2026-11-15, round 2)
-   Ink hero in the live site's style, the ZevIR graph, the shared closing CTA,
+   Ink hero in the live site's style, the shared closing CTA,
    a premium skin for every inner marketing page, and rounded overlays.
    Loaded after zev-light.css / zev-light-app.css.
    ========================================================================== */
 
-@keyframes zv-flow {
-  to {
-    stroke-dashoffset: -36;
-  }
-}
-
 /* ─────────────────────────── ink hero ─────────────────────────── */
+/* The ink field runs a little past the first screen, so the hero ends below the fold. */
 .zv-hero.zev-hero.is-ink {
   position: relative;
   isolation: isolate;
-  min-height: min(100svh, 960px);
-  padding: 118px 0 0;
+  min-height: min(112svh, 1060px);
+  padding: 118px 0 clamp(64px, 10vh, 120px);
   overflow: hidden;
   color: #fff;
   background: #07080c;
@@ -149,45 +144,6 @@
   right: 0;
   bottom: 18%;
 }
-.zv-hero-foot {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding-top: 18px;
-  padding-bottom: 26px;
-  border-top: 1px solid rgb(255 255 255 / 0.08);
-}
-.zv-hero-chapters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.zv-hero-chapters li {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px 6px 6px;
-  border-radius: 999px;
-  font-size: 12.5px;
-  color: #b4bfd0;
-  background: rgb(255 255 255 / 0.04);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
-}
-.zv-hero-chapters b {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  font-size: 10px;
-  color: #fff;
-  background: rgb(70 139 255 / 0.3);
-}
 .zv-hero-motion {
   display: inline-flex;
   align-items: center;
@@ -231,180 +187,11 @@
   .zv-glass-chip b {
     font-size: 22px;
   }
-  .zv-hero-foot {
-    flex-direction: column;
-    align-items: flex-start;
-  }
 }
 
 /* The loop card no longer carries a mascot: give the visuals the full width. */
 .zv-vis {
   padding-right: 0;
-}
-
-/* ─────────────────────────── ZevIR graph ─────────────────────────── */
-.zv-graph {
-  margin: 56px 0 0;
-  padding: 16px;
-  border-radius: 32px;
-  background: #fff;
-  box-shadow: var(--zv-shadow), inset 0 0 0 1px rgb(15 17 21 / 0.05);
-}
-.zv-graph-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 4px 8px 14px;
-  font: 500 12.5px/1 var(--font-mono);
-  color: var(--zv-muted);
-}
-.zv-graph-head span:first-child {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.zv-graph-head i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #19a07a;
-  box-shadow: 0 0 0 3px rgb(25 160 122 / 0.18);
-}
-.zv-graph-canvas {
-  position: relative;
-  aspect-ratio: 1000 / 360;
-  border-radius: 22px;
-  background:
-    radial-gradient(rgb(15 17 21 / 0.08) 1px, transparent 1px) 0 0 / 22px 22px,
-    linear-gradient(180deg, var(--zv-cloud), #fff);
-  box-shadow: inset 0 0 0 1px var(--zv-stone);
-}
-.zv-graph-canvas svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-.zv-edge-base {
-  fill: none;
-  stroke: #dbe6f8;
-  stroke-width: 3;
-}
-.zv-edge-flow {
-  fill: none;
-  stroke: url(#zv-edge);
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  stroke-dasharray: 10 8;
-  animation: zv-flow 1.4s linear infinite;
-}
-.zv-edge-retry {
-  fill: none;
-  stroke: #e5a33a;
-  stroke-width: 2.2;
-  stroke-dasharray: 6 7;
-  animation: zv-flow 1.8s linear infinite reverse;
-}
-.zv-edge-label {
-  font: 600 13px var(--font-sans);
-  fill: #b07a1f;
-}
-.zv-pulse-dot {
-  fill: var(--zv-blue);
-  filter: drop-shadow(0 0 6px rgb(70 139 255 / 0.9));
-}
-.zv-graph .zv-node {
-  position: absolute;
-  z-index: 1;
-  transform: none;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-width: 0;
-  max-width: none;
-  padding: 6px 12px;
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 8px 22px -14px rgb(15 17 21 / 0.35), inset 0 0 0 1px var(--zv-stone);
-  font-size: clamp(10.5px, 1.1vw, 13px);
-  line-height: 1.3;
-  color: var(--zv-ink-2);
-  overflow: hidden;
-  transition: transform 0.4s var(--zv-ease), box-shadow 0.4s;
-}
-.zv-graph .zv-node:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 16px 30px -16px rgb(70 139 255 / 0.55), inset 0 0 0 1px rgb(70 139 255 / 0.45);
-}
-.zv-graph .zv-node small {
-  display: block;
-  margin-bottom: 3px;
-  font: 700 10px/1 var(--font-sans);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--zv-blue-600);
-}
-.zv-graph .zv-node span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.zv-graph .zv-node.is-hot {
-  overflow: visible;
-  box-shadow: 0 0 0 4px rgb(224 87 74 / 0.12), inset 0 0 0 1.5px #e0574a, 0 16px 30px -16px rgb(224 87 74 / 0.5);
-}
-.zv-graph .zv-node.is-hot small {
-  color: #c2463a;
-}
-.zv-graph .zv-node.is-hot::after {
-  content: "";
-  position: absolute;
-  inset: -6px;
-  border-radius: 18px;
-  border: 2px solid rgb(224 87 74 / 0.4);
-  animation: zv-ping 2.4s var(--zv-ease) infinite;
-  pointer-events: none;
-}
-.zv-graph figcaption {
-  position: static;
-  margin: 0;
-  padding: 14px 8px 2px;
-  font-size: 12px;
-  color: var(--zv-subtle);
-}
-@media (max-width: 720px) {
-  .zv-graph {
-    height: auto;
-  }
-  .zv-graph-canvas {
-    display: grid;
-    gap: 8px;
-    aspect-ratio: auto;
-    padding: 12px;
-  }
-  .zv-graph-canvas svg {
-    display: none;
-  }
-  .zv-graph .zv-node {
-    position: relative;
-    left: auto !important;
-    top: auto !important;
-    width: auto !important;
-    height: auto !important;
-    padding: 12px 14px;
-    font-size: 13.5px;
-  }
-  .zv-graph .zv-node:not(:last-child)::before {
-    content: "";
-    position: absolute;
-    left: 24px;
-    bottom: -9px;
-    width: 2px;
-    height: 8px;
-    background: #9cc0ff;
-  }
 }
 
 /* ─────────────────────────── shared closing CTA ─────────────────────────── */
@@ -885,70 +672,7 @@
   --zv-card: #ffffff;
   --zv-glass: rgb(255 255 255 / 0.82);
 }
-/* Dark workspace: the brand tokens flip, so every zv-* surface follows. */
-.app-env[data-theme="dark"],
-html[data-app-theme="dark"] .ztour-card,
-html[data-app-theme="dark"] .ztour-welcome,
-html[data-app-theme="dark"] .zpal,
-html[data-app-theme="dark"] [role="dialog"].glass-pop {
-  --zv-ink: #eef2f8;
-  --zv-ink-2: #d2d9e5;
-  --zv-muted: #9ba5b6;
-  --zv-subtle: #7b8597;
-  --zv-cloud: #0b0d12;
-  --zv-card: #141821;
-  --zv-glass: rgb(20 24 33 / 0.82);
-  --zv-stone: #242b38;
-  --zv-stone-2: #313a4a;
-  --zv-blue-050: #152139;
-  --zv-blue-100: #1c2c4b;
-  --zv-blue-600: #8cb6ff;
-  --zv-green-bg: #102a21;
-  --zv-red-bg: #2c1714;
-  --zv-amber-bg: #2a2110;
-  --zv-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
-  --zv-shadow: 0 18px 48px -22px rgb(0 0 0 / 0.7);
-  color-scheme: dark;
-}
-.app-env[data-theme="dark"] {
-  background: #0b0d12;
-  color: var(--zv-ink);
-}
-.app-env[data-theme="dark"] .zhome.zchat {
-  background:
-    radial-gradient(900px 420px at 50% -120px, rgb(70 139 255 / 0.14), transparent 70%),
-    #0b0d12;
-}
-.app-env[data-theme="dark"] .zchat-dock {
-  background: linear-gradient(180deg, transparent, #0b0d12 30%);
-}
-.app-env[data-theme="dark"] .zchat-dock::before {
-  background: linear-gradient(180deg, transparent, #0b0d12);
-}
-.app-env[data-theme="dark"] .zchat-rich pre {
-  background: #05060a;
-  box-shadow: inset 0 0 0 1px var(--zv-stone);
-}
-.app-env[data-theme="dark"] .zshell-header {
-  background: rgb(11 13 18 / 0.82) !important;
-  border-color: var(--zv-stone) !important;
-}
-html[data-app-theme="dark"] [role="dialog"].glass-pop {
-  color: var(--zv-ink);
-  background: rgb(20 24 33 / 0.96);
-  box-shadow: 0 0 0 1px var(--zv-stone), 0 30px 70px -20px rgb(0 0 0 / 0.8);
-}
-html[data-app-theme="dark"] [role="dialog"].glass-pop :is(.text-ink, b, p) {
-  color: var(--zv-ink);
-}
-html[data-app-theme="dark"] .ztour-card,
-html[data-app-theme="dark"] .ztour-welcome {
-  color: var(--zv-ink);
-  background: var(--zv-card);
-}
-html[data-app-theme="dark"] .ztour-welcome-list {
-  background: #0f131a;
-}
+/* Dark workspace tokens and surfaces live in workspace-dark.css (loaded last). */
 
 /* tighter chat start: the greeting sits higher, no mascot above it */
 .zchat-scroll {

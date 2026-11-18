@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { AuthShell } from './AuthShell';
 import { Button } from '@/components/ui/Button';
@@ -11,6 +11,9 @@ export default function ForgotPasswordPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  useEffect(() => {
+    document.title = 'Reset your password — ZEVQORA';
+  }, []);
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setPending(true);

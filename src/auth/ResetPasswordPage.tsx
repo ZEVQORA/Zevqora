@@ -15,6 +15,10 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    document.title = 'Choose a new password — ZEVQORA';
+  }, []);
+
+  useEffect(() => {
     let active = true;
     getSupabase().then(async (sb) => {
       if (!sb) return setReady('missing');
