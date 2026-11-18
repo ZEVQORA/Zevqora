@@ -1,4 +1,5 @@
 import { ApiError } from './http.js';
+import { isFreeModel } from './zev-model.js';
 
 /**
  * OpenRouter access. The platform credential lives only in OPENROUTER_API_KEY
@@ -35,6 +36,11 @@ export async function forwardChatCompletion(payload, { timeoutMs = 60_000 } = {}
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) throw new ApiError(503, 'Cloud replay is not configured on this deployment yet.', 'PROVIDER_NOT_CONFIGURED');
   const body = { ...payload, stream: false, usage: { include: true } };
+  if (isFreeModel(body.model)) {
+    // Enforce zero token prices even if provider routing changes.
+    body.provider = { ...body.provider, max_price: { prompt: 0, completion: 0 } };
+    body.reasoning = { enabled: false };
+  }
 
   let attempt = 0;
   let lastError = null;
@@ -72,6 +78,7 @@ export async function forwardChatCompletion(payload, { timeoutMs = 60_000 } = {}
         throw lastError;
       }
       if (!parsed || typeof parsed !== 'object') throw new ApiError(502, 'The provider returned an unreadable response.', 'PROVIDER_ERROR');
+      if (parsed.error) throw new ApiError(502, sanitizeProviderError(Number(parsed.error.code) || 502, parsed), 'PROVIDER_ERROR');
       return { body: parsed, latencyMs, attempt };
     } catch (error) {
       if (error instanceof ApiError) throw error;

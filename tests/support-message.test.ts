@@ -132,7 +132,8 @@ describe('generative mode', () => {
     expect(payload.max_tokens).toBe(BOUNDS.maxOutputTokens);
     expect(payload.tools).toBeUndefined();
     expect(payload.tool_choice).toBeUndefined();
-    expect(payload.model).toBe('openai/gpt-4o-mini');
+    expect(payload.model).toBe('openrouter/free');
+    expect(payload.provider.max_price).toEqual({ prompt: 0, completion: 0 });
     expect(payload.messages[0].role).toBe('system');
     expect(payload.messages[0].content).toContain('PUBLIC KNOWLEDGE');
     expect(payload.messages[0].content).toMatch(/no tools/);
@@ -192,7 +193,16 @@ describe('generative mode', () => {
     setClient(fakeLimiter());
     const fetchSpy = stubOpenRouter('ok');
     await send({ message: 'What does ZEVQORA do?' });
-    expect(JSON.parse(String((fetchSpy.mock.calls[0][1] as RequestInit).body)).model).toBe('openai/gpt-4o-mini');
+    expect(JSON.parse(String((fetchSpy.mock.calls[0][1] as RequestInit).body)).model).toBe('openrouter/free');
+  });
+
+  it('ignores paid support model configuration', async () => {
+    enableAi();
+    process.env.PUBLIC_SUPPORT_AI_MODEL = 'anthropic/claude-sonnet-4';
+    setClient(fakeLimiter());
+    const fetchSpy = stubOpenRouter('ok');
+    await send({ message: 'What does ZEVQORA do?' });
+    expect(JSON.parse(String((fetchSpy.mock.calls[0][1] as RequestInit).body)).model).toBe('openrouter/free');
   });
 });
 

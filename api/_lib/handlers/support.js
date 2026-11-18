@@ -14,6 +14,7 @@
 import { on } from '../router.js';
 import { ApiError, readJson } from '../http.js';
 import { chatCompletion, openRouterConfigured } from '../openrouter.js';
+import { zevModel } from '../zev-model.js';
 import { ALLOWED_LINKS, CONTACT_EMAIL_FALLBACK, knowledgeDigest, matchKnowledge } from '../support/knowledge.js';
 import { checkVisitorLimits, takeAiBudget } from '../support/limits.js';
 
@@ -28,8 +29,6 @@ export const SUPPORT_BOUNDS = {
   timeoutMs: 15_000,
 };
 
-const DEFAULT_MODEL = 'openai/gpt-4o-mini';
-const MODEL_RE = /^[a-z0-9._-]{1,40}\/[a-z0-9._:-]{1,80}$/i;
 const PAGE_RE = /^[a-z0-9-]{1,40}$/;
 
 export function supportAiEnabled() {
@@ -37,8 +36,7 @@ export function supportAiEnabled() {
 }
 
 function supportModel() {
-  const m = process.env.PUBLIC_SUPPORT_AI_MODEL;
-  return m && MODEL_RE.test(m) ? m : DEFAULT_MODEL;
+  return zevModel('PUBLIC_SUPPORT_AI_MODEL');
 }
 
 function contactEmail() {
