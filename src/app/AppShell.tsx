@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router';
 import { AnimatePresence, motion } from 'motion/react';
-import { BarChart3, BookOpen, Boxes, ClipboardCheck, ChevronsUpDown, FileCheck2, FlaskConical, FolderGit2, Gauge, GitPullRequest, Home, LayoutDashboard, Lightbulb, LogOut, Menu, MessageSquare, Monitor, Network, Plug, Scale, Search, Settings, Shield, Stethoscope, Users, X, PanelLeftClose, PanelLeftOpen, ChevronRight, Check, Plus, CircleHelp, Compass, Code2 } from 'lucide-react';
+import { BarChart3, BookOpen, Boxes, ClipboardCheck, ChevronsUpDown, FileCheck2, FlaskConical, FolderGit2, Gauge, GitPullRequest, Home, LayoutDashboard, Lightbulb, LogOut, Menu, MessageSquare, Monitor, Network, Plug, Scale, Search, Settings, Shield, SquarePen, Stethoscope, Users, X, PanelLeftClose, PanelLeftOpen, ChevronRight, Check, Plus, CircleHelp, Compass, Code2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useSession } from '@/lib/session';
 import { ZevqoraMark } from '@/brand/ZevqoraMark';
@@ -13,6 +13,7 @@ import { ProductTour, PRODUCT_TOUR_STEPS, productTourStorageKey, type TourOutcom
 import { PresentationModeProvider } from '@/lib/mode';
 import { Popover } from '@/components/ui/Overlay';
 import { experienceApi, type CommandCenter } from '@/product/experience';
+import { useZevConversations } from '@/product/zevChat';
 import { Bell, Moon, Sun } from 'lucide-react';
 
 /** First name for the welcome (same rule as the chat home: display name, then username). */
@@ -68,7 +69,7 @@ type NavItem = (typeof NAV)[number];
 
 function SideLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
   return (
-    <NavLink to={item.to} end={item.end} title={collapsed ? item.label : undefined} aria-label={collapsed ? item.label : undefined} className={({ isActive }) => cn('zshell-link group flex items-center gap-2.5 rounded-md px-2.5 transition-control', isActive ? 'is-active' : '', collapsed && 'justify-center px-0')}>
+    <NavLink to={item.to} end={item.end} title={collapsed ? item.label : undefined} aria-label={collapsed ? item.label : undefined} className={({ isActive }) => cn('zx-link', isActive && 'is-active', collapsed && 'is-rail')}>
       <item.Icon size={17} className="shrink-0" aria-hidden />
       {!collapsed && <span className="truncate">{item.label}</span>}
     </NavLink>
@@ -212,35 +213,136 @@ export function WorkspaceSwitcher({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-function UserMenu() {
-  const { me, signOut } = useSession();
+/**
+ * The account card at the foot of the sidebar (as in ChatGPT / Claude): the
+ * person, their plan, and a menu that opens upward. Closed by Escape, a click
+ * outside, or choosing an item.
+ */
+function AccountMenu({ rail }: { rail: boolean }) {
+  const { me, activeWorkspace, signOut } = useSession();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const trigger = useRef<HTMLButtonElement>(null);
   const name = me?.profile.display_name || me?.profile.username || me?.user.email || 'Account';
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        trigger.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
+  const go = (to: string) => {
+    setOpen(false);
+    navigate(to);
+  };
   return (
-    <div className="relative">
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-haspopup="menu" aria-expanded={open} aria-label="Account menu" className="inline-flex h-11 w-11 items-center justify-center rounded-full transition-control hover:bg-ink/5">
+    <div className="zx-account">
+      <button
+        ref={trigger}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Account menu"
+        title={rail ? name : undefined}
+        className={cn('zx-account-btn', rail && 'is-rail')}
+      >
         <Avatar name={name} src={me?.profile.avatar_url} size={30} />
+        {!rail && (
+          <>
+            <span className="zx-account-text">
+              <b>{name}</b>
+              <small>{activeWorkspace ? `${activeWorkspace.plan} plan` : me?.user.email}</small>
+            </span>
+            <ChevronsUpDown size={15} aria-hidden className="zx-account-chev" />
+          </>
+        )}
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} aria-hidden />
-          <div role="menu" className="glass-pop absolute right-0 top-full z-40 mt-1.5 w-60 rounded-lg p-1.5">
-            <div className="px-2.5 py-2">
-              <p className="text-caption truncate font-medium text-ink">{name}</p>
-              <p className="text-technical truncate text-subtle">{me?.user.email}</p>
+          <div role="menu" className={cn('zx-menu zx-account-menu', rail && 'is-rail')}>
+            <div className="zx-menu-head">
+              <b>{name}</b>
+              <small>{me?.user.email}</small>
             </div>
-            <div className="my-1 border-t border-line" />
-            <button type="button" role="menuitem" onClick={() => { setOpen(false); navigate('/app/settings'); }} className="text-caption flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-ink transition-control hover:bg-ink/5"><Settings size={14} /> Settings</button>
-            {me?.isAdmin && (
-              <button type="button" role="menuitem" onClick={() => { setOpen(false); navigate('/admin'); }} className="text-caption flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-ink transition-control hover:bg-ink/5"><Shield size={14} /> Admin</button>
-            )}
-            <button type="button" role="menuitem" onClick={() => { setOpen(false); navigate('/?site=1'); }} className="text-caption flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-ink transition-control hover:bg-ink/5"><Home size={14} /> View website</button>
-            <button type="button" role="menuitem" onClick={() => { setOpen(false); void signOut().then(() => navigate('/', { state: { site: true } })); }} className="text-caption flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-rejected transition-control hover:bg-rejected-bg"><LogOut size={14} /> Sign out</button>
+            <div className="zx-menu-sep" />
+            <button type="button" role="menuitem" onClick={() => go('/app/settings')} className="zx-menu-item"><Settings size={15} aria-hidden /> Settings</button>
+            <button type="button" role="menuitem" onClick={() => go('/app/usage')} className="zx-menu-item"><BarChart3 size={15} aria-hidden /> Usage &amp; plan</button>
+            <button type="button" role="menuitem" onClick={() => go('/app/docs')} className="zx-menu-item"><BookOpen size={15} aria-hidden /> Docs</button>
+            {me?.isAdmin && <button type="button" role="menuitem" onClick={() => go('/admin')} className="zx-menu-item"><Shield size={15} aria-hidden /> Admin</button>}
+            <button type="button" role="menuitem" onClick={() => go('/?site=1')} className="zx-menu-item"><Home size={15} aria-hidden /> View website</button>
+            <div className="zx-menu-sep" />
+            <button type="button" role="menuitem" onClick={() => { setOpen(false); void signOut().then(() => navigate('/', { state: { site: true } })); }} className="zx-menu-item is-danger"><LogOut size={15} aria-hidden /> Sign out</button>
           </div>
         </>
       )}
     </div>
+  );
+}
+
+/** Starts a fresh Zev conversation on the chat home. */
+function NewChatButton({ rail }: { rail: boolean }) {
+  const { activeWorkspace } = useSession();
+  const { newChat } = useZevConversations(activeWorkspace?.id || null);
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      className={cn('zx-newchat', rail && 'is-rail')}
+      onClick={() => {
+        newChat();
+        navigate('/app');
+      }}
+      title={rail ? 'New chat' : undefined}
+      aria-label={rail ? 'New chat' : undefined}
+    >
+      <SquarePen size={16} aria-hidden />
+      {!rail && <span>New chat</span>}
+    </button>
+  );
+}
+
+/** The tab's recent Zev conversations (in memory only; a reload starts fresh). */
+function RecentChats() {
+  const { activeWorkspace } = useSession();
+  const { list, activeId, open, remove } = useZevConversations(activeWorkspace?.id || null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const onHome = location.pathname.replace(/\/+$/, '') === '/app';
+  return (
+    <>
+      {list.length > 0 && (
+        <div className="zx-recent">
+          <p className="zx-group-label">Recent</p>
+          <ul>
+            {list.slice(0, 12).map((c) => (
+              <li key={c.id} className={cn(onHome && c.id === activeId && 'is-active')}>
+                <button
+                  type="button"
+                  className="zx-recent-item"
+                  onClick={() => {
+                    open(c.id);
+                    navigate('/app');
+                  }}
+                  aria-current={onHome && c.id === activeId ? 'page' : undefined}
+                  title={c.title}
+                >
+                  {c.title}
+                </button>
+                <button type="button" className="zx-recent-del" onClick={() => remove(c.id)} aria-label={`Delete chat: ${c.title}`}>
+                  <X size={13} aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -486,81 +588,101 @@ export function AppShell() {
   const toggleNav = () => (desktop ? setCollapsed((v) => !v) : setMobileOpen((v) => !v));
 
   const renderSidebar = (rail: boolean, drawer: boolean) => (
-    <aside id={drawer ? 'app-sidebar-drawer' : 'app-sidebar'} data-surface="ink" aria-label="Navigation" className={cn('glass-sidebar zshell zv-ink-side flex h-full flex-col', rail ? 'w-[72px]' : 'w-[260px]')}>
-      <div className={cn('flex h-14 shrink-0 items-center border-b border-line/60 px-3', rail ? 'justify-center' : 'justify-between')}>
-        <Link to="/app" aria-label="ZEVQORA home" className="inline-flex items-center rounded-sm">
-          {rail ? <ZevqoraMark height={22} /> : <ZevqoraLogo variant="inverse" size={22} />}
+    <aside id={drawer ? 'app-sidebar-drawer' : 'app-sidebar'} aria-label="Navigation" className={cn('zx-side', rail && 'is-rail')}>
+      <div className="zx-side-top">
+        <Link to="/app" aria-label="ZEVQORA home" className="zx-logo">
+          {rail ? <ZevqoraMark height={22} /> : <ZevqoraLogo variant={theme === 'dark' ? 'inverse' : 'default'} size={21} />}
         </Link>
-        {drawer && (
-          <button type="button" onClick={() => setMobileOpen(false)} aria-label="Close navigation" className="zshell-icon-btn is-dark" autoFocus>
+        {drawer ? (
+          <button type="button" onClick={() => setMobileOpen(false)} aria-label="Close navigation" className="zx-icon-btn" autoFocus>
             <X size={18} aria-hidden />
           </button>
+        ) : (
+          !rail && (
+            <button type="button" onClick={() => setCollapsed(true)} aria-label="Collapse navigation" aria-controls="app-sidebar" aria-expanded title="Collapse navigation" className="zx-icon-btn">
+              <PanelLeftClose size={18} aria-hidden />
+            </button>
+          )
         )}
       </div>
-      <div className="px-2.5 pt-3">
+      {rail && !drawer && (
+        <button type="button" onClick={() => setCollapsed(false)} aria-label="Expand navigation" aria-controls="app-sidebar" aria-expanded={false} title="Expand navigation" className="zx-icon-btn zx-expand">
+          <PanelLeftOpen size={18} aria-hidden />
+        </button>
+      )}
+      <div className="zx-side-ws">
         <WorkspaceSwitcher collapsed={rail} />
       </div>
-      <nav aria-label="Application" className="scrollbar-thin mt-3 flex-1 overflow-y-auto px-2.5 pb-3">
-        <ul className="flex flex-col gap-0.5">
-          {sections.groups.map(([group, items]) => (
-            <li key={group} className={group === 'Home' ? undefined : 'zshell-group'}>
-              {!rail && group !== 'Home' && <div className="zshell-group-label">{group}</div>}
-              <ul className="flex flex-col gap-0.5">
-                {items.map((item) => (
-                  <li key={item.to}>
-                    <SideLink item={item} collapsed={rail} />
-                  </li>
-                ))}
-              </ul>
-            </li>
-          ))}
-          {sections.more.length > 0 && (
-            <li className="zshell-group">
-              <button
-                type="button"
-                onClick={() => setMoreOpen((v) => !v)}
-                aria-expanded={showMore}
-                aria-controls={drawer ? 'app-nav-more-drawer' : 'app-nav-more'}
-                title={rail ? 'More' : undefined}
-                aria-label={rail ? 'More' : undefined}
-                className={cn('zshell-link flex w-full items-center gap-2.5 rounded-md px-2.5', rail && 'justify-center px-0')}
-              >
-                <ChevronRight size={17} className={cn('shrink-0 transition-transform', showMore && 'rotate-90')} aria-hidden />
-                {!rail && <span>More</span>}
-              </button>
-              {showMore && (
-                <ul id={drawer ? 'app-nav-more-drawer' : 'app-nav-more'} className="flex flex-col gap-0.5">
-                  {sections.more.map((item) => (
+      <div className="zx-side-new">
+        <NewChatButton rail={rail} />
+      </div>
+      <div className="zx-side-scroll scrollbar-thin">
+        <nav aria-label="Application" className="zx-nav">
+          <ul>
+            {sections.groups.map(([group, items]) => (
+              <li key={group} className={group === 'Home' ? undefined : 'zx-group'}>
+                {!rail && group !== 'Home' && <p className="zx-group-label">{group}</p>}
+                <ul>
+                  {items.map((item) => (
                     <li key={item.to}>
                       <SideLink item={item} collapsed={rail} />
                     </li>
                   ))}
                 </ul>
-              )}
-            </li>
-          )}
-          {me?.isAdmin && (
-            <li className="zshell-group">
-              <NavLink to="/admin" title={rail ? 'Admin' : undefined} aria-label={rail ? 'Admin' : undefined} className={({ isActive }) => cn('zshell-link flex items-center gap-2.5 rounded-md px-2.5', isActive && 'is-active', rail && 'justify-center px-0')}>
-                <Shield size={17} className="shrink-0" aria-hidden />
-                {!rail && <span>Admin</span>}
-              </NavLink>
-            </li>
-          )}
-        </ul>
-      </nav>
+              </li>
+            ))}
+            {sections.more.length > 0 && (
+              <li className="zx-group">
+                <button
+                  type="button"
+                  onClick={() => setMoreOpen((v) => !v)}
+                  aria-expanded={showMore}
+                  aria-controls={drawer ? 'app-nav-more-drawer' : 'app-nav-more'}
+                  title={rail ? 'More' : undefined}
+                  aria-label={rail ? 'More' : undefined}
+                  className={cn('zx-link', rail && 'is-rail')}
+                >
+                  <ChevronRight size={17} className={cn('shrink-0 transition-transform', showMore && 'rotate-90')} aria-hidden />
+                  {!rail && <span>More</span>}
+                </button>
+                {showMore && (
+                  <ul id={drawer ? 'app-nav-more-drawer' : 'app-nav-more'}>
+                    {sections.more.map((item) => (
+                      <li key={item.to}>
+                        <SideLink item={item} collapsed={rail} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            )}
+            {me?.isAdmin && (
+              <li className="zx-group">
+                <NavLink to="/admin" title={rail ? 'Admin' : undefined} aria-label={rail ? 'Admin' : undefined} className={({ isActive }) => cn('zx-link', isActive && 'is-active', rail && 'is-rail')}>
+                  <Shield size={17} className="shrink-0" aria-hidden />
+                  {!rail && <span>Admin</span>}
+                </NavLink>
+              </li>
+            )}
+          </ul>
+        </nav>
+        {!rail && <RecentChats />}
+      </div>
+      <div className="zx-side-foot">
+        <AccountMenu rail={rail} />
+      </div>
     </aside>
   );
 
   return (
     <PresentationModeProvider>
-      <div className="app-env workspace-experience flex min-h-dvh" data-theme={theme} data-surface={theme === 'dark' ? 'ink' : undefined}>
-        <div className="sticky top-0 hidden h-dvh shrink-0 lg:block">{renderSidebar(collapsed, false)}</div>
+      <div className="app-env workspace-experience zx-app flex min-h-dvh" data-theme={theme} data-surface={theme === 'dark' ? 'ink' : undefined}>
+        <div className="zx-side-dock sticky top-0 hidden h-dvh shrink-0 lg:block">{renderSidebar(collapsed, false)}</div>
         <AnimatePresence>
           {mobileOpen && !desktop && (
             <motion.div className="fixed inset-0 z-50 lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <div className="absolute inset-0 bg-ink/40 backdrop-blur-[2px]" onClick={() => setMobileOpen(false)} aria-hidden />
-              <motion.div className="absolute inset-y-0 left-0 max-w-[86vw]" initial={{ x: -280 }} animate={{ x: 0 }} exit={{ x: -280 }} transition={{ type: 'spring', stiffness: 400, damping: 36 }}>
+              <div className="zx-scrim absolute inset-0" onClick={() => setMobileOpen(false)} aria-hidden />
+              <motion.div className="absolute inset-y-0 left-0 w-[290px] max-w-[86vw]" initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }} transition={{ type: 'spring', stiffness: 400, damping: 36 }}>
                 {renderSidebar(false, true)}
               </motion.div>
             </motion.div>
@@ -568,40 +690,33 @@ export function AppShell() {
         </AnimatePresence>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="zshell-header glass-strong sticky top-0 z-30 flex h-14 items-center gap-2 rounded-none border-x-0 border-t-0 border-b border-b-line/60 px-3 sm:gap-3 lg:px-5">
-            <button
-              type="button"
-              onClick={toggleNav}
-              aria-label={desktop ? (collapsed ? 'Expand navigation' : 'Collapse navigation') : 'Open navigation'}
-              aria-expanded={navExpanded}
-              aria-controls={desktop ? 'app-sidebar' : 'app-sidebar-drawer'}
-              title={desktop ? (collapsed ? 'Expand navigation' : 'Collapse navigation') : 'Open navigation'}
-              className="zshell-icon-btn"
-            >
-              {desktop ? (collapsed ? <PanelLeftOpen size={18} aria-hidden /> : <PanelLeftClose size={18} aria-hidden />) : <Menu size={19} aria-hidden />}
-            </button>
-            <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-caption text-muted">
-              <span className="hidden max-w-[16ch] truncate sm:inline">{activeWorkspace.name}</span>
-              <ChevronRight size={13} className="hidden shrink-0 text-subtle sm:inline" aria-hidden />
-              <span className="truncate font-medium text-ink">{title}</span>
+          <header className="zx-top">
+            {!desktop && (
+              <button type="button" onClick={toggleNav} aria-label="Open navigation" aria-expanded={navExpanded} aria-controls="app-sidebar-drawer" title="Open navigation" className="zx-icon-btn">
+                <Menu size={19} aria-hidden />
+              </button>
+            )}
+            <nav aria-label="Breadcrumb" className="zx-crumbs">
+              <span className="zx-crumb-ws">{activeWorkspace.name}</span>
+              <ChevronRight size={13} className="zx-crumb-sep" aria-hidden />
+              <span className="zx-crumb-title">{title}</span>
               {crumbs.length > 1 && (
                 <>
-                  <ChevronRight size={13} className="hidden shrink-0 text-subtle md:inline" aria-hidden />
-                  <span className="hidden truncate font-mono text-technical text-subtle md:inline">{crumbs[1].slice(0, 8)}</span>
+                  <ChevronRight size={13} className="zx-crumb-sep is-md" aria-hidden />
+                  <span className="zx-crumb-id">{crumbs[1].slice(0, 8)}</span>
                 </>
               )}
             </nav>
-            <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
-              <ThemeToggle theme={theme} onToggle={toggleTheme} />
-              <HelpMenu onTour={() => setTourOpen(true)} resumeStep={resumeStep} />
-              <Notifications workspaceId={activeWorkspace.id} />
-              <button type="button" onClick={() => setPaletteOpen(true)} className="text-caption hidden h-9 items-center gap-2 rounded-md border border-line/70 bg-surface/70 px-2.5 text-muted transition-control hover:bg-surface hover:text-ink md:inline-flex" aria-label="Open command palette">
-                <Search size={13} aria-hidden /> Search <Kbd>⌘K</Kbd>
+            <div className="zx-top-actions">
+              <button type="button" onClick={() => setPaletteOpen(true)} className="zx-search" aria-label="Open command palette">
+                <Search size={14} aria-hidden /> <span>Search</span> <Kbd>⌘K</Kbd>
               </button>
-              <UserMenu />
+              <Notifications workspaceId={activeWorkspace.id} />
+              <HelpMenu onTour={() => setTourOpen(true)} resumeStep={resumeStep} />
+              <ThemeToggle theme={theme} onToggle={toggleTheme} />
             </div>
           </header>
-          <main className={cn('min-w-0 flex-1', !productRoute && 'px-4 py-6 lg:px-8 lg:py-8')}>
+          <main className={cn('zx-main min-w-0 flex-1', !productRoute && 'px-4 py-6 lg:px-8 lg:py-8')}>
             {productRoute ? (
               <Outlet />
             ) : (
