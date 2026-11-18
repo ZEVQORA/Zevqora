@@ -46,12 +46,13 @@
     padding-inline: 16px;
   }
 }
+/* Room under each masked word so descenders (g, p, y) are never clipped. */
 .zv-mask {
   display: inline-block;
   overflow: hidden;
   vertical-align: top;
-  padding-bottom: 0.1em;
-  margin-bottom: -0.1em;
+  padding-bottom: 0.2em;
+  margin-bottom: -0.2em;
 }
 .zv-mask-in {
   display: inline-block;
@@ -521,30 +522,6 @@
 }
 .zv-foot-ghost:hover {
   background: rgb(255 255 255 / 0.06);
-}
-.zv-foot-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin: 26px 0 0;
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 12.5px;
-  color: #b9c2d0;
-  background: rgb(255 255 255 / 0.04);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
-}
-.zv-foot-status i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #3fd19c;
-  box-shadow: 0 0 0 3px rgb(63 209 156 / 0.18);
-  animation: zv-blink 2.4s ease-in-out infinite;
-}
-.zv-foot-status.is-degraded i {
-  background: #f2b24a;
-  box-shadow: 0 0 0 3px rgb(242 178 74 / 0.18);
 }
 .zv-foot-cols {
   display: grid;
@@ -1143,8 +1120,10 @@
 .zv-loop .zv-h2 {
   color: #fff;
 }
+/* Gradient text paints only inside its box: pad the box below the baseline so descenders keep their colour. */
 .zv-loop .zv-accent .zv-mask-in {
-  padding-right: 0.04em;
+  padding: 0 0.04em 0.18em 0;
+  margin-bottom: -0.18em;
   background: linear-gradient(100deg, #c2d8ff 0%, #6aa2ff 45%, #468bff 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -1224,17 +1203,6 @@
 }
 .zv-bento-card.zv-spot::before {
   background: radial-gradient(440px circle at var(--mx, 50%) var(--my, 0%), rgb(70 139 255 / 0.18), transparent 60%);
-}
-.zv-bento-n {
-  position: absolute;
-  top: 6px;
-  right: 22px;
-  font: 700 104px/1 var(--font-sans);
-  letter-spacing: -0.06em;
-  color: transparent;
-  -webkit-text-stroke: 1px rgb(255 255 255 / 0.11);
-  pointer-events: none;
-  user-select: none;
 }
 .zv-bento-label {
   display: inline-flex;
@@ -1852,11 +1820,6 @@
   .zv-bento-card {
     padding: 22px 18px;
     border-radius: 22px;
-  }
-  .zv-bento-n {
-    top: 6px;
-    right: 14px;
-    font-size: 68px;
   }
   .zv-bv-wrow {
     grid-template-columns: 92px 1fr;

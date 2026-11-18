@@ -1,6 +1,6 @@
 import { useRef, type CSSProperties, type PointerEvent } from 'react';
 import { Link } from 'react-router';
-import { motion, useInView, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform, type MotionValue } from 'motion/react';
+import { motion, useInView, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform } from 'motion/react';
 import { ArrowDown, ArrowRight, ArrowUpRight, Check, Eye, FlaskConical, GitBranch, KeyRound, ShieldCheck, UserCheck, X } from 'lucide-react';
 import { DimensionalZ } from '@/brand/DimensionalZ';
 import { Zev } from '@/brand/Zev';
@@ -264,7 +264,7 @@ function ReviewRequest() {
 const VISUALS = [Waterfall, CandidateTree, Gates, ReviewRequest];
 
 /** A card that tilts toward the pointer (mouse only, never with reduced motion). */
-function TiltCard({ s, numY }: { s: (typeof LOOP)[number]; numY: MotionValue<number> }) {
+function TiltCard({ s }: { s: (typeof LOOP)[number] }) {
   const reduced = useReducedMotion();
   const rx = useSpring(0, { stiffness: 160, damping: 18 });
   const ry = useSpring(0, { stiffness: 160, damping: 18 });
@@ -286,9 +286,6 @@ function TiltCard({ s, numY }: { s: (typeof LOOP)[number]; numY: MotionValue<num
       transition={{ type: 'spring', stiffness: 260, damping: 22 }}
       aria-labelledby={`zv-bento-${s.n}`}
     >
-      <motion.span className="zv-bento-n" style={{ y: numY }} aria-hidden>
-        {s.n}
-      </motion.span>
       <p className="zv-bento-label">
         <s.Icon size={14} aria-hidden /> {s.n} · {s.label}
       </p>
@@ -311,7 +308,6 @@ export function LoopV2() {
   const reduced = useReducedMotion();
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] });
   const bgY = useTransform(scrollYProgress, [0, 1], ['-8%', '8%']);
-  const numY = useTransform(scrollYProgress, [0, 1], [70, -70]);
   const onMove = (e: PointerEvent<HTMLElement>) => {
     if (reduced || e.pointerType !== 'mouse') return;
     const r = e.currentTarget.getBoundingClientRect();
@@ -357,7 +353,7 @@ export function LoopV2() {
               transition={{ duration: 1.1, ease: EASE, delay: 0.1 * i }}
               style={{ transformPerspective: 1400 }}
             >
-              <TiltCard s={s} numY={numY} />
+              <TiltCard s={s} />
             </motion.li>
           ))}
         </ol>

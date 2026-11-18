@@ -10,8 +10,8 @@
 .zv-hero.zev-hero.is-ink {
   position: relative;
   isolation: isolate;
-  min-height: min(112svh, 1060px);
-  padding: 118px 0 clamp(64px, 10vh, 120px);
+  min-height: min(124svh, 1180px);
+  padding: 118px 0 clamp(96px, 16vh, 180px);
   overflow: hidden;
   color: #fff;
   background: #07080c;
@@ -71,8 +71,10 @@
 .zv-hero.is-ink .zv-lighter {
   color: #6aa2ff;
 }
+/* Pad below the baseline: gradient text only paints inside its box, so the "g" in "lighter" was cut off. */
 .zv-hero.is-ink .zv-lighter .zv-mask-in {
-  padding-right: 0.04em;
+  padding: 0 0.04em 0.2em 0;
+  margin-bottom: -0.2em;
   background: linear-gradient(100deg, #c2d8ff 0%, #6aa2ff 45%, #468bff 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -1116,4 +1118,13 @@
   .zv-auth-card {
     padding: 22px 18px;
   }
+}
+
+/* The website scrolls without a visible scrollbar (the signed-in workspace keeps its own). */
+html:has(.marketing-app) {
+  scrollbar-width: none;
+}
+html:has(.marketing-app)::-webkit-scrollbar,
+html:has(.marketing-app) body::-webkit-scrollbar {
+  display: none;
 }
