@@ -1,7 +1,7 @@
-import { useRef, type CSSProperties, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { Link } from 'react-router';
-import { motion, useInView, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform } from 'motion/react';
-import { ArrowDown, ArrowRight, ArrowUpRight, Check, Eye, FlaskConical, GitBranch, KeyRound, ShieldCheck, UserCheck, X } from 'lucide-react';
+import { animate, motion, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll, useSpring, useTransform, type MotionValue } from 'motion/react';
+import { ArrowDown, ArrowRight, ArrowUpRight, Eye, FlaskConical, KeyRound, ShieldCheck, UserCheck, X } from 'lucide-react';
 import { DimensionalZ } from '@/brand/DimensionalZ';
 import { Zev } from '@/brand/Zev';
 import { useSiteContent } from '@/lib/site';
@@ -120,245 +120,353 @@ export function AskZevV2() {
 
 /* ─────────────────────────── 3. The loop ─────────────────────────── */
 
-const LOOP: Array<{ n: string; label: string; title: string; body: string; Icon: typeof Eye; wide?: boolean }> = [
-  { n: '01', label: 'Observe', title: 'See where the money goes.', body: 'The model calls, tool steps, retries and context behind one AI workflow — the real baseline.', Icon: Eye, wide: true },
-  { n: '02', label: 'Challenge', title: 'Propose a lighter path.', body: 'A smaller model, a shorter context, a cache. Each one is a candidate, never a promise.', Icon: FlaskConical },
-  { n: '03', label: 'Verify', title: 'Let the gates decide.', body: 'Replay every candidate on recorded cases against the quality floor you set in advance.', Icon: ShieldCheck },
-  { n: '04', label: 'Review', title: 'You decide what ships.', body: 'Read the patch and the evidence. VERIFIED does not mean deployed.', Icon: UserCheck, wide: true },
+/*
+ * A scroll-driven story. While the section is pinned, scroll progress p (0..1)
+ * plays one workload through the four phases on a single SVG stage:
+ *   0.00–0.25 Observe   · the trace draws in, the expensive call glows
+ *   0.25–0.50 Challenge · four candidates branch out of the hot spot
+ *   0.50–0.75 Verify    · a quality gate draws; A passes, D bounces off
+ *   0.75–1.00 Review    · A lands in a review request and gets approved
+ * Sample data only (labelled under the stage).
+ */
+type Progress = MotionValue<number>;
+
+const PHASES = [
+  { n: '01', label: 'Observe', title: 'See where the money goes.', body: 'ZEVQORA reads one real workflow — model calls, tool steps, retries — and finds the expensive part.', Icon: Eye },
+  { n: '02', label: 'Challenge', title: 'Propose lighter paths.', body: 'From the hot spot it branches candidates: a smaller model, a trimmed context, a cache. Each one is only a candidate.', Icon: FlaskConical },
+  { n: '03', label: 'Verify', title: 'Let the gate decide.', body: 'Every candidate replays on recorded cases against the quality floor you set first. Below the floor is rejected, however cheap.', Icon: ShieldCheck },
+  { n: '04', label: 'Review', title: 'You decide what ships.', body: 'The verified candidate lands on your desk with its evidence. VERIFIED does not mean deployed.', Icon: UserCheck },
 ];
+/** Where each phase looks settled, used by the step buttons. */
+const PHASE_AT = [0.18, 0.44, 0.71, 0.985];
 
-const once = { once: true, margin: '-10% 0px' } as const;
+const TRACE: Array<[string, number, number, string]> = [
+  ['Request', 0, 1, 'is-total'],
+  ['Retrieval', 0.03, 0.14, ''],
+  ['Large model', 0.17, 0.44, 'is-hot'],
+  ['Order lookup', 0.62, 0.11, ''],
+  ['Retry', 0.74, 0.24, 'is-warm'],
+];
+const LANE_X = 128;
+const LANE_W = 200;
+const ROW0 = 150;
+const ROW_H = 36;
+const HOT_Y = ROW0 + 2 * ROW_H;
+const ORIGIN_X = 344;
+const PILL_X = 420;
+const PILL_W = 200;
+const PILL_H = 40;
+const PILL_Y = [96, 166, 236, 306];
+const CANDS = ['Smaller model', 'Trim context', 'Cache answers', 'Cheapest model'];
+const GATE_X = 660;
 
-/** Adds `is-in` the first time the element is on screen; the CSS choreography keys off it. */
-function useOnScreen<T extends Element>() {
-  const ref = useRef<T>(null);
-  const seen = useInView(ref, once);
-  return [ref, seen ? ' is-in' : ''] as const;
+function TraceRow({ p, k }: { p: Progress; k: number }) {
+  const [label, x, w, tone] = TRACE[k];
+  const y = ROW0 + k * ROW_H;
+  const show = useTransform(p, [0.01 + k * 0.025, 0.06 + k * 0.025], [0, 1]);
+  const grow = useTransform(p, [0.03 + k * 0.025, 0.11 + k * 0.025], [0, 1]);
+  return (
+    <motion.g style={{ opacity: show }}>
+      <text x={24} y={y + 4} className="zs-label">{label}</text>
+      <rect x={LANE_X} y={y - 11} width={LANE_W} height={22} rx={7} className="zs-lane" />
+      <motion.rect x={LANE_X + x * LANE_W} y={y - 6} width={w * LANE_W} height={12} rx={5} className={`zs-bar ${tone}`} style={{ scaleX: grow, originX: 0 }} />
+    </motion.g>
+  );
 }
 
-/** Observe: one request as a trace waterfall, with a playhead scanning it. */
-function Waterfall() {
-  const [ref, inCls] = useOnScreen<HTMLDivElement>();
-  const spans: Array<[string, number, number, string]> = [
-    ['Request', 0, 100, 'is-total'],
-    ['Retrieval', 3, 14, ''],
-    ['Large model call', 17, 44, 'is-hot'],
-    ['Order lookup', 62, 11, ''],
-    ['Retry', 74, 24, 'is-warm'],
-  ];
+function Trace({ p }: { p: Progress }) {
+  const dim = useTransform(p, [0, 0.5, 0.55, 0.76, 0.81], [1, 1, 0.5, 0.5, 0.06]);
+  const tag = useTransform(p, [0.15, 0.19], [0, 1]);
+  const tagX = useTransform(p, [0.15, 0.19], [-8, 0]);
   return (
-    <div ref={ref} className={`zv-bv-water${inCls}`}>
-      {spans.map(([label, x, w, tone], k) => (
-        <div className="zv-bv-wrow" key={label}>
-          <span>{label}</span>
-          <span className="zv-bv-lane">
-            <motion.i className={tone} style={{ left: `${x}%` }} initial={{ width: 0 }} whileInView={{ width: `${w}%` }} viewport={once} transition={{ duration: 0.9, ease: EASE, delay: 0.3 + k * 0.12 }} />
-            {tone === 'is-hot' && <b className="zv-bv-tag">most spend</b>}
-          </span>
-        </div>
+    <motion.g style={{ opacity: dim }}>
+      <text x={24} y={112} className="zs-kicker">ONE REQUEST · SUPPORT AGENT</text>
+      {TRACE.map((_, k) => (
+        <TraceRow key={k} p={p} k={k} />
       ))}
-      <span className="zv-bv-scan" aria-hidden>
-        <i />
-      </span>
-      <div className="zv-bv-axis" aria-hidden>
-        <span>request</span>
-        <span>answer</span>
-      </div>
-    </div>
+      <motion.g style={{ opacity: tag, x: tagX }}>
+        <rect x={LANE_X + 0.61 * LANE_W + 6} y={HOT_Y - 9} width={66} height={18} rx={9} className="zs-tag" />
+        <text x={LANE_X + 0.61 * LANE_W + 39} y={HOT_Y + 4} textAnchor="middle" className="zs-tag-t">most spend</text>
+      </motion.g>
+      <text x={LANE_X} y={ROW0 + 5 * ROW_H} className="zs-axis">request</text>
+      <text x={LANE_X + LANE_W} y={ROW0 + 5 * ROW_H} textAnchor="end" className="zs-axis">answer</text>
+    </motion.g>
   );
 }
 
-/** Challenge: candidates branch off the baseline; the risky one is flagged for Verify. */
-function CandidateTree() {
-  const [ref, inCls] = useOnScreen<HTMLUListElement>();
+function Branch({ p, k }: { p: Progress; k: number }) {
+  const cy = PILL_Y[k] + PILL_H / 2;
+  const d = `M ${ORIGIN_X} ${HOT_Y} C ${ORIGIN_X + 44} ${HOT_Y}, ${PILL_X - 44} ${cy}, ${PILL_X} ${cy}`;
+  const len = useTransform(p, [0.27 + k * 0.03, 0.36 + k * 0.03], [0, 1]);
+  const flow = useTransform(p, [0.36 + k * 0.03, 0.4 + k * 0.03], [0, 1]);
   return (
-    <ul ref={ref} className={`zv-bv-tree${inCls}`}>
-      {['Smaller model on simple tickets', 'Trim retrieved context', 'Cache policy answers', 'Cheapest model everywhere'].map((t, k) => (
-        <li key={t} style={{ '--k': k } as CSSProperties}>
-          <b>{'ABCD'[k]}</b>
-          <span>{t}</span>
-          {k === 3 && <em className="zv-bv-flag">risky</em>}
-        </li>
+    <g>
+      <motion.path d={d} className="zs-branch" style={{ pathLength: len }} />
+      <motion.path d={d} className="zs-branch-flow" style={{ opacity: flow }} />
+    </g>
+  );
+}
+
+function Branches({ p }: { p: Progress }) {
+  const fade = useTransform(p, [0.5, 0.55, 0.76, 0.8], [1, 0.45, 0.45, 0]);
+  const origin = useTransform(p, [0.25, 0.28], [0, 1]);
+  return (
+    <motion.g style={{ opacity: fade }}>
+      {CANDS.map((_, k) => (
+        <Branch key={k} p={p} k={k} />
       ))}
-    </ul>
+      <motion.g style={{ opacity: origin }}>
+        <circle cx={ORIGIN_X} cy={HOT_Y} r={5} className="zs-origin" />
+        <circle cx={ORIGIN_X} cy={HOT_Y} r={5} className="zs-origin-ping" />
+      </motion.g>
+    </motion.g>
   );
 }
 
-/** Verify: quality as a ring that fills and counts up, with the floor marked at 0.95. */
-function QualityRing({ name, q, ok, delay }: { name: string; q: number; ok: boolean; delay: number }) {
-  const r = 34;
-  const a = 0.95 * 2 * Math.PI - Math.PI / 2;
-  const tick = (d: number) => [42 + d * Math.cos(a), 42 + d * Math.sin(a)];
-  const [x1, y1] = tick(26);
-  const [x2, y2] = tick(42);
+function Gate({ p }: { p: Progress }) {
+  const len = useTransform(p, [0.5, 0.57], [0, 1]);
+  const show = useTransform(p, [0.5, 0.53, 0.76, 0.8], [0, 1, 1, 0]);
+  const d = `M ${GATE_X} 74 L ${GATE_X} 396`;
   return (
-    <div className={`zv-bv-ring ${ok ? 'is-pass' : 'is-fail'}`}>
-      <div className="zv-bv-dial">
-        <svg viewBox="0 0 84 84" aria-hidden>
-          <circle cx="42" cy="42" r={r} className="zv-bv-ring-track" />
-          <motion.circle cx="42" cy="42" r={r} className="zv-bv-ring-fill" transform="rotate(-90 42 42)" initial={{ pathLength: 0 }} whileInView={{ pathLength: q }} viewport={once} transition={{ duration: 1.6, ease: EASE, delay }} />
-          <line x1={x1} y1={y1} x2={x2} y2={y2} className="zv-bv-floor" />
-        </svg>
-        <strong>
-          <Count to={q} decimals={2} duration={1.6} />
-        </strong>
-      </div>
-      <p>Candidate {name}</p>
-      <motion.span className={`zv-verdict ${ok ? 'is-verified' : 'is-rejected'}`} initial={{ opacity: 0, scale: 0.6 }} whileInView={{ opacity: 1, scale: 1 }} viewport={once} transition={{ type: 'spring', stiffness: 320, damping: 16, delay: delay + 1.4 }}>
-        {ok ? <Check size={11} /> : <X size={11} />} {ok ? 'VERIFIED' : 'REJECTED'}
-      </motion.span>
-    </div>
+    <motion.g style={{ opacity: show }}>
+      <motion.path d={d} className="zs-gate" style={{ pathLength: len }} />
+      <path d={d} className="zs-gate-flow" />
+      <rect x={GATE_X - 70} y={44} width={140} height={22} rx={11} className="zs-gate-chip" />
+      <text x={GATE_X} y={59} textAnchor="middle" className="zs-gate-t">quality floor 0.95</text>
+    </motion.g>
   );
 }
 
-function Gates() {
+function Candidate({ p, k }: { p: Progress; k: number }) {
+  const isA = k === 0;
+  const isD = k === 3;
+  const tested = isA || isD;
+  const y0 = PILL_Y[k];
+  const appear = useTransform(p, [0.3 + k * 0.03, 0.36 + k * 0.03], [0, 1]);
+  const enterX = useTransform(p, [0.3 + k * 0.03, 0.37 + k * 0.03], [-18, 0]);
+  const moveX = useTransform(p, isA ? [0.56, 0.66, 0.76, 0.84] : isD ? [0.56, 0.63, 0.67] : [0, 1], isA ? [0, 170, 170, -210] : isD ? [0, 50, 22] : [0, 0]);
+  const x = useTransform([enterX, moveX], ([a, b]: number[]) => a + b);
+  const y = useTransform(p, isA ? [0.76, 0.84] : isD ? [0.64, 0.7] : [0, 1], isA ? [0, 180 - y0] : isD ? [0, 16] : [0, 0]);
+  const fade = useTransform(p, isA ? [0, 1] : isD ? [0.76, 0.8] : [0.52, 0.56, 0.76, 0.8], isA ? [1, 1] : isD ? [1, 0] : [1, 0.28, 0.28, 0]);
+  const opacity = useTransform([appear, fade], ([a, f]: number[]) => a * f);
+  const tint = useTransform(p, isA ? [0.64, 0.67] : [0.62, 0.65], [0, 1]);
+  const score = useTransform(p, [0.58, isA ? 0.66 : 0.64], [0, isA ? 0.97 : 0.87]);
+  const scoreText = useTransform(score, (v) => v.toFixed(2));
+  const scoreOn = useTransform(p, [0.56, 0.58], [0, 1]);
+  const verdict = useTransform(p, isA ? [0.66, 0.69] : [0.65, 0.68], [0, 1]);
+  const verdictY = useTransform(p, isA ? [0.66, 0.69] : [0.65, 0.68], [6, 0]);
   return (
-    <div>
-      <div className="zv-bv-rings">
-        <QualityRing name="D" q={0.87} ok={false} delay={0.2} />
-        <QualityRing name="A" q={0.97} ok delay={0.45} />
-      </div>
-      <p className="zv-bv-floor-note">White tick = the 0.95 quality floor</p>
-    </div>
+    <motion.g style={{ x, y, opacity }}>
+      <rect x={PILL_X} y={y0} width={PILL_W} height={PILL_H} rx={12} className="zs-pill" />
+      {tested && <motion.rect x={PILL_X} y={y0} width={PILL_W} height={PILL_H} rx={12} className={isA ? 'zs-pill-ok' : 'zs-pill-bad'} style={{ opacity: tint }} />}
+      <rect x={PILL_X + 10} y={y0 + 9} width={22} height={22} rx={7} className="zs-key" />
+      <text x={PILL_X + 21} y={y0 + 24} textAnchor="middle" className="zs-key-t">{'ABCD'[k]}</text>
+      <text x={PILL_X + 42} y={y0 + 25} className="zs-pill-t">{CANDS[k]}</text>
+      {tested && (
+        <motion.text x={PILL_X + PILL_W - 12} y={y0 + 25} textAnchor="end" className="zs-score" style={{ opacity: scoreOn }}>
+          {scoreText}
+        </motion.text>
+      )}
+      {tested && (
+        <motion.g style={{ opacity: verdict, y: verdictY }}>
+          <rect x={PILL_X} y={y0 + 48} width={isA ? 88 : 92} height={22} rx={11} className={isA ? 'zs-v-ok' : 'zs-v-bad'} />
+          <text x={PILL_X + (isA ? 44 : 46)} y={y0 + 63} textAnchor="middle" className={isA ? 'zs-v-ok-t' : 'zs-v-bad-t'}>
+            {isA ? '✓ VERIFIED' : '✕ REJECTED'}
+          </text>
+        </motion.g>
+      )}
+    </motion.g>
   );
 }
 
-/** Review: the request lands, the checks tick in, and a person approves it (a looping demo). */
-function ReviewRequest() {
-  const [ref, inCls] = useOnScreen<HTMLDivElement>();
-  const checks: Array<[string, boolean]> = [
-    ['Quality 0.97, above the 0.95 floor', true],
-    ['Patch and evidence ready to read', true],
-    ['Waiting for your decision', false],
-  ];
+function ReviewCard({ p }: { p: Progress }) {
+  const show = useTransform(p, [0.8, 0.85], [0, 1]);
+  const lift = useTransform(p, [0.8, 0.86], [24, 0]);
+  const rows = [useTransform(p, [0.85, 0.87], [0, 1]), useTransform(p, [0.87, 0.89], [0, 1]), useTransform(p, [0.89, 0.91], [0, 1])];
+  const sent = useTransform(p, [0.935, 0.95], [0, 1]);
+  const unsent = useTransform(sent, (v) => 1 - v);
+  const cursorOn = useTransform(p, [0.86, 0.88, 0.97, 1], [0, 1, 1, 0.9]);
+  const cursorX = useTransform(p, [0.86, 0.92], [150, 0]);
+  const cursorY = useTransform(p, [0.86, 0.92], [90, 0]);
+  const press = useTransform(p, [0.92, 0.93, 0.945], [1, 0.78, 1]);
+  const checks = ['Quality 0.97 · above the 0.95 floor', 'Patch and evidence attached', 'Waiting for your decision'];
   return (
-    <div ref={ref} className={`zv-bv-review${inCls}`}>
-      <div className="zv-bv-review-head">
-        <span><GitBranch size={14} aria-hidden /> Candidate A · smaller model on simple tickets</span>
-        <span className="zv-verdict is-verified"><Check size={11} /> VERIFIED</span>
-      </div>
-      <ul>
-        {checks.map(([t, done], k) => (
-          <li key={t} className={done ? '' : 'is-wait'} style={{ '--k': k } as CSSProperties}>
-            {done ? <Check size={14} aria-hidden /> : <UserCheck size={14} aria-hidden />} {t}
-          </li>
-        ))}
-      </ul>
-      <div className="zv-bv-actions">
-        <span className="zv-bv-btn is-primary zv-bv-approve">
-          <span className="is-a">Approve for review</span>
-          <span className="is-b" aria-hidden>
-            <Check size={13} /> Sent to review
-          </span>
-          <svg className="zv-bv-cursor" viewBox="0 0 24 24" aria-hidden>
-            <path d="M4 2.5 19.5 12l-6.6 1.6L9.6 20 4 2.5Z" />
-          </svg>
-        </span>
-        <span className="zv-bv-btn">Not now</span>
-        <em>Nothing deploys on its own.</em>
-      </div>
-    </div>
+    <motion.g style={{ opacity: show, y: lift }}>
+      <rect x={180} y={160} width={440} height={250} rx={22} className="zs-card" />
+      <text x={596} y={205} textAnchor="end" className="zs-kicker">REVIEW REQUEST</text>
+      {checks.map((t, i) => (
+        <motion.g key={t} style={{ opacity: rows[i] }}>
+          <circle cx={219} cy={282 + i * 26} r={8} className={i < 2 ? 'zs-check' : 'zs-wait'} />
+          <text x={219} y={286 + i * 26} textAnchor="middle" className="zs-check-t">{i < 2 ? '✓' : '…'}</text>
+          <text x={236} y={286 + i * 26} className="zs-row-t">{t}</text>
+        </motion.g>
+      ))}
+      <rect x={210} y={356} width={176} height={36} rx={18} className="zs-btn" />
+      <motion.rect x={210} y={356} width={176} height={36} rx={18} className="zs-btn-ok" style={{ opacity: sent }} />
+      <motion.text x={298} y={379} textAnchor="middle" className="zs-btn-t" style={{ opacity: unsent }}>Approve for review</motion.text>
+      <motion.text x={298} y={379} textAnchor="middle" className="zs-btn-t" style={{ opacity: sent }}>✓ Sent to review</motion.text>
+      <rect x={398} y={356} width={92} height={36} rx={18} className="zs-btn-ghost" />
+      <text x={444} y={379} textAnchor="middle" className="zs-btn-ghost-t">Not now</text>
+      <text x={400} y={432} textAnchor="middle" className="zs-foot">VERIFIED does not mean deployed — nothing ships on its own.</text>
+      <motion.g style={{ x: cursorX, y: cursorY, scale: press, opacity: cursorOn }}>
+        <path transform="translate(300 368)" d="M0 0 L0 19 L5 14.5 L8.6 22.6 L12 21 L8.4 13 L15 13 Z" className="zs-cursor" />
+      </motion.g>
+    </motion.g>
   );
 }
 
-const VISUALS = [Waterfall, CandidateTree, Gates, ReviewRequest];
+/** True while the viewport matches the media query (false where matchMedia is unavailable). */
+function useMedia(query: string) {
+  const read = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(query).matches;
+  const [match, setMatch] = useState(read);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia(query);
+    const on = () => setMatch(mq.matches);
+    on();
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, [query]);
+  return match;
+}
 
-/** A card that tilts toward the pointer (mouse only, never with reduced motion). */
-function TiltCard({ s }: { s: (typeof LOOP)[number] }) {
-  const reduced = useReducedMotion();
-  const rx = useSpring(0, { stiffness: 160, damping: 18 });
-  const ry = useSpring(0, { stiffness: 160, damping: 18 });
-  const Visual = VISUALS[Number(s.n) - 1];
-  const onMove = (e: PointerEvent<HTMLElement>) => {
-    spot(e);
-    if (reduced || e.pointerType !== 'mouse') return;
-    const r = e.currentTarget.getBoundingClientRect();
-    ry.set(((e.clientX - r.left) / r.width - 0.5) * 7);
-    rx.set(-((e.clientY - r.top) / r.height - 0.5) * 7);
-  };
+/*
+ * On phones the whole 800-wide scene would shrink until its text is unreadable,
+ * so a camera (an animated viewBox, 450 × 380) zooms in and pans to the action
+ * of each phase instead: the trace, the branches, the gate, the review card.
+ */
+const CAM_AT = [0, 0.22, 0.28, 0.48, 0.54, 0.74, 0.8, 1];
+const CAM_X = [0, 0, 210, 210, 350, 350, 175, 175];
+const CAM_Y = [80, 80, 40, 40, 30, 30, 120, 120];
+
+function Stage({ p }: { p: Progress }) {
+  const narrow = useMedia('(max-width: 900px)');
+  const camX = useTransform(p, CAM_AT, CAM_X);
+  const camY = useTransform(p, CAM_AT, CAM_Y);
+  const camera = useTransform([camX, camY], ([x, y]: number[]) => `${x} ${y} 450 380`);
   return (
-    <motion.article
-      className="zv-bento-card zv-spot"
-      style={{ rotateX: rx, rotateY: ry, transformPerspective: 1200, '--d': `${Number(s.n) * -1.5}s` } as never}
-      onPointerMove={onMove}
-      onPointerLeave={() => (rx.set(0), ry.set(0))}
-      whileHover={reduced ? undefined : { y: -6 }}
-      transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-      aria-labelledby={`zv-bento-${s.n}`}
+    <motion.svg
+      viewBox={narrow ? camera : '0 0 800 444'}
+      className={narrow ? 'is-camera' : undefined}
+      role="img"
+      aria-label="Illustrative: one request is traced, four lighter candidates are proposed, a quality gate rejects candidate D at 0.87 and verifies candidate A at 0.97, and candidate A goes to a person for review."
     >
-      <p className="zv-bento-label">
-        <s.Icon size={14} aria-hidden /> {s.n} · {s.label}
+      <defs>
+        <pattern id="zs-dots" width="22" height="22" patternUnits="userSpaceOnUse">
+          <circle cx="1.5" cy="1.5" r="1.1" className="zs-dot" />
+        </pattern>
+      </defs>
+      <rect width="800" height="520" fill="url(#zs-dots)" />
+      <Trace p={p} />
+      <Branches p={p} />
+      <Gate p={p} />
+      <ReviewCard p={p} />
+      {CANDS.map((_, k) => (
+        <Candidate key={k} p={p} k={k} />
+      ))}
+    </motion.svg>
+  );
+}
+
+function PhaseText({ p, i }: { p: Progress; i: number }) {
+  const s = i * 0.25;
+  const e = s + 0.25;
+  // Out before in: each text leaves over the last 3% of its phase and the next arrives over the first 3% of its own, so two never overlap.
+  const input = i === 0 ? [0, e - 0.03, e] : i === 3 ? [s, s + 0.03, 1] : [s, s + 0.03, e - 0.03, e];
+  const opacity = useTransform(p, input, i === 0 ? [1, 1, 0] : i === 3 ? [0, 1, 1] : [0, 1, 1, 0]);
+  const y = useTransform(p, input, i === 0 ? [0, 0, -14] : i === 3 ? [14, 0, 0] : [14, 0, 0, -14]);
+  const ph = PHASES[i];
+  return (
+    <motion.div className="zv-story-text" style={{ opacity, y }}>
+      <p className="zv-story-k">
+        <ph.Icon size={15} aria-hidden /> {ph.n} · {ph.label}
       </p>
-      <h3 id={`zv-bento-${s.n}`}>{s.title}</h3>
-      <p className="zv-bento-body">{s.body}</p>
-      <div className="zv-bento-vis">
-        <Visual />
-      </div>
-    </motion.article>
+      <h3>{ph.title}</h3>
+      <p className="zv-story-b">{ph.body}</p>
+    </motion.div>
   );
 }
 
 /**
- * The loop, full screen like the hero: an ink field with drifting light, a
- * pointer glow and parallax, and four cards (a bento) that rise in, tilt
- * toward the pointer and play their own small scenes.
+ * The loop as a pinned, scroll-driven story (light). The page stays light from
+ * Ask Zev through the evidence, so the chat is no longer squeezed between two
+ * dark sections.
  */
 export function LoopV2() {
-  const ref = useRef<HTMLElement>(null);
+  const story = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] });
-  const bgY = useTransform(scrollYProgress, [0, 1], ['-8%', '8%']);
-  const onMove = (e: PointerEvent<HTMLElement>) => {
-    if (reduced || e.pointerType !== 'mouse') return;
-    const r = e.currentTarget.getBoundingClientRect();
-    e.currentTarget.style.setProperty('--gx', `${e.clientX - r.left}px`);
-    e.currentTarget.style.setProperty('--gy', `${e.clientY - r.top}px`);
+  const { scrollYProgress } = useScroll({ target: story, offset: ['start start', 'end end'] });
+  const smooth = useSpring(scrollYProgress, { stiffness: 220, damping: 40, restDelta: 0.0005 });
+  const p = reduced ? scrollYProgress : smooth;
+  const [active, setActive] = useState(0);
+  useMotionValueEvent(scrollYProgress, 'change', (v) => setActive(Math.min(3, Math.max(0, Math.floor(v * 4 - 1e-6)))));
+  const bar = useTransform(scrollYProgress, [0, 1], [0, 1]);
+
+  const goTo = (i: number) => {
+    const el = story.current;
+    if (!el) return;
+    const top = el.getBoundingClientRect().top + window.scrollY;
+    const target = top + (el.offsetHeight - window.innerHeight) * PHASE_AT[i];
+    if (reduced) window.scrollTo(0, target);
+    else animate(window.scrollY, target, { duration: 1.1, ease: EASE, onUpdate: (v) => window.scrollTo(0, v) });
   };
+
   return (
-    <section ref={ref} className="zv-loop" id="workbench" aria-labelledby="zv-loop-title" onPointerMove={onMove}>
-      <motion.div className="zv-loop-bg" style={{ y: bgY }} aria-hidden>
-        <span className="zv-loop-blob is-a" />
-        <span className="zv-loop-blob is-b" />
-        <span className="zv-loop-blob is-c" />
-      </motion.div>
-      <span className="zv-loop-grid-lines" aria-hidden />
-      <span className="zv-loop-glow" aria-hidden />
-
-      <div className="zv-wrap">
-        <div className="zv-loop-head">
-          <div>
-            <motion.p className="zv-kicker" initial={reduced ? false : { opacity: 0, x: -16 }} whileInView={{ opacity: 1, x: 0 }} viewport={once} transition={{ duration: 0.8, ease: EASE }}>
-              The work · measure, replay, verify, review
-            </motion.p>
-            <h2 id="zv-loop-title" className="zv-h2">
-              <Words text="Cheaper AI means nothing if" inView />{' '}
-              <span className="zv-accent">
-                <Words text="the answer gets worse." inView delay={0.35} />
-              </span>
-            </h2>
-          </div>
-          <Reveal delay={0.3}>
-            <p className="zv-sub">ZEVQORA measures one workload, tests a lighter alternative against quality you set in advance, and shows whether it deserves to ship.</p>
+    <section className="zv-loop" id="workbench" aria-labelledby="zv-loop-title">
+      <div className="zv-wrap zv-loop-head">
+        <div>
+          <Reveal>
+            <p className="zv-kicker">The work · measure, replay, verify, review</p>
           </Reveal>
+          <h2 id="zv-loop-title" className="zv-h2">
+            <Words text="Cheaper AI means nothing if" inView />{' '}
+            <span className="zv-accent">
+              <Words text="the answer gets worse." inView delay={0.35} />
+            </span>
+          </h2>
         </div>
-
-        <ol className="zv-bento">
-          {LOOP.map((s, i) => (
-            <motion.li
-              key={s.n}
-              className={`zv-bento-cell${s.wide ? ' is-wide' : ''}`}
-              initial={reduced ? false : { opacity: 0, y: 80, rotateX: 16, scale: 0.94, filter: 'blur(10px)' }}
-              whileInView={{ opacity: 1, y: 0, rotateX: 0, scale: 1, filter: 'blur(0px)' }}
-              viewport={{ once: true, margin: '-6% 0px' }}
-              transition={{ duration: 1.1, ease: EASE, delay: 0.1 * i }}
-              style={{ transformPerspective: 1400 }}
-            >
-              <TiltCard s={s} />
-            </motion.li>
-          ))}
-        </ol>
-        <p className="zv-bento-note">Illustrative sample data. The quality figures come from an internal 50-case benchmark, not customer evidence.</p>
+        <Reveal delay={0.2}>
+          <p className="zv-sub">Scroll to watch one workload go through ZEVQORA: measured, challenged, verified against your quality floor, and handed to a person.</p>
+        </Reveal>
       </div>
+
+      <div ref={story} className="zv-story">
+        <div className="zv-story-pin">
+          <span className="zv-story-blob is-a" aria-hidden />
+          <span className="zv-story-blob is-b" aria-hidden />
+          <div className="zv-wrap zv-story-grid">
+            <div className="zv-story-copy">
+              <ol className="zv-story-rail" aria-label="Phases">
+                {PHASES.map((ph, i) => (
+                  <li key={ph.n} className={i === active ? 'is-active' : i < active ? 'is-done' : ''}>
+                    <button type="button" onClick={() => goTo(i)} aria-current={i === active ? 'step' : undefined}>
+                      <span>{ph.n}</span>
+                      <em>{ph.label}</em>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+              <div className="zv-story-texts">
+                {PHASES.map((ph, i) => (
+                  <PhaseText key={ph.n} p={p} i={i} />
+                ))}
+              </div>
+              <div className="zv-story-progress" aria-hidden>
+                <motion.i style={{ scaleX: bar }} />
+              </div>
+            </div>
+            <div className="zv-story-stage">
+              <div className="zv-story-bar" aria-hidden>
+                <span className="zv-story-dots"><i /><i /><i /></span>
+                <span>zevqora · support-agent</span>
+                <span className="zv-sample">Sample data</span>
+              </div>
+              <Stage p={p} />
+            </div>
+          </div>
+        </div>
+      </div>
+      <p className="zv-wrap zv-story-note">Illustrative sample data. The quality figures come from an internal 50-case benchmark, not customer evidence.</p>
     </section>
   );
 }
