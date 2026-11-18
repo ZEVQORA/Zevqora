@@ -13,6 +13,7 @@ import '@/styles/zev-light.css';
 import '@/styles/zev-light-app.css';
 import '@/styles/zev-site.css';
 import '@/styles/workspace-dark.css';
+import '@/styles/workspace-v3.css';
 import { App } from '@/App';
 import { SessionProvider } from '@/lib/session';
 import { ToastProvider } from '@/components/ui/Toast';

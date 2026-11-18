@@ -31,10 +31,10 @@ html[data-app-theme="dark"] .ptoast-stack {
   --zq-accent-hover: #8cb6ff;
   --zq-accent-subtle: rgb(70 139 255 / 0.12);
   --zq-accent-text: #8cb6ff;
-  --zq-cta: #6ba1ff;
-  --zq-cta-hover: #8cb6ff;
-  --zq-cta-active: #a8c8ff;
-  --zq-cta-fg: #0b0b0b;
+  --zq-cta: #2f6fdc;
+  --zq-cta-hover: #3d7be6;
+  --zq-cta-active: #2a61c4;
+  --zq-cta-fg: #ffffff;
   --zq-focus: #6ba1ff;
   --zq-verified: #4cc79c;
   --zq-verified-bg: #10231b;
